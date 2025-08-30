@@ -134,7 +134,7 @@ impl InteractiveMenu {
             println!();
             
             println!("1. Set Include Extensions (e.g., pdf,txt,mp3)");
-            println!("2. Set Exclude Extensions (e.g., xml,log,tmp)");
+            println!("2. Set Exclude Extensions (e.g., json,log,tmp)");
             println!("3. Set Maximum File Size (e.g., 100MB, 1GB)");
             println!("4. Clear Include Extensions");
             println!("5. Clear Exclude Extensions");
@@ -455,7 +455,7 @@ impl InteractiveMenu {
     }
     
     fn set_exclude_extensions(&mut self) -> Result<()> {
-        let exts = self.get_string_input("Enter file extensions to exclude (comma-separated, e.g., xml,log,tmp)")?;
+        let exts = self.get_string_input("Enter file extensions to exclude (comma-separated, e.g., json,log,tmp)")?;
         if exts.is_empty() {
             self.config.default_exclude_ext = None;
         } else {

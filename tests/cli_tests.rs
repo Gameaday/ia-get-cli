@@ -43,7 +43,7 @@ mod cli_parsing_tests {
             "--concurrent-downloads", "5",
             "--max-retries", "2",
             "--include-ext", "pdf,txt",
-            "--exclude-ext", "xml,log",
+            "--exclude-ext", "json,log",
             "--max-file-size", "10MB",
             "--compress",
             "--decompress",
@@ -56,7 +56,7 @@ mod cli_parsing_tests {
         assert_eq!(cli.concurrent_downloads, 5, "Concurrent downloads should be 5");
         assert_eq!(cli.max_retries, 2, "Max retries should be 2");
         assert_eq!(cli.include_ext, Some("pdf,txt".to_string()));
-        assert_eq!(cli.exclude_ext, Some("xml,log".to_string()));
+        assert_eq!(cli.exclude_ext, Some("json,log".to_string()));
         assert_eq!(cli.max_file_size, Some("10MB".to_string()));
         assert!(cli.compress, "Compress flag should be set");
         assert!(cli.decompress, "Decompress flag should be set");
@@ -84,7 +84,7 @@ mod cli_parsing_tests {
             "test-item",
             "--output", "/tmp/downloads",
             "--include-ext", "pdf,txt",
-            "--exclude-ext", "xml",
+            "--exclude-ext", "json",
             "--max-file-size", "5MB",
             "--compress"
         ]);
@@ -101,7 +101,7 @@ mod cli_parsing_tests {
                 assert_eq!(url, "test-item");
                 assert_eq!(output, Some("/tmp/downloads".to_string()));
                 assert_eq!(include_ext, Some("pdf,txt".to_string()));
-                assert_eq!(exclude_ext, Some("xml".to_string()));
+                assert_eq!(exclude_ext, Some("json".to_string()));
                 assert_eq!(max_file_size, Some("5MB".to_string()));
                 assert!(compress, "Compress flag should be set");
             }
@@ -161,7 +161,7 @@ mod cli_validation_tests {
     fn test_extension_parsing() {
         let cli = Cli {
             include_ext: Some("pdf,txt, mp3 ".to_string()),
-            exclude_ext: Some("XML,Log".to_string()),
+            exclude_ext: Some("JSON,Log".to_string()),
             ..Default::default()
         };
 
@@ -169,7 +169,7 @@ mod cli_validation_tests {
         assert_eq!(include, vec!["pdf", "txt", "mp3"], "Include extensions should be parsed and trimmed");
 
         let exclude = cli.exclude_extensions();
-        assert_eq!(exclude, vec!["xml", "log"], "Exclude extensions should be parsed and lowercased");
+        assert_eq!(exclude, vec!["json", "log"], "Exclude extensions should be parsed and lowercased");
     }
 
     /// Test interactive mode detection

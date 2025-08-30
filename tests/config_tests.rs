@@ -283,7 +283,7 @@ mod filter_preset_tests {
             name: "Mixed Extensions".to_string(),
             description: "Mixed extensions test".to_string(),
             include_ext: Some("pdf,txt,tar.gz,docx,mp3".to_string()),
-            exclude_ext: Some("xml,log".to_string()),
+            exclude_ext: Some("json,log".to_string()),
             max_file_size: Some("10MB".to_string()),
         };
         

@@ -56,9 +56,9 @@ fn check_existing_file(file_path: &str, expected_md5: Option<&str>, running: &Ar
         return Ok(Some(true)); 
     }
 
-    // Special handling for XML files
-    if file_path.to_lowercase().ends_with(".xml") {
-        let is_valid = verify_xml_file_alternative(file_path, running)?;
+    // Special handling for JSON files
+    if file_path.to_lowercase().ends_with(".json") {
+        let is_valid = verify_json_file_alternative(file_path, running)?;
         return Ok(Some(is_valid));
     }
 
@@ -185,9 +185,9 @@ fn verify_downloaded_file_simple(
         return Ok(true); // No hash to check against, consider it verified
     }
     
-    // Special handling for XML files due to frequent hash mismatches at Internet Archive
-    if file_path.to_lowercase().ends_with(".xml") {
-        return verify_xml_file_alternative(file_path, running);
+    // Special handling for JSON files due to frequent hash mismatches at Internet Archive
+    if file_path.to_lowercase().ends_with(".json") {
+        return verify_json_file_alternative(file_path, running);
     }
     
     let expected_md5_str = expected_md5.unwrap();
@@ -196,16 +196,16 @@ fn verify_downloaded_file_simple(
     Ok(local_md5 == expected_md5_str)
 }
 
-/// Alternative verification for XML files using size and structure validation
-/// Returns true if the file appears to be a valid XML file
-fn verify_xml_file_alternative(file_path: &str, running: &Arc<AtomicBool>) -> Result<bool> {
+/// Alternative verification for JSON files using size and structure validation
+/// Returns true if the file appears to be a valid JSON file
+fn verify_json_file_alternative(file_path: &str, running: &Arc<AtomicBool>) -> Result<bool> {
     use std::fs;
     
     // Check if we should stop due to signal
     if !running.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Interrupted,
-            "XML verification interrupted by signal",
+            "JSON verification interrupted by signal",
         ).into());
     }
     
@@ -216,8 +216,8 @@ fn verify_xml_file_alternative(file_path: &str, running: &Arc<AtomicBool>) -> Re
     };
     
     let file_size = metadata.len();
-    if file_size < 10 {
-        return Ok(false); // File too small to be valid XML
+    if file_size < 2 {
+        return Ok(false); // File too small to be valid JSON (minimum: {})
     }
     
     // Read the file content for structure validation
@@ -226,29 +226,36 @@ fn verify_xml_file_alternative(file_path: &str, running: &Arc<AtomicBool>) -> Re
         Err(_) => return Ok(false), // Can't read file as UTF-8
     };
     
-    // Basic XML structure validation
+    // Basic JSON structure validation
     let content = content.trim();
     
-    // Check for XML declaration or root element
-    let has_xml_declaration = content.starts_with("<?xml");
-    let has_root_element = content.contains('<') && content.contains('>');
+    // Check for JSON structure
+    let starts_with_brace = content.starts_with('{') || content.starts_with('[');
+    let ends_with_brace = content.ends_with('}') || content.ends_with(']');
     
-    // Check for basic XML structure (matching angle brackets)
-    let open_brackets = content.chars().filter(|&c| c == '<').count();
-    let close_brackets = content.chars().filter(|&c| c == '>').count();
-    let balanced_brackets = open_brackets == close_brackets;
+    // Basic bracket balancing check
+    let open_braces = content.chars().filter(|&c| c == '{').count();
+    let close_braces = content.chars().filter(|&c| c == '}').count();
+    let open_brackets = content.chars().filter(|&c| c == '[').count();
+    let close_brackets = content.chars().filter(|&c| c == ']').count();
+    let balanced_structure = (open_braces == close_braces) && (open_brackets == close_brackets);
     
-    // Check for common Internet Archive XML patterns
-    let has_ia_patterns = content.contains("<files>") || 
-                          content.contains("<file ") || 
-                          content.contains("name=") ||
-                          content.contains("size=");
+    // Check for common Internet Archive JSON patterns
+    let has_ia_patterns = content.contains("\"files\"") || 
+                          content.contains("\"name\"") || 
+                          content.contains("\"size\"") ||
+                          content.contains("\"format\"") ||
+                          content.contains("\"metadata\"");
     
-    // File is considered valid if it has basic XML structure and reasonable size
-    let is_valid = (has_xml_declaration || has_root_element) && 
-                   balanced_brackets && 
-                   has_ia_patterns &&
-                   file_size > 50; // Minimum reasonable size for IA XML files
+    // Attempt basic JSON parsing validation
+    let is_valid_json = serde_json::from_str::<serde_json::Value>(&content).is_ok();
+    
+    // File is considered valid if it has basic JSON structure and reasonable size
+    let is_valid = starts_with_brace && 
+                   ends_with_brace && 
+                   balanced_structure && 
+                   (has_ia_patterns || is_valid_json) &&
+                   file_size > 10; // Minimum reasonable size for IA JSON files
     
     Ok(is_valid)
 }

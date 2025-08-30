@@ -232,7 +232,7 @@ mod file_filtering_tests {
         let files = vec![
             create_test_file("document.pdf", Some(1024), Some("PDF")),
             create_test_file("image.jpg", Some(2048), Some("JPEG")),
-            create_test_file("metadata.xml", Some(256), Some("XML")),
+            create_test_file("metadata.json", Some(256), Some("JSON")),
             create_test_file("log.txt", Some(128), Some("Text")),
         ];
 
@@ -240,13 +240,13 @@ mod file_filtering_tests {
             url: "test".to_string(),
             output: None,
             include_ext: None,
-            exclude_ext: Some("xml,txt".to_string()),
+            exclude_ext: Some("json,txt".to_string()),
             max_file_size: None,
             compress: false,
         };
 
         let filtered = filter_files(files, &command);
-        assert_eq!(filtered.len(), 2, "Should exclude xml and txt files");
+        assert_eq!(filtered.len(), 2, "Should exclude json and txt files");
         
         let names: Vec<&str> = filtered.iter().map(|f| f.name.as_str()).collect();
         assert!(names.contains(&"document.pdf"));
