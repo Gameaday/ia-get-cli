@@ -73,7 +73,7 @@ pub struct Cli {
     #[arg(long, value_name = "EXTENSIONS")]
     pub include_ext: Option<String>,
 
-    /// Exclude files by extension (e.g., --exclude-ext xml,log)
+    /// Exclude files by extension (e.g., --exclude-ext json,log)
     #[arg(long, value_name = "EXTENSIONS")]
     pub exclude_ext: Option<String>,
 
@@ -217,7 +217,7 @@ mod tests {
     fn test_extension_parsing() {
         let cli = Cli {
             include_ext: Some("pdf,txt, mp3 ".to_string()),
-            exclude_ext: Some("XML,Log".to_string()),
+            exclude_ext: Some("JSON,Log".to_string()),
             ..Default::default()
         };
 
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(include, vec!["pdf", "txt", "mp3"]);
 
         let exclude = cli.exclude_extensions();
-        assert_eq!(exclude, vec!["xml", "log"]);
+        assert_eq!(exclude, vec!["json", "log"]);
     }
 
     #[test]
