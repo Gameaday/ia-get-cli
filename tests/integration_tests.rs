@@ -1,5 +1,6 @@
 use ia_get::*;
 use ia_get::cli::Commands;
+use ia_get::metadata::get_json_url;
 use reqwest::Client;
 
 #[tokio::test]
@@ -227,7 +228,7 @@ async fn test_cli_download_subcommand() {
     let cli = Cli::parse_from(["ia-get", "download", "https://archive.org/details/test"]);
     match cli.command {
         Some(Commands::Download { url, .. }) => {
-            assert_eq!(url.unwrap(), "https://archive.org/details/test");
+            assert_eq!(url, "https://archive.org/details/test");
         }
         _ => panic!("Expected Download command"),
     }
@@ -236,27 +237,23 @@ async fn test_cli_download_subcommand() {
 #[tokio::test] 
 async fn test_cli_download_with_flags() {
     use clap::Parser;
-    let cli = Cli::parse_from(["ia-get", "download", "--verbose", "--dry-run", "test-item"]);
+    let cli = Cli::parse_from(["ia-get", "download", "--compress", "test-item"]);
     match cli.command {
-        Some(Commands::Download { url, verbose, dry_run, .. }) => {
-            assert!(verbose);
-            assert!(dry_run);
-            assert_eq!(url.unwrap(), "test-item");
+        Some(Commands::Download { url, compress, .. }) => {
+            assert!(compress);
+            assert_eq!(url, "test-item");
         }
         _ => panic!("Expected Download command"),
     }
 }
 
 #[tokio::test]
-async fn test_cli_config_command() {
+async fn test_cli_verbose_and_dry_run_flags() {
     use clap::Parser;
-    let cli = Cli::parse_from(["ia-get", "config"]);
-    match cli.command {
-        Some(Commands::Config) => {
-            // Test passes if we get the Config command
-        }
-        _ => panic!("Expected Config command"),
-    }
+    let cli = Cli::parse_from(["ia-get", "--verbose", "--dry-run", "test-item"]);
+    assert!(cli.verbose);
+    assert!(cli.dry_run);
+    assert_eq!(cli.url, Some("test-item".to_string()));
 }
 
 #[tokio::test]
@@ -356,7 +353,7 @@ async fn test_url_processing() {
 #[tokio::test]
 async fn test_metadata_url_generation() {
     let details_url = "https://archive.org/details/example";
-    let xml_url = get_xml_url(details_url);
-    assert!(xml_url.contains("metadata"));
-    assert!(xml_url.contains("output=xml"));
+    let json_url = get_json_url(details_url);
+    assert!(json_url.contains("metadata"));
+    assert!(json_url.contains("example"));
 }
