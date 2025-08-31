@@ -295,7 +295,10 @@ fn test_filter_performance() {
     let duration = start.elapsed();
     
     // Should filter correctly
-    assert_eq!(filtered.len(), 500); // Files 0,2,4...998 with even indices under size limit
+    let expected_count = files.iter()
+        .filter(|f| f.name.ends_with(".pdf") && f.size.unwrap_or(0) <= 500_000)
+        .count();
+    assert_eq!(filtered.len(), expected_count); // Files with .pdf extension and size <= 500_000
     
     // Should complete quickly (under 100ms for 1000 files)
     assert!(duration.as_millis() < 100);
