@@ -1,4 +1,17 @@
-//! Integration tests for compression functionality
+//! Compression and Decompression Tests
+//!
+//! This module contains comprehensive tests for the compression detection,
+//! decompression functionality, and archive handling capabilities. It validates
+//! that the system can properly identify compressed files and handle automatic
+//! decompression when requested by the user.
+//!
+//! ## Test Coverage
+//!
+//! - Compression format detection from file extensions
+//! - Archive file compression detection from metadata
+//! - Decompressed filename generation
+//! - Conditional decompression based on user preferences
+//! - Actual decompression functionality for supported formats
 
 use ia_get::compression::{CompressionFormat, decompress_file, should_decompress};
 use ia_get::metadata_storage::ArchiveFile;
@@ -6,6 +19,10 @@ use std::fs::File;
 use std::io::Write;
 use tempfile::TempDir;
 
+/// Test compression format detection from file extensions
+///
+/// Validates that various file extensions are correctly identified
+/// as their corresponding compression formats for automated processing.
 #[test]
 fn test_compression_format_detection() {
     // Test various file extensions
@@ -31,6 +48,10 @@ fn test_compression_format_detection() {
     );
 }
 
+/// Test compression detection for archive files with format metadata
+///
+/// Validates that ArchiveFile structures with format information
+/// can be properly assessed for compression status.
 #[test]
 fn test_archive_file_compression_detection() {
     // Test file with explicit format
