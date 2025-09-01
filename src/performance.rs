@@ -3,10 +3,10 @@
 //! This module provides performance monitoring, optimization strategies,
 //! and adaptive algorithms to improve download speeds and resource usage.
 
-use std::time::{Duration, Instant};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
-use serde::{Serialize, Deserialize};
 
 /// Performance metrics collected during downloads
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,12 +94,12 @@ impl PerformanceMonitor {
         let mut metrics = self.metrics.lock().await;
         metrics.total_bytes += bytes;
         metrics.successful_downloads += 1;
-        
+
         let speed = bytes as f64 / duration.as_secs_f64();
         if speed > metrics.peak_speed {
             metrics.peak_speed = speed;
         }
-        
+
         // Update average speed
         let total_time = self.start_time.elapsed();
         metrics.avg_speed = metrics.total_bytes as f64 / total_time.as_secs_f64();
@@ -121,19 +121,20 @@ impl PerformanceMonitor {
     /// Record connection establishment
     pub async fn record_connection(&self, establishment_time: Duration, reused: bool) {
         let mut metrics = self.metrics.lock().await;
-        
+
         if reused {
             metrics.connection_stats.connections_reused += 1;
         } else {
             metrics.connection_stats.connections_established += 1;
         }
-        
+
         // Update average connection time (simple moving average for new connections)
         if !reused {
             let total_new_connections = metrics.connection_stats.connections_established;
             let current_avg = metrics.connection_stats.avg_connection_time;
-            metrics.connection_stats.avg_connection_time = 
-                (current_avg * (total_new_connections - 1) as u32 + establishment_time) / total_new_connections as u32;
+            metrics.connection_stats.avg_connection_time =
+                (current_avg * (total_new_connections - 1) as u32 + establishment_time)
+                    / total_new_connections as u32;
         }
     }
 
@@ -163,7 +164,7 @@ impl PerformanceMonitor {
     /// Generate a performance report
     pub async fn generate_report(&self) -> String {
         let metrics = self.get_metrics().await;
-        
+
         format!(
             "Performance Report:\n\
              ==================\n\
@@ -198,15 +199,23 @@ impl PerformanceMonitor {
             metrics.failed_downloads,
             metrics.retry_count,
             if metrics.successful_downloads + metrics.failed_downloads > 0 {
-                100.0 * metrics.successful_downloads as f64 / 
-                (metrics.successful_downloads + metrics.failed_downloads) as f64
-            } else { 0.0 },
+                100.0 * metrics.successful_downloads as f64
+                    / (metrics.successful_downloads + metrics.failed_downloads) as f64
+            } else {
+                0.0
+            },
             metrics.connection_stats.connections_established,
             metrics.connection_stats.connections_reused,
-            if metrics.connection_stats.connections_established + metrics.connection_stats.connections_reused > 0 {
-                100.0 * metrics.connection_stats.connections_reused as f64 /
-                (metrics.connection_stats.connections_established + metrics.connection_stats.connections_reused) as f64
-            } else { 0.0 },
+            if metrics.connection_stats.connections_established
+                + metrics.connection_stats.connections_reused
+                > 0
+            {
+                100.0 * metrics.connection_stats.connections_reused as f64
+                    / (metrics.connection_stats.connections_established
+                        + metrics.connection_stats.connections_reused) as f64
+            } else {
+                0.0
+            },
             metrics.connection_stats.avg_connection_time.as_millis(),
             metrics.connection_stats.connection_timeouts,
             metrics.memory_stats.peak_memory as f64 / 1_048_576.0,
@@ -249,7 +258,7 @@ impl AdaptiveBufferManager {
     /// Update buffer size based on performance feedback
     pub fn update_performance(&mut self, speed: f64) {
         self.performance_history.push((self.current_size, speed));
-        
+
         // Keep only recent history (last 10 measurements)
         if self.performance_history.len() > 10 {
             self.performance_history.remove(0);
@@ -257,7 +266,8 @@ impl AdaptiveBufferManager {
 
         // Adjust buffer size based on performance trend
         if self.performance_history.len() >= 3 {
-            let recent_speeds: Vec<f64> = self.performance_history
+            let recent_speeds: Vec<f64> = self
+                .performance_history
                 .iter()
                 .rev()
                 .take(3)
@@ -265,23 +275,27 @@ impl AdaptiveBufferManager {
                 .collect();
 
             let avg_recent_speed = recent_speeds.iter().sum::<f64>() / recent_speeds.len() as f64;
-            
+
             // If performance is improving and we're not at max, try increasing
             if recent_speeds.windows(2).all(|w| w[0] < w[1]) && self.current_size < self.max_size {
                 self.current_size = (self.current_size * 2).min(self.max_size);
             }
             // If performance is declining and we're not at min, try decreasing
-            else if recent_speeds.windows(2).all(|w| w[0] > w[1]) && self.current_size > self.min_size {
+            else if recent_speeds.windows(2).all(|w| w[0] > w[1])
+                && self.current_size > self.min_size
+            {
                 self.current_size = (self.current_size / 2).max(self.min_size);
             }
             // If performance is inconsistent, find the best performing buffer size from history
             else if self.performance_history.len() >= 5 {
-                let best_performer = self.performance_history
+                let best_performer = self
+                    .performance_history
                     .iter()
                     .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-                
+
                 if let Some((best_size, best_speed)) = best_performer {
-                    if *best_speed > avg_recent_speed * 1.1 { // 10% improvement threshold
+                    if *best_speed > avg_recent_speed * 1.1 {
+                        // 10% improvement threshold
                         self.current_size = *best_size;
                     }
                 }
@@ -291,9 +305,11 @@ impl AdaptiveBufferManager {
 
     /// Get optimal buffer size for a specific file size
     pub fn get_optimal_buffer_for_file_size(&self, file_size: u64) -> usize {
-        if file_size < 1024 * 1024 { // Files < 1MB
+        if file_size < 1024 * 1024 {
+            // Files < 1MB
             (self.current_size / 2).max(self.min_size)
-        } else if file_size > 100 * 1024 * 1024 { // Files > 100MB
+        } else if file_size > 100 * 1024 * 1024 {
+            // Files > 100MB
             self.max_size
         } else {
             self.current_size
@@ -310,18 +326,21 @@ impl Default for AdaptiveBufferManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::sleep;
 
     #[tokio::test]
     async fn test_performance_monitor() {
         let monitor = PerformanceMonitor::new();
-        
+
         // Record some downloads
-        monitor.record_download(1024 * 1024, Duration::from_millis(100)).await;
-        monitor.record_download(2048 * 1024, Duration::from_millis(150)).await;
+        monitor
+            .record_download(1024 * 1024, Duration::from_millis(100))
+            .await;
+        monitor
+            .record_download(2048 * 1024, Duration::from_millis(150))
+            .await;
         monitor.record_failure().await;
         monitor.record_retry().await;
-        
+
         let metrics = monitor.get_metrics().await;
         assert_eq!(metrics.successful_downloads, 2);
         assert_eq!(metrics.failed_downloads, 1);
@@ -333,8 +352,10 @@ mod tests {
     #[tokio::test]
     async fn test_performance_report() {
         let monitor = PerformanceMonitor::new();
-        monitor.record_download(1024 * 1024, Duration::from_millis(100)).await;
-        
+        monitor
+            .record_download(1024 * 1024, Duration::from_millis(100))
+            .await;
+
         let report = monitor.generate_report().await;
         assert!(report.contains("Performance Report"));
         assert!(report.contains("Total bytes downloaded"));
@@ -344,15 +365,15 @@ mod tests {
     #[test]
     fn test_adaptive_buffer_manager() {
         let mut manager = AdaptiveBufferManager::new();
-        let initial_size = manager.get_buffer_size();
-        
+        let _initial_size = manager.get_buffer_size();
+
         // Simulate improving performance - need more samples for changes
         manager.update_performance(1.0);
         manager.update_performance(2.0);
         manager.update_performance(3.0);
         manager.update_performance(4.0);
         manager.update_performance(5.0);
-        
+
         // Buffer size might change (increase, decrease, or stay the same based on algorithm)
         // Just check that the manager is working
         let new_size = manager.get_buffer_size();
@@ -364,10 +385,10 @@ mod tests {
     #[test]
     fn test_optimal_buffer_for_file_size() {
         let manager = AdaptiveBufferManager::new();
-        
+
         let small_file_buffer = manager.get_optimal_buffer_for_file_size(512 * 1024); // 512KB
         let large_file_buffer = manager.get_optimal_buffer_for_file_size(200 * 1024 * 1024); // 200MB
-        
+
         assert!(small_file_buffer <= manager.get_buffer_size());
         assert_eq!(large_file_buffer, manager.max_size);
     }

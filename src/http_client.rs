@@ -7,13 +7,16 @@
 use crate::{
     constants::get_user_agent,
     error::IaGetError,
-    performance::{PerformanceMonitor, AdaptiveBufferManager},
+    performance::{AdaptiveBufferManager, PerformanceMonitor},
     Result,
 };
 use reqwest::{Client, ClientBuilder};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
+
+/// Type alias for progress callback function
+pub type ProgressCallback = Box<dyn Fn(u64, Option<u64>) + Send + Sync>;
 
 /// Enhanced HTTP client with performance optimizations
 pub struct EnhancedHttpClient {
@@ -77,16 +80,14 @@ impl EnhancedHttpClient {
         if !config.gzip {
             builder = builder.no_gzip();
         }
-        
+
         // Note: deflate compression is handled automatically by reqwest
 
         if let Some(keepalive) = config.tcp_keepalive {
             builder = builder.tcp_keepalive(keepalive);
         }
 
-        let client = builder
-            .build()
-            .map_err(IaGetError::from)?;
+        let client = builder.build().map_err(IaGetError::from)?;
 
         Ok(Self {
             client,
@@ -113,7 +114,7 @@ impl EnhancedHttpClient {
                 // Calculate based on minimum expected speed (100 KB/s)
                 let min_speed_kbps = 100 * 1024; // 100 KB/s
                 let estimated_time = Duration::from_secs(size / min_speed_kbps);
-                
+
                 // Add buffer time and clamp to reasonable bounds
                 let timeout = estimated_time + Duration::from_secs(30);
                 timeout.clamp(self.config.base_timeout, self.config.max_timeout)
@@ -133,16 +134,11 @@ impl EnhancedHttpClient {
 
         // Record connection establishment time
         let connection_start = Instant::now();
-        
-        let response = self
-            .client
-            .get(url)
-            .timeout(timeout)
-            .send()
-            .await;
+
+        let response = self.client.get(url).timeout(timeout).send().await;
 
         let connection_time = connection_start.elapsed();
-        
+
         match response {
             Ok(resp) => {
                 // Connection successful
@@ -162,7 +158,7 @@ impl EnhancedHttpClient {
                 let _content_length = resp.content_length();
                 let bytes = resp.bytes().await.map_err(IaGetError::from)?;
                 let data = bytes.to_vec();
-                
+
                 // Record successful download
                 let download_time = start_time.elapsed();
                 self.performance_monitor
@@ -180,7 +176,7 @@ impl EnhancedHttpClient {
                 if e.is_timeout() {
                     self.performance_monitor.record_connection_timeout().await;
                 }
-                
+
                 self.performance_monitor.record_failure().await;
                 Err(IaGetError::from(e))
             }
@@ -192,7 +188,7 @@ impl EnhancedHttpClient {
         &self,
         url: &str,
         expected_size: Option<u64>,
-        progress_callback: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<Vec<u8>> {
         let start_time = Instant::now();
         let timeout = self.calculate_timeout(expected_size);
@@ -216,7 +212,7 @@ impl EnhancedHttpClient {
 
         let content_length = response.content_length();
         let mut data = Vec::new();
-        
+
         // Reserve capacity if we know the size
         if let Some(size) = content_length {
             data.reserve(size as usize);
@@ -224,14 +220,14 @@ impl EnhancedHttpClient {
 
         let mut stream = response.bytes_stream();
         let mut downloaded = 0u64;
-        
+
         use futures::StreamExt;
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.map_err(IaGetError::from)?;
-            
+
             data.extend_from_slice(&chunk);
             downloaded += chunk.len() as u64;
-            
+
             // Call progress callback if provided
             if let Some(ref callback) = progress_callback {
                 callback(downloaded, content_length);
@@ -295,7 +291,7 @@ impl HttpClientFactory {
             gzip: true,
             deflate: true,
         };
-        
+
         EnhancedHttpClient::with_config(config)
     }
 
@@ -311,7 +307,7 @@ impl HttpClientFactory {
             gzip: true,
             deflate: true,
         };
-        
+
         EnhancedHttpClient::with_config(config)
     }
 
@@ -327,7 +323,7 @@ impl HttpClientFactory {
             gzip: false, // Reduce overhead for quick tests
             deflate: false,
         };
-        
+
         EnhancedHttpClient::with_config(config)
     }
 }
@@ -348,16 +344,16 @@ mod tests {
     #[test]
     fn test_timeout_calculation() {
         let client = EnhancedHttpClient::new().unwrap();
-        
+
         // Small file should use base timeout
         let small_timeout = client.calculate_timeout(Some(1024));
         assert_eq!(small_timeout, client.config.base_timeout);
-        
+
         // Large file should get longer timeout
         let large_timeout = client.calculate_timeout(Some(100 * 1024 * 1024)); // 100MB
         assert!(large_timeout > client.config.base_timeout);
         assert!(large_timeout <= client.config.max_timeout);
-        
+
         // No size should use base timeout
         let no_size_timeout = client.calculate_timeout(None);
         assert_eq!(no_size_timeout, client.config.base_timeout);
@@ -366,10 +362,12 @@ mod tests {
     #[tokio::test]
     async fn test_buffer_size_optimization() {
         let client = EnhancedHttpClient::new().unwrap();
-        
+
         let small_buffer = client.get_optimal_buffer_size(Some(1024)).await;
-        let large_buffer = client.get_optimal_buffer_size(Some(100 * 1024 * 1024)).await;
-        
+        let large_buffer = client
+            .get_optimal_buffer_size(Some(100 * 1024 * 1024))
+            .await;
+
         // Large files should get larger buffers
         assert!(large_buffer >= small_buffer);
     }
@@ -379,10 +377,10 @@ mod tests {
         let archive_client = HttpClientFactory::for_archive_downloads().unwrap();
         let metadata_client = HttpClientFactory::for_metadata_requests().unwrap();
         let test_client = HttpClientFactory::for_connectivity_tests().unwrap();
-        
+
         // Archive client should have higher connection limits
         assert!(archive_client.config.max_idle_per_host > metadata_client.config.max_idle_per_host);
-        
+
         // Test client should have shortest timeouts
         assert!(test_client.config.base_timeout < metadata_client.config.base_timeout);
     }

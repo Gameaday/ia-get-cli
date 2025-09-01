@@ -1,10 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
 use ia_get::{
     concurrent_simple::SimpleConcurrentDownloader,
-    metadata_storage::{ArchiveMetadata, ArchiveFile},
+    metadata_storage::{ArchiveFile, ArchiveMetadata},
 };
 
 /// Mock archive metadata for benchmarking
@@ -49,7 +49,7 @@ fn create_mock_metadata(file_count: usize, file_size: u64) -> ArchiveMetadata {
 /// Benchmark concurrent downloader creation
 fn bench_downloader_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("downloader_creation");
-    
+
     for concurrent_limit in [1, 2, 4, 8, 16].iter() {
         group.bench_with_input(
             BenchmarkId::new("concurrent_limit", concurrent_limit),
@@ -69,14 +69,14 @@ fn bench_downloader_creation(c: &mut Criterion) {
 fn bench_metadata_processing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("metadata_processing");
-    
+
     for file_count in [10, 50, 100, 500, 1000].iter() {
         let metadata = create_mock_metadata(*file_count, 1024 * 1024); // 1MB files
-        
+
         group.bench_with_input(
             BenchmarkId::new("file_count", file_count),
             &metadata,
-            |b, metadata| {
+            |b, _metadata| {
                 b.iter(|| {
                     rt.block_on(async {
                         let downloader = SimpleConcurrentDownloader::new(4).unwrap();
@@ -92,12 +92,12 @@ fn bench_metadata_processing(c: &mut Criterion) {
 
 /// Benchmark size parsing operations
 fn bench_size_parsing(c: &mut Criterion) {
-    use ia_get::filters::{parse_size_string, format_size};
-    
+    use ia_get::filters::{format_size, parse_size_string};
+
     let mut group = c.benchmark_group("size_parsing");
-    
-    let test_sizes = vec!["100MB", "2.5GB", "500KB", "1.2TB", "50B"];
-    
+
+    let test_sizes = ["100MB", "2.5GB", "500KB", "1.2TB", "50B"];
+
     for (i, size_str) in test_sizes.iter().enumerate() {
         group.bench_with_input(
             BenchmarkId::new("parse_size", i),
@@ -105,62 +105,54 @@ fn bench_size_parsing(c: &mut Criterion) {
             |b, &size_str| {
                 b.iter(|| {
                     let result = parse_size_string(black_box(size_str));
-                    black_box(result);
+                    let _ = black_box(result);
                 });
             },
         );
     }
-    
-    let test_bytes = vec![1024, 1024 * 1024, 1024 * 1024 * 1024, 500, 2048];
-    
+
+    let test_bytes = [1024, 1024 * 1024, 1024 * 1024 * 1024, 500, 2048];
+
     for (i, &bytes) in test_bytes.iter().enumerate() {
-        group.bench_with_input(
-            BenchmarkId::new("format_size", i),
-            &bytes,
-            |b, &bytes| {
-                b.iter(|| {
-                    let result = format_size(black_box(bytes));
-                    black_box(result);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("format_size", i), &bytes, |b, &bytes| {
+            b.iter(|| {
+                let result = format_size(black_box(bytes));
+                black_box(result);
+            });
+        });
     }
-    
+
     group.finish();
 }
 
 /// Benchmark URL processing operations
 fn bench_url_processing(c: &mut Criterion) {
-    use ia_get::url_processing::{validate_and_process_url, extract_identifier_from_url};
-    
+    use ia_get::url_processing::{extract_identifier_from_url, validate_and_process_url};
+
     let mut group = c.benchmark_group("url_processing");
-    
-    let test_urls = vec![
+
+    let test_urls = [
         "https://archive.org/details/test-archive",
         "https://archive.org/details/another-test-archive-with-longer-name",
         "test-identifier",
         "https://archive.org/details/short",
     ];
-    
+
     for (i, url) in test_urls.iter().enumerate() {
-        group.bench_with_input(
-            BenchmarkId::new("url_type", i),
-            url,
-            |b, &url| {
-                b.iter(|| {
-                    let result = validate_and_process_url(black_box(url));
-                    black_box(result);
-                });
-            },
-        );
-        
+        group.bench_with_input(BenchmarkId::new("url_type", i), url, |b, &url| {
+            b.iter(|| {
+                let result = validate_and_process_url(black_box(url));
+                let _ = black_box(result);
+            });
+        });
+
         group.bench_with_input(
             BenchmarkId::new("identifier_extraction", i),
             url,
             |b, &url| {
                 b.iter(|| {
                     let result = extract_identifier_from_url(black_box(url));
-                    black_box(result);
+                    let _ = black_box(result);
                 });
             },
         );
@@ -173,11 +165,11 @@ fn bench_memory_usage(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
     group.measurement_time(Duration::from_secs(10));
-    
+
     // Test with different numbers of files to simulate memory pressure
     for file_count in [1000, 5000, 10000].iter() {
         let metadata = create_mock_metadata(*file_count, 1024 * 1024);
-        
+
         group.bench_with_input(
             BenchmarkId::new("large_metadata", file_count),
             &metadata,
@@ -185,14 +177,15 @@ fn bench_memory_usage(c: &mut Criterion) {
                 b.iter(|| {
                     rt.block_on(async {
                         let _downloader = SimpleConcurrentDownloader::new(8).unwrap();
-                        
+
                         // Simulate processing large amounts of metadata
-                        let files_to_download: Vec<String> = _metadata.files
+                        let files_to_download: Vec<String> = _metadata
+                            .files
                             .iter()
                             .take(100) // Only take first 100 to avoid actual downloads
                             .map(|f| f.name.clone())
                             .collect();
-                        
+
                         black_box(files_to_download);
                     });
                 });
