@@ -48,6 +48,10 @@ pub struct IaGetApp {
     config_panel: ConfigPanel,
     download_panel: DownloadPanel,
     filters_panel: FiltersPanel,
+
+    // Dialog state
+    show_about_dialog: bool,
+    show_open_dialog: bool,
 }
 
 #[derive(Default, PartialEq)]
@@ -193,7 +197,7 @@ impl IaGetApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open Archive...").clicked() {
-                        // TODO: Open file dialog or URL input
+                        self.show_open_dialog = true;
                     }
                     if ui.button("Settings").clicked() {
                         self.current_tab = AppTab::Config;
@@ -206,7 +210,7 @@ impl IaGetApp {
 
                 ui.menu_button("Help", |ui| {
                     if ui.button("About").clicked() {
-                        // TODO: Show about dialog
+                        self.show_about_dialog = true;
                     }
                 });
             });
@@ -428,6 +432,71 @@ impl IaGetApp {
             self.recent_downloads.clear();
         }
     }
+
+    /// Render dialogs
+    fn render_dialogs(&mut self, ctx: &Context) {
+        // About dialog
+        if self.show_about_dialog {
+            egui::Window::new("About ia-get")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("ia-get");
+                        ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+                        ui.add_space(10.0);
+                        ui.label("High-performance file downloader for Internet Archive");
+                        ui.add_space(10.0);
+                        ui.hyperlink_to("GitHub Repository", "https://github.com/Gameaday/ia-get-cli");
+                        ui.add_space(10.0);
+                        ui.label("Built with Rust and egui");
+                        ui.add_space(20.0);
+                        
+                        if ui.button("Close").clicked() {
+                            self.show_about_dialog = false;
+                        }
+                    });
+                });
+        }
+
+        // Open Archive dialog
+        if self.show_open_dialog {
+            egui::Window::new("Open Archive")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Enter Internet Archive identifier or URL:");
+                        ui.add_space(10.0);
+                        
+                        let mut temp_identifier = self.archive_identifier.clone();
+                        ui.add(egui::TextEdit::singleline(&mut temp_identifier)
+                            .hint_text("e.g., commute_test or https://archive.org/details/commute_test"));
+                        
+                        ui.add_space(10.0);
+                        ui.label("Examples:");
+                        ui.label("• commute_test");
+                        ui.label("• https://archive.org/details/commute_test");
+                        ui.label("• https://archive.org/download/commute_test/");
+                        
+                        ui.add_space(20.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("Open").clicked() {
+                                self.archive_identifier = temp_identifier;
+                                self.current_tab = AppTab::Download;
+                                self.show_open_dialog = false;
+                            }
+                            
+                            if ui.button("Cancel").clicked() {
+                                self.show_open_dialog = false;
+                            }
+                        });
+                    });
+                });
+        }
+    }
 }
 
 impl eframe::App for IaGetApp {
@@ -452,5 +521,8 @@ impl eframe::App for IaGetApp {
         }
 
         self.render_main_ui(ctx, frame);
+        
+        // Handle dialogs
+        self.render_dialogs(ctx);
     }
 }
