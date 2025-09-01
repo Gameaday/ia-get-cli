@@ -28,9 +28,9 @@ Get the latest version for your platform:
 
 <div align="center">
 
-[![Download for Linux](https://img.shields.io/badge/Download-Linux-0078d4?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-x86_64-unknown-linux-gnu.tar.gz)
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-x86_64-pc-windows-msvc.zip)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS-0078d4?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-x86_64-apple-darwin.tar.gz)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux-0078d4?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS-0078d4?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Gameaday/ia-get-cli/releases/latest)
 
 </div>
 
@@ -51,11 +51,13 @@ Visit our [releases page](https://github.com/Gameaday/ia-get-cli/releases) for:
 All releases include SHA256 checksums. To verify your download:
 
 ```bash
-# Download the checksum file
-curl -LO https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-yourplatform.tar.gz.sha256
+# Download both the archive and checksum file from the releases page
+# Example for Linux x86_64:
+curl -LO https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-v1.3.0-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/Gameaday/ia-get-cli/releases/latest/download/ia-get-v1.3.0-x86_64-unknown-linux-gnu.tar.gz.sha256
 
 # Verify the download
-sha256sum -c ia-get-yourplatform.tar.gz.sha256
+sha256sum -c ia-get-v1.3.0-x86_64-unknown-linux-gnu.tar.gz.sha256
 ```
 
 ## Advanced Usage 🚀
