@@ -28,7 +28,7 @@ pub struct ProgressUpdate {
 /// Download operation result
 #[derive(Debug)]
 pub enum DownloadResult {
-    Success(DownloadSession),
+    Success(Box<DownloadSession>),
     Error(String),
 }
 
@@ -80,12 +80,16 @@ impl DownloadController {
 
         // Fetch metadata
         let progress = indicatif::ProgressBar::new_spinner();
-        let (metadata, _base_url) = match fetch_json_metadata(&archive_url, &self.client, &progress).await {
-            Ok(result) => result,
-            Err(e) => {
-                return Ok(DownloadResult::Error(format!("Failed to fetch metadata: {}", e)));
-            }
-        };
+        let (metadata, _base_url) =
+            match fetch_json_metadata(&archive_url, &self.client, &progress).await {
+                Ok(result) => result,
+                Err(e) => {
+                    return Ok(DownloadResult::Error(format!(
+                        "Failed to fetch metadata: {}",
+                        e
+                    )));
+                }
+            };
 
         // Apply file filters
         let max_size = max_file_size
@@ -113,7 +117,7 @@ impl DownloadController {
 
         if dry_run {
             // For dry run, just return the file list information
-            return Ok(DownloadResult::Success(DownloadSession {
+            return Ok(DownloadResult::Success(Box::new(DownloadSession {
                 original_url: archive_url.clone(),
                 identifier: identifier.clone(),
                 archive_metadata: metadata,
@@ -140,7 +144,7 @@ impl DownloadController {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_secs(),
-            }));
+            })));
         }
 
         // Create download configuration
@@ -168,7 +172,7 @@ impl DownloadController {
             true, // verify_md5
             true, // preserve_mtime
             session_dir,
-            true, // enable_compression
+            true,  // enable_compression
             false, // auto_decompress
         );
 
@@ -201,7 +205,7 @@ impl DownloadController {
             )
             .await
         {
-            Ok(session) => Ok(DownloadResult::Success(session)),
+            Ok(session) => Ok(DownloadResult::Success(Box::new(session))),
             Err(e) => Ok(DownloadResult::Error(format!("Download failed: {}", e))),
         }
     }
