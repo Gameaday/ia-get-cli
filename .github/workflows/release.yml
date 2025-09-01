@@ -101,7 +101,6 @@ jobs:
           files: |
             ia-get-*-${{ matrix.job.target }}.*
             ia-get*.deb
-            *.sha256
             HASHES_${{ matrix.job.target }}.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

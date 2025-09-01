@@ -101,18 +101,23 @@ jobs:
         find release-artifacts -type f -name "*.tar.gz" -o -name "*.zip" | while read file; do
           cp "$file" final-artifacts/
         done
-        find release-artifacts -type f -name "*.sha256" | while read file; do
+        # Copy binaries but exclude .sha256 files from final artifacts
+        find release-artifacts -type f -name "ia-get" -o -name "ia-get.exe" | while read file; do
           cp "$file" final-artifacts/
         done
         
         cd final-artifacts
         echo "## 📦 Artifact Checksums (SHA256)" > ../HASHES.md
         echo "" >> ../HASHES.md
-        for file in *.sha256; do
+        # Generate hashes for the files in final-artifacts
+        for file in *.tar.gz *.zip ia-get ia-get.exe; do
           if [ -f "$file" ]; then
-            basename="${file%.sha256}"
-            hash=$(cat "$file" | cut -d' ' -f1)
-            echo "- **${basename}**: \`${hash}\`" >> ../HASHES.md
+            # Look for the corresponding .sha256 file in release-artifacts
+            sha256_file=$(find ../release-artifacts -name "$file.sha256" -type f | head -1)
+            if [ -f "$sha256_file" ]; then
+              hash=$(cat "$sha256_file" | cut -d' ' -f1)
+              echo "- **${file}**: \`${hash}\`" >> ../HASHES.md
+            fi
           fi
         done
 
