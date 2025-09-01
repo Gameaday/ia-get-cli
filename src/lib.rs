@@ -11,6 +11,7 @@
 //! - **Progress Tracking**: Real-time download progress and statistics
 //! - **Error Handling**: Robust retry logic and comprehensive error reporting
 //! - **Filtering**: Download specific files by format, size, or pattern
+//! - **GUI Interface**: Cross-platform graphical user interface using egui
 //!
 //! ## Quick Start
 //!
@@ -45,6 +46,7 @@
 //! - [`metadata_storage`]: Session and file tracking structures
 //! - [`compression`]: Automatic decompression utilities
 //! - [`filters`]: File filtering and formatting utilities
+//! - [`gui`]: Cross-platform graphical user interface
 
 pub mod archive_metadata;
 pub mod cli;
@@ -57,6 +59,7 @@ pub mod downloads;
 pub mod enhanced_downloader;
 pub mod error;
 pub mod filters;
+pub mod gui;
 pub mod http_client;
 pub mod interactive_menu;
 pub mod metadata;
