@@ -164,10 +164,9 @@ The codebase has undergone major improvements:
 The project now includes comprehensive CI/CD processes:
 
 ### Continuous Integration
-- **Multi-platform builds**: Automatic builds for Linux (x86_64, aarch64, musl), Windows, and macOS
+- **Multi-platform builds**: Automatic builds for Linux, Windows, and macOS
 - **Code quality checks**: Formatting (`cargo fmt`), linting (`cargo clippy`), and compilation verification
-- **Cross-compilation**: Uses `cross` for ARM and musl targets
-- **Nix builds**: Reproducible builds using Nix flakes
+- **Standard toolchain**: Uses Rust's standard toolchain for reliable, reproducible builds
 
 ### Automated Artifacts
 - **Every commit**: Binary artifacts uploaded for all supported platforms
@@ -177,11 +176,8 @@ The project now includes comprehensive CI/CD processes:
 
 ### Supported Platforms
 - x86_64-unknown-linux-gnu
-- x86_64-unknown-linux-musl  
-- aarch64-unknown-linux-gnu
 - x86_64-pc-windows-msvc
 - x86_64-apple-darwin
-- aarch64-apple-darwin
 
 The CI runs on every push and pull request, ensuring code quality and platform compatibility.
 
