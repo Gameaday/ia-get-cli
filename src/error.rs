@@ -89,4 +89,3 @@ impl From<url::ParseError> for IaGetError {
         IaGetError::UrlFormat(err.to_string())
     }
 }
-
