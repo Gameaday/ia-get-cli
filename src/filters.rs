@@ -13,17 +13,17 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use ia_get::filters::{filter_files, parse_size_string, format_size};
+//! use ia_get::filters::{parse_size_string, format_size};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Parse size strings
 //! let size = parse_size_string("100MB")?; // Returns 104857600 bytes
 //! let size = parse_size_string("2.5GB")?; // Returns 2684354560 bytes
 //!
 //! // Format bytes to human-readable
 //! let formatted = format_size(1048576); // Returns "1.0 MB"
-//!
-//! // Filter files by criteria
-//! let filtered = filter_files(files, &filter_options)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Supported Size Units

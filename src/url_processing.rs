@@ -58,7 +58,16 @@ pub fn extract_identifier_from_url(url: &str) -> Result<String> {
     }
 
     let path = parsed_url.path();
+
+    // Handle both /details/ and /metadata/ paths
     if let Some(identifier) = path.strip_prefix("/details/") {
+        if identifier.is_empty() {
+            return Err(IaGetError::UrlFormat(
+                "No identifier found in URL".to_string(),
+            ));
+        }
+        Ok(identifier.to_string())
+    } else if let Some(identifier) = path.strip_prefix("/metadata/") {
         if identifier.is_empty() {
             return Err(IaGetError::UrlFormat(
                 "No identifier found in URL".to_string(),
@@ -67,7 +76,7 @@ pub fn extract_identifier_from_url(url: &str) -> Result<String> {
         Ok(identifier.to_string())
     } else {
         Err(IaGetError::UrlFormat(
-            "URL must contain /details/ path".to_string(),
+            "URL must contain /details/ or /metadata/ path".to_string(),
         ))
     }
 }

@@ -14,15 +14,27 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
-//! use ia_get::{metadata::fetch_json_metadata, enhanced_downloader::EnhancedDownloader};
+//! ```rust,no_run
+//! use ia_get::{metadata::fetch_json_metadata, enhanced_downloader::ArchiveDownloader};
+//! use reqwest::Client;
+//! use indicatif::ProgressBar;
+//! use std::path::PathBuf;
 //!
-//! // Fetch archive metadata
-//! let metadata = fetch_json_metadata("identifier").await?;
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = Client::new();
+//!     let progress = ProgressBar::new_spinner();
+//!     
+//!     // Fetch archive metadata
+//!     let (metadata, _url) = fetch_json_metadata("identifier", &client, &progress).await?;
 //!
-//! // Download with enhanced features
-//! let downloader = EnhancedDownloader::new(4)?; // 4 concurrent downloads
-//! downloader.download_archive(&metadata, "output_dir", &config).await?;
+//!     // Download with enhanced features
+//!     let downloader = ArchiveDownloader::new(
+//!         client, 4, true, true, PathBuf::from(".sessions"), false, false
+//!     );
+//!     // Use the downloader as needed...
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Architecture

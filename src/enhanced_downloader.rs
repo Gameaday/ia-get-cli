@@ -15,26 +15,19 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ia_get::{
-//!     enhanced_downloader::EnhancedDownloader,
+//!     enhanced_downloader::ArchiveDownloader,
 //!     metadata_storage::DownloadConfig,
 //! };
+//! use reqwest::Client;
+//! use std::path::PathBuf;
 //!
 //! // Create downloader with 4 concurrent connections
-//! let downloader = EnhancedDownloader::new(4)?;
-//!
-//! // Configure download settings
-//! let config = DownloadConfig {
-//!     output_dir: "downloads".to_string(),
-//!     max_concurrent: 4,
-//!     verify_md5: true,
-//!     auto_decompress: true,
-//!     // ... other settings
-//! };
-//!
-//! // Download entire archive
-//! downloader.download_archive(&metadata, "output", &config).await?;
+//! let client = Client::new();
+//! let downloader = ArchiveDownloader::new(
+//!     client, 4, true, true, PathBuf::from(".sessions"), false, false
+//! );
 //! ```
 
 use crate::{

@@ -10,16 +10,25 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ia_get::metadata::fetch_json_metadata;
+//! use reqwest::Client;
+//! use indicatif::ProgressBar;
 //!
-//! // Fetch metadata for an archive
-//! let metadata = fetch_json_metadata("internetarchive").await?;
-//! println!("Found {} files", metadata.files.len());
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = Client::new();
+//!     let progress = ProgressBar::new_spinner();
+//!     
+//!     // Fetch metadata for an archive
+//!     let (metadata, _url) = fetch_json_metadata("internetarchive", &client, &progress).await?;
+//!     println!("Found {} files", metadata.files.len());
 //!
-//! // List all file names
-//! for file in &metadata.files {
-//!     println!("File: {}", file.name);
+//!     // List all file names
+//!     for file in &metadata.files {
+//!         println!("File: {}", file.name);
+//!     }
+//!     Ok(())
 //! }
 //! ```
 //!

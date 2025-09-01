@@ -59,14 +59,24 @@ fn test_identifier_extraction_basic() {
 #[test]
 fn test_json_metadata_parsing_minimal() {
     let minimal_json = r#"{
+        "created": 1234567890,
+        "d1": "ia801234.us.archive.org",
+        "d2": "ia801235.us.archive.org",
+        "dir": "/test",
         "files": [
             {
                 "name": "file.txt",
                 "source": "original"
             }
         ],
+        "files_count": 1,
+        "item_last_updated": 1234567890,
+        "item_size": 1024,
+        "metadata": {},
         "server": "test-server",
-        "dir": "/test"
+        "uniq": 1234567890,
+        "workable_servers": ["test-server"],
+        "reviews": []
     }"#;
 
     let result = parse_archive_metadata(minimal_json);
@@ -88,7 +98,7 @@ fn test_json_metadata_parsing_errors() {
     let result = parse_archive_metadata(invalid_json);
     assert!(result.is_err());
 
-    // Test with missing required fields
+    // Test with missing required fields - this should fail since we need all required fields
     let missing_files = r#"{ "server": "test" }"#;
     let result = parse_archive_metadata(missing_files);
     assert!(result.is_err());
@@ -98,11 +108,21 @@ fn test_json_metadata_parsing_errors() {
 #[test]
 fn test_parse_archive_metadata_function() {
     let json_data = r#"{
+        "created": 1234567890,
+        "d1": "ia801234.us.archive.org",
+        "d2": "ia801235.us.archive.org",
+        "dir": "/test-dir",
         "files": [
             { "name": "test.txt", "source": "original", "size": "1024" }
         ],
+        "files_count": 1,
+        "item_last_updated": 1234567890,
+        "item_size": 1024,
+        "metadata": {},
         "server": "test-server.archive.org",
-        "dir": "/test-dir"
+        "uniq": 1234567890,
+        "workable_servers": ["test-server.archive.org"],
+        "reviews": []
     }"#;
 
     let result = parse_archive_metadata(json_data);

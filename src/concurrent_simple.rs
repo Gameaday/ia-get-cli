@@ -14,26 +14,17 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use ia_get::concurrent_simple::SimpleConcurrentDownloader;
 //!
-//! // Create downloader with max 4 concurrent downloads
-//! let downloader = SimpleConcurrentDownloader::new(4)?;
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create downloader with max 4 concurrent downloads
+//!     let downloader = SimpleConcurrentDownloader::new(4)?;
 //!
-//! // Download files concurrently
-//! let results = downloader.download_files(
-//!     &metadata,
-//!     vec!["file1.pdf".to_string(), "file2.txt".to_string()],
-//!     "output_directory".to_string()
-//! ).await?;
-//!
-//! // Check results
-//! for result in results {
-//!     if result.success {
-//!         println!("✅ Downloaded {} ({} bytes)", result.file_name, result.bytes_downloaded);
-//!     } else {
-//!         println!("❌ Failed to download {}: {:?}", result.file_name, result.error);
-//!     }
+//!     // Download files concurrently (example - would need actual metadata)
+//!     // let results = downloader.download_files(&metadata, files, "output").await?;
+//!     Ok(())
 //! }
 //! ```
 //!
