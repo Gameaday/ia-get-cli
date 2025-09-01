@@ -32,6 +32,19 @@ pub enum DownloadResult {
     Error(String),
 }
 
+/// Download request parameters
+#[derive(Debug, Clone)]
+pub struct DownloadRequest {
+    pub identifier: String,
+    pub output_dir: PathBuf,
+    pub include_formats: Vec<String>,
+    pub exclude_formats: Vec<String>,
+    pub min_file_size: String,
+    pub max_file_size: Option<String>,
+    pub dry_run: bool,
+    pub decompress_formats: Vec<String>,
+}
+
 /// GUI download controller
 pub struct DownloadController {
     client: Client,
@@ -53,11 +66,7 @@ impl DownloadController {
     /// Start a download operation with progress updates
     pub async fn start_download(
         &self,
-        identifier: String,
-        output_dir: PathBuf,
-        include_formats: Vec<String>,
-        max_file_size: Option<String>,
-        dry_run: bool,
+        request: DownloadRequest,
         progress_tx: mpsc::UnboundedSender<ProgressUpdate>,
     ) -> Result<DownloadResult> {
         // Send initial status
@@ -72,10 +81,10 @@ impl DownloadController {
         });
 
         // Construct archive URL
-        let archive_url = if identifier.starts_with("http") {
-            identifier.clone()
+        let archive_url = if request.identifier.starts_with("http") {
+            request.identifier.clone()
         } else {
-            format!("https://archive.org/details/{}", identifier)
+            format!("https://archive.org/details/{}", request.identifier)
         };
 
         // Fetch metadata
@@ -95,8 +104,19 @@ impl DownloadController {
         let max_size = max_file_size
             .as_ref()
             .and_then(|s| parse_size_string(s).ok());
+        let min_size = if min_file_size.is_empty() {
+            None
+        } else {
+            parse_size_string(&min_file_size).ok()
+        };
 
-        let filtered_files = self.apply_file_filters(&metadata.files, &include_formats, max_size);
+        let filtered_files = self.apply_file_filters(
+            &metadata.files, 
+            &include_formats, 
+            &exclude_formats,
+            min_size,
+            max_size
+        );
 
         if filtered_files.is_empty() {
             return Ok(DownloadResult::Error(
@@ -125,14 +145,14 @@ impl DownloadController {
                     output_dir: output_dir.to_string_lossy().to_string(),
                     max_concurrent: self.config.concurrent_downloads as u32,
                     format_filters: include_formats,
-                    min_size: None,
+                    min_size,
                     max_size,
                     verify_md5: true,
                     preserve_mtime: true,
                     user_agent: get_user_agent(),
-                    enable_compression: true,
-                    auto_decompress: false,
-                    decompress_formats: vec![],
+                    enable_compression: self.config.default_compress,
+                    auto_decompress: self.config.default_decompress,
+                    decompress_formats: decompress_formats.clone(),
                 },
                 requested_files: filtered_files.iter().map(|f| f.name.clone()).collect(),
                 file_status: std::collections::HashMap::new(),
@@ -152,14 +172,14 @@ impl DownloadController {
             output_dir: output_dir.to_string_lossy().to_string(),
             max_concurrent: self.config.concurrent_downloads as u32,
             format_filters: include_formats.clone(),
-            min_size: None,
+            min_size,
             max_size,
             verify_md5: true,
             preserve_mtime: true,
             user_agent: get_user_agent(),
-            enable_compression: true,
-            auto_decompress: false,
-            decompress_formats: vec![],
+            enable_compression: self.config.default_compress,
+            auto_decompress: self.config.default_decompress,
+            decompress_formats: decompress_formats.clone(),
         };
 
         // Create session directory
@@ -172,8 +192,8 @@ impl DownloadController {
             true, // verify_md5
             true, // preserve_mtime
             session_dir,
-            true,  // enable_compression
-            false, // auto_decompress
+            self.config.default_compress,
+            self.config.default_decompress,
         );
 
         // Get list of file names to download
@@ -215,12 +235,14 @@ impl DownloadController {
         &self,
         files: &[ArchiveFile],
         include_formats: &[String],
+        exclude_formats: &[String],
+        min_file_size: Option<u64>,
         max_file_size: Option<u64>,
     ) -> Vec<ArchiveFile> {
         files
             .iter()
             .filter(|file| {
-                // Apply format filter
+                // Apply include format filter
                 if !include_formats.is_empty() {
                     let file_format = file.format.as_deref().unwrap_or("");
                     let file_extension = std::path::Path::new(&file.name)
@@ -228,19 +250,46 @@ impl DownloadController {
                         .and_then(|ext| ext.to_str())
                         .unwrap_or("");
 
-                    let matches_format = include_formats.iter().any(|fmt| {
+                    let matches_include = include_formats.iter().any(|fmt| {
                         fmt.eq_ignore_ascii_case(file_format)
                             || fmt.eq_ignore_ascii_case(file_extension)
                     });
 
-                    if !matches_format {
+                    if !matches_include {
                         return false;
                     }
                 }
 
-                // Apply size filter
+                // Apply exclude format filter
+                if !exclude_formats.is_empty() {
+                    let file_format = file.format.as_deref().unwrap_or("");
+                    let file_extension = std::path::Path::new(&file.name)
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .unwrap_or("");
+
+                    let matches_exclude = exclude_formats.iter().any(|fmt| {
+                        fmt.eq_ignore_ascii_case(file_format)
+                            || fmt.eq_ignore_ascii_case(file_extension)
+                    });
+
+                    if matches_exclude {
+                        return false;
+                    }
+                }
+
+                let file_size = file.size.unwrap_or(0);
+
+                // Apply min size filter
+                if let Some(min_size) = min_file_size {
+                    if file_size < min_size {
+                        return false;
+                    }
+                }
+
+                // Apply max size filter
                 if let Some(max_size) = max_file_size {
-                    if file.size.unwrap_or(0) > max_size {
+                    if file_size > max_size {
                         return false;
                     }
                 }

@@ -29,12 +29,12 @@ impl ConfigPanel {
 
             ui.horizontal(|ui| {
                 ui.label("Max Concurrent Downloads:");
-                ui.add(egui::Slider::new(&mut config.concurrent_downloads, 1..=20));
+                ui.add(egui::Slider::new(&mut config.concurrent_downloads, 1..=10)); // Match CLI range
             });
 
             ui.horizontal(|ui| {
                 ui.label("Max Retries:");
-                ui.add(egui::Slider::new(&mut config.max_retries, 1..=10));
+                ui.add(egui::Slider::new(&mut config.max_retries, 1..=20)); // Match CLI range
             });
 
             ui.horizontal(|ui| {
@@ -56,7 +56,33 @@ impl ConfigPanel {
                 "Log hash errors by default",
             );
             ui.checkbox(&mut config.default_dry_run, "Dry run mode by default");
+            ui.checkbox(&mut config.default_compress, "Enable HTTP compression by default");
+            ui.checkbox(&mut config.default_decompress, "Auto-decompress files by default");
         });
+
+        ui.add_space(10.0);
+
+        // Compression settings
+        if config.default_decompress {
+            ui.group(|ui| {
+                ui.label("Decompression Settings");
+                
+                ui.horizontal(|ui| {
+                    ui.label("Default decompress formats:");
+                    let mut formats = config.default_decompress_formats.clone().unwrap_or_default();
+                    if ui.text_edit_singleline(&mut formats).changed() {
+                        config.default_decompress_formats = if formats.is_empty() {
+                            None
+                        } else {
+                            Some(formats)
+                        };
+                    }
+                    ui.label("(e.g., gzip,bzip2,xz)");
+                });
+            });
+
+            ui.add_space(10.0);
+        }
 
         ui.add_space(10.0);
 

@@ -144,6 +144,12 @@ impl FiltersPanel {
             Some(self.exclude_formats.clone())
         };
 
+        config.default_min_file_size = if self.min_file_size.is_empty() {
+            None
+        } else {
+            Some(self.min_file_size.clone())
+        };
+
         config.default_max_file_size = if self.max_file_size.is_empty() {
             None
         } else {

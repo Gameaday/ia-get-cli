@@ -153,7 +153,7 @@ impl IaGetApp {
         // Get download parameters
         let identifier = self.archive_identifier.clone();
         let output_dir = PathBuf::from(&self.output_directory);
-        let (include_formats, _exclude_formats, _min_size, max_size) =
+        let (include_formats, exclude_formats, min_size, max_size) =
             self.filters_panel.get_filter_settings();
         let include_formats: Vec<String> = if include_formats.is_empty() {
             vec![]
@@ -163,6 +163,23 @@ impl IaGetApp {
                 .map(|s| s.trim().to_string())
                 .collect()
         };
+        let exclude_formats: Vec<String> = if exclude_formats.is_empty() {
+            vec![]
+        } else {
+            exclude_formats
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect()
+        };
+        let decompress_formats: Vec<String> = self.config.default_decompress_formats
+            .as_ref()
+            .map(|formats| {
+                formats
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
         let dry_run = self.config.default_dry_run;
 
         // Start download in background
@@ -174,12 +191,15 @@ impl IaGetApp {
                         identifier,
                         output_dir,
                         include_formats,
+                        exclude_formats,
+                        min_size,
                         if max_size.is_empty() {
                             None
                         } else {
                             Some(max_size)
                         },
                         dry_run,
+                        decompress_formats,
                         progress_tx,
                     )
                     .await;
@@ -321,6 +341,12 @@ impl IaGetApp {
             ui.checkbox(&mut self.config.default_dry_run, "Dry run (preview only)");
         });
 
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.config.default_compress, "Enable HTTP compression");
+            ui.checkbox(&mut self.config.default_decompress, "Auto-decompress files");
+            ui.checkbox(&mut self.config.default_log_hash_errors, "Log hash errors");
+        });
+
         ui.add_space(10.0);
 
         // Concurrent downloads setting
@@ -328,9 +354,33 @@ impl IaGetApp {
             ui.label("Concurrent Downloads:");
             ui.add(egui::Slider::new(
                 &mut self.config.concurrent_downloads,
-                1..=16,
+                1..=10, // Match CLI range
             ));
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Max Retries:");
+            ui.add(egui::Slider::new(
+                &mut self.config.max_retries,
+                1..=20, // Match CLI range
+            ));
+        });
+
+        // Decompress formats setting
+        if self.config.default_decompress {
+            ui.horizontal(|ui| {
+                ui.label("Decompress Formats:");
+                let mut formats = self.config.default_decompress_formats.clone().unwrap_or_default();
+                if ui.text_edit_singleline(&mut formats).changed() {
+                    self.config.default_decompress_formats = if formats.is_empty() {
+                        None
+                    } else {
+                        Some(formats)
+                    };
+                }
+                ui.label("(e.g., gzip,bzip2,xz)");
+            });
+        }
 
         ui.add_space(20.0);
 
