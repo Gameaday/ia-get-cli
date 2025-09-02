@@ -190,7 +190,7 @@ async fn test_mario_archive_dry_run() {
 
     // Create a dry-run request for the Mario archive
     let request = DownloadRequest {
-        identifier: "https://archive.org/details/mario".to_string(),
+        identifier: "mario".to_string(),
         output_dir: PathBuf::from("/tmp/test-mario"),
         include_formats: vec![], // Include all formats
         exclude_formats: vec![],
@@ -221,7 +221,7 @@ async fn test_mario_archive_dry_run() {
     match result.unwrap() {
         DownloadResult::Success(session, api_stats) => {
             // Verify basic session data
-            assert_eq!(session.identifier, "https://archive.org/details/mario");
+            assert_eq!(session.identifier, "mario");
             assert!(session.original_url.contains("mario"));
             assert!(
                 !session.archive_metadata.files.is_empty(),
@@ -268,6 +268,65 @@ async fn test_mario_archive_dry_run() {
         }
         DownloadResult::Error(error) => {
             panic!("Expected successful dry-run, got error: {}", error);
+        }
+    }
+}
+
+/// Test core functionality with real Archive.org data using dry-run on Luigi archive
+/// This test ensures the unified download service can properly handle Archive.org data with string numbers
+#[tokio::test]
+async fn test_luigi_archive_dry_run() {
+    // Initialize the download service
+    let service = DownloadService::new().expect("Failed to create download service");
+
+    // Create test request for Luigi archive (known to have string number fields)
+    let request = DownloadRequest {
+        identifier: "luigi".to_string(),
+        output_dir: PathBuf::from("/tmp/luigi_test"),
+        dry_run: true, // Don't actually download
+        ..Default::default()
+    };
+
+    // Execute the dry-run request
+    let result = service.download(request, None).await;
+
+    // Verify the request was successful
+    assert!(
+        result.is_ok(),
+        "Luigi download service failed: {:?}",
+        result.err()
+    );
+
+    // Extract the result and verify it's a success
+    match result.unwrap() {
+        DownloadResult::Success(session, api_stats) => {
+            // Verify basic session data
+            assert_eq!(session.identifier, "luigi");
+            assert!(session.original_url.contains("luigi"));
+            assert!(
+                !session.archive_metadata.files.is_empty(),
+                "No files found in luigi archive"
+            );
+
+            // Verify API stats are present (Archive.org compliance monitoring)
+            assert!(
+                api_stats.is_some(),
+                "API stats should be available for monitoring"
+            );
+
+            // Print some info for manual verification if verbose testing
+            if std::env::var("RUST_TEST_VERBOSE").is_ok() {
+                println!("✅ Luigi archive dry-run successful:");
+                println!("   - Files found: {}", session.archive_metadata.files.len());
+                println!("   - Server: {}", session.archive_metadata.server);
+                println!("   - Directory: {}", session.archive_metadata.dir);
+                if let Some(stats) = api_stats {
+                    println!("   - API requests made: {}", stats.request_count);
+                }
+            }
+        }
+        DownloadResult::Error(error) => {
+            panic!("Expected successful Luigi dry-run, got error: {}", error);
         }
     }
 }
