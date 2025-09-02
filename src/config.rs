@@ -84,7 +84,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             default_output_path: None,
-            concurrent_downloads: 3,
+            concurrent_downloads: 3, // Conservative default following Archive.org recommendations
             max_retries: 3,
             default_include_ext: None,
             default_exclude_ext: None,

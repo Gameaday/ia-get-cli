@@ -4,12 +4,14 @@
 //! ensuring both CLI and GUI use exactly the same API and business logic.
 
 use crate::{
+    archive_api::{validate_identifier, ArchiveOrgApiClient},
     config::Config,
     constants::get_user_agent,
     enhanced_downloader::ArchiveDownloader,
     fetch_json_metadata,
     filters::{format_size, parse_size_string},
     metadata_storage::{ArchiveFile, DownloadConfig, DownloadSession},
+    url_processing::extract_identifier_from_url,
     IaGetError, Result,
 };
 use reqwest::Client;
@@ -153,12 +155,28 @@ impl DownloadService {
         Ok(Self { client })
     }
 
-    /// Execute a download request
+    /// Execute a download request with Archive.org API compliance
     pub async fn download(
         &self,
         request: DownloadRequest,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
+        // Validate identifier for Archive.org compliance
+        let identifier = if request.identifier.starts_with("http") {
+            // Extract identifier from URL
+            extract_identifier_from_url(&request.identifier)?
+        } else {
+            request.identifier.clone()
+        };
+
+        // Validate identifier format
+        if let Err(e) = validate_identifier(&identifier) {
+            return Ok(DownloadResult::Error(format!(
+                "Invalid Archive.org identifier: {}",
+                e
+            )));
+        }
+
         // Send initial status
         if let Some(ref callback) = progress_callback {
             callback(ProgressUpdate {
@@ -168,7 +186,23 @@ impl DownloadService {
                 failed_files: 0,
                 current_speed: 0.0,
                 eta: String::new(),
-                status: "Fetching metadata...".to_string(),
+                status: "Initializing Archive.org API client...".to_string(),
+            });
+        }
+
+        // Create Archive.org API client for compliance
+        let api_client = ArchiveOrgApiClient::new(self.client.clone());
+
+        // Send metadata fetching status
+        if let Some(ref callback) = progress_callback {
+            callback(ProgressUpdate {
+                current_file: String::new(),
+                completed_files: 0,
+                total_files: 0,
+                failed_files: 0,
+                current_speed: 0.0,
+                eta: String::new(),
+                status: "Fetching metadata with API compliance...".to_string(),
             });
         }
 
@@ -179,10 +213,10 @@ impl DownloadService {
             format!("https://archive.org/details/{}", request.identifier)
         };
 
-        // Fetch metadata
+        // Fetch metadata using compliant API client
         let progress = indicatif::ProgressBar::new_spinner();
         let (metadata, _base_url) =
-            match fetch_json_metadata(&archive_url, &self.client, &progress).await {
+            match fetch_json_metadata(&archive_url, api_client.client(), &progress).await {
                 Ok(result) => result,
                 Err(e) => {
                     return Ok(DownloadResult::Error(format!(
@@ -191,6 +225,12 @@ impl DownloadService {
                     )));
                 }
             };
+
+        // Check API usage statistics and warn if needed
+        let stats = api_client.get_stats();
+        if request.verbose && !api_client.is_rate_healthy() {
+            eprintln!("Warning: High API request rate detected: {}", stats);
+        }
 
         // Parse file size filters
         let (min_size, max_size) = request.get_parsed_sizes()?;

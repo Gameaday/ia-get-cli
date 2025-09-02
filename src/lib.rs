@@ -48,6 +48,7 @@
 //! - [`filters`]: File filtering and formatting utilities
 //! - [`gui`]: Cross-platform graphical user interface
 
+pub mod archive_api;
 pub mod archive_metadata;
 pub mod cli;
 pub mod compression;
@@ -74,6 +75,7 @@ pub mod utils;
 pub use error::{IaGetError, Result};
 
 // Re-export commonly used functions
+pub use archive_api::{validate_identifier, ArchiveOrgApiClient, ApiStats};
 pub use cli::Cli;
 pub use concurrent_simple::{DownloadStats, FileDownloadResult, SimpleConcurrentDownloader};
 pub use constants::get_user_agent;
