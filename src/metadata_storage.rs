@@ -628,7 +628,7 @@ impl ArchiveFile {
 }
 
 /// Sanitize an identifier for safe filesystem use across platforms
-/// 
+///
 /// This function ensures identifiers are safe for use in Windows, macOS, and Linux filesystems:
 /// - Replaces invalid characters with safe alternatives
 /// - Limits length to prevent path length issues on Windows
@@ -638,13 +638,13 @@ fn sanitize_identifier_for_filesystem(identifier: &str) -> String {
     // Windows has stricter filename rules, so we optimize for Windows compatibility
     // Invalid characters for Windows: < > : " | ? * \ /
     // We also avoid characters that could cause issues in shells: & $ ! % ^ ( ) [ ] { } ;
-    
+
     let mut sanitized = identifier
         .chars()
         .filter_map(|c| match c {
             // Windows-forbidden characters
             '<' | '>' | ':' | '"' | '|' | '?' | '*' | '\\' | '/' => None,
-            // Shell-problematic characters  
+            // Shell-problematic characters
             '&' | '$' | '!' | '%' | '^' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => None,
             // Replace spaces with underscores
             ' ' => Some('_'),
@@ -654,7 +654,7 @@ fn sanitize_identifier_for_filesystem(identifier: &str) -> String {
             c => Some(c),
         })
         .collect::<String>();
-    
+
     // Remove consecutive hyphens and underscores
     while sanitized.contains("--") {
         sanitized = sanitized.replace("--", "-");
@@ -662,22 +662,22 @@ fn sanitize_identifier_for_filesystem(identifier: &str) -> String {
     while sanitized.contains("__") {
         sanitized = sanitized.replace("__", "_");
     }
-    
+
     // Trim leading/trailing hyphens and underscores
     sanitized = sanitized.trim_matches(&['-', '_'] as &[char]).to_string();
-    
+
     // Ensure we have something if the identifier was all invalid characters
     if sanitized.is_empty() {
         sanitized = "archive".to_string();
     }
-    
+
     // Windows filename limit is 255 characters, but we need to account for:
     // - "ia-get-session-" prefix (16 chars)
     // - "-{timestamp}.json" suffix (~15 chars)
     // - Some buffer for safety
     // So we limit the identifier portion to 200 characters to be safe
     const MAX_IDENTIFIER_LENGTH: usize = 200;
-    
+
     if sanitized.len() <= MAX_IDENTIFIER_LENGTH {
         sanitized
     } else {
@@ -690,11 +690,15 @@ fn sanitize_identifier_for_filesystem(identifier: &str) -> String {
             identifier.hash(&mut hasher);
             format!("{:x}", hasher.finish())
         };
-        
+
         // Take first 180 chars and add hash (8-16 chars)
         let truncated_length = MAX_IDENTIFIER_LENGTH - hash.len() - 1; // -1 for the separator
         let truncated = &sanitized[..truncated_length.min(sanitized.len())];
-        format!("{}-{}", truncated.trim_end_matches(&['-', '_'] as &[char]), hash)
+        format!(
+            "{}-{}",
+            truncated.trim_end_matches(&['-', '_'] as &[char]),
+            hash
+        )
     }
 }
 
@@ -712,7 +716,7 @@ pub fn generate_session_filename(identifier: &str) -> String {
 pub fn find_latest_session_file(identifier: &str, session_dir: &str) -> Result<Option<String>> {
     // Try both the new sanitized identifier and the original identifier for backward compatibility
     let sanitized_identifier = sanitize_identifier_for_filesystem(identifier);
-    let patterns = vec![
+    let patterns = [
         format!("ia-get-session-{}-", sanitized_identifier),
         format!("ia-get-session-{}-", identifier), // For backward compatibility
     ];
@@ -729,9 +733,9 @@ pub fn find_latest_session_file(identifier: &str, session_dir: &str) -> Result<O
         let file_name_str = file_name.to_string_lossy();
 
         // Check if the file matches any of our patterns
-        let matches_pattern = patterns.iter().any(|pattern| {
-            file_name_str.starts_with(pattern) && file_name_str.ends_with(".json")
-        });
+        let matches_pattern = patterns
+            .iter()
+            .any(|pattern| file_name_str.starts_with(pattern) && file_name_str.ends_with(".json"));
 
         if matches_pattern {
             session_files.push(entry.path());
@@ -808,7 +812,7 @@ mod tests {
         // Create an identifier longer than 200 characters
         let long_identifier = "a".repeat(250);
         let result = sanitize_identifier_for_filesystem(&long_identifier);
-        
+
         // Should be truncated and include a hash
         assert!(result.len() <= 200);
         assert!(result.contains("-")); // Should have hash separator
@@ -817,7 +821,8 @@ mod tests {
 
     #[test]
     fn test_sanitize_identifier_real_world_case() {
-        let identifier = "ikaos-som-dragon-ball-complete-001-153-r2j-dragon-box-multi-audio-v4_202301";
+        let identifier =
+            "ikaos-som-dragon-ball-complete-001-153-r2j-dragon-box-multi-audio-v4_202301";
         let result = sanitize_identifier_for_filesystem(identifier);
         // This identifier is already valid, should remain unchanged
         assert_eq!(result, identifier);
@@ -834,7 +839,7 @@ mod tests {
     fn test_generate_session_filename_format() {
         let identifier = "test-identifier";
         let result = generate_session_filename(identifier);
-        
+
         // Should match pattern: ia-get-session-{sanitized_identifier}-{timestamp}.json
         assert!(result.starts_with("ia-get-session-"));
         assert!(result.ends_with(".json"));
@@ -845,7 +850,7 @@ mod tests {
     fn test_generate_session_filename_with_problematic_identifier() {
         let identifier = "test<>:|identifier";
         let result = generate_session_filename(identifier);
-        
+
         // Should sanitize the identifier
         assert!(result.starts_with("ia-get-session-"));
         assert!(result.ends_with(".json"));
@@ -859,12 +864,12 @@ mod tests {
     fn test_generate_session_filename_uniqueness() {
         let identifier = "test-identifier";
         let result1 = generate_session_filename(identifier);
-        
+
         // Small delay to ensure different timestamp
         std::thread::sleep(std::time::Duration::from_millis(1001)); // More than 1 second
-        
+
         let result2 = generate_session_filename(identifier);
-        
+
         // Should generate different filenames due to timestamp
         assert_ne!(result1, result2);
     }
@@ -881,7 +886,7 @@ mod tests {
         let long_identifier = "a".repeat(250);
         let result1 = sanitize_identifier_for_filesystem(&long_identifier);
         let result2 = sanitize_identifier_for_filesystem(&long_identifier);
-        
+
         // Should generate the same result for the same input
         assert_eq!(result1, result2);
     }
