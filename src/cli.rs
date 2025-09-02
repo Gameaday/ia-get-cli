@@ -32,6 +32,82 @@ pub enum Commands {
         #[arg(long)]
         compress: bool,
     },
+
+    /// Configuration management commands
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+
+    /// Download history and database commands
+    History {
+        #[command(subcommand)]
+        action: HistoryAction,
+    },
+}
+
+/// Configuration management subcommands
+#[derive(Subcommand, Debug)]
+pub enum ConfigAction {
+    /// Show current configuration
+    Show,
+    
+    /// Set a configuration value
+    Set {
+        /// Configuration key to set
+        key: String,
+        /// Value to set
+        value: String,
+    },
+    
+    /// Get a configuration value
+    Get {
+        /// Configuration key to get
+        key: String,
+    },
+    
+    /// Reset configuration to defaults
+    Reset,
+    
+    /// Show configuration file location
+    Path,
+    
+    /// Edit configuration in interactive mode
+    Edit,
+}
+
+/// Download history management subcommands
+#[derive(Subcommand, Debug)]
+pub enum HistoryAction {
+    /// Show recent download history
+    List {
+        /// Number of records to show (default: 10)
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+        
+        /// Filter by status (success, failed, partial, in-progress)
+        #[arg(short, long)]
+        status: Option<String>,
+    },
+    
+    /// Show download statistics
+    Stats,
+    
+    /// Clean up old download records
+    Cleanup {
+        /// Delete records older than this many days
+        #[arg(short, long, default_value = "90")]
+        days: u32,
+    },
+    
+    /// Show download history database path
+    Path,
+    
+    /// Show detailed information about a specific download
+    Show {
+        /// Download record ID
+        id: String,
+    },
 }
 
 /// Command-line interface for ia-get
@@ -103,6 +179,61 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Create a new CLI instance with configuration file defaults applied
+    pub fn with_config_defaults() -> Result<Self, crate::error::IaGetError> {
+        use crate::config::ConfigManager;
+        
+        // Load configuration
+        let config_manager = ConfigManager::new()?;
+        let config = config_manager.load_config()?;
+        
+        // Parse CLI args normally first
+        let mut cli = Self::parse();
+        
+        // Apply config file defaults where CLI args aren't provided
+        if cli.output_path.is_none() {
+            cli.output_path = config.default_output_path;
+        }
+        
+        if cli.concurrent_downloads == 3 { // Default value from clap
+            cli.concurrent_downloads = config.concurrent_downloads;
+        }
+        
+        if cli.max_retries == 3 { // Default value from clap
+            cli.max_retries = config.max_retries;
+        }
+        
+        if cli.include_ext.is_none() {
+            cli.include_ext = config.default_include_ext;
+        }
+        
+        if cli.exclude_ext.is_none() {
+            cli.exclude_ext = config.default_exclude_ext;
+        }
+        
+        if cli.max_file_size.is_none() {
+            cli.max_file_size = config.default_max_file_size;
+        }
+        
+        if !cli.resume {
+            cli.resume = config.default_resume;
+        }
+        
+        if !cli.verbose {
+            cli.verbose = config.default_verbose;
+        }
+        
+        if !cli.log_hash_errors {
+            cli.log_hash_errors = config.default_log_hash_errors;
+        }
+        
+        if !cli.dry_run {
+            cli.dry_run = config.default_dry_run;
+        }
+        
+        Ok(cli)
+    }
+
     /// Validation and processing helper methods
     pub fn validate(&self) -> Result<(), String> {
         // Validate concurrent downloads range

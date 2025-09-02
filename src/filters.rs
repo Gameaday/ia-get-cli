@@ -47,18 +47,21 @@ impl FilterOptions for Commands {
     fn include_ext(&self) -> &Option<String> {
         match self {
             Commands::Download { include_ext, .. } => include_ext,
+            Commands::Config { .. } | Commands::History { .. } => &None,
         }
     }
 
     fn exclude_ext(&self) -> &Option<String> {
         match self {
             Commands::Download { exclude_ext, .. } => exclude_ext,
+            Commands::Config { .. } | Commands::History { .. } => &None,
         }
     }
 
     fn max_file_size(&self) -> &Option<String> {
         match self {
             Commands::Download { max_file_size, .. } => max_file_size,
+            Commands::Config { .. } | Commands::History { .. } => &None,
         }
     }
 }

@@ -48,10 +48,12 @@
 
 pub mod archive_metadata;
 pub mod cli;
+pub mod command_handlers;
 pub mod compression;
 pub mod concurrent_simple;
 pub mod config;
 pub mod constants;
+pub mod download_history;
 pub mod downloader;
 pub mod downloads;
 pub mod enhanced_downloader;
