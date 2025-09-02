@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use tokio::sync::mpsc;
 
 use super::{
-    download_controller::{DownloadController, ProgressUpdate},
+    download_controller::{DownloadController, DownloadRequest, ProgressUpdate},
     panels::{ConfigPanel, DownloadPanel, FiltersPanel},
 };
 
@@ -182,26 +182,28 @@ impl IaGetApp {
             .unwrap_or_default();
         let dry_run = self.config.default_dry_run;
 
+        // Create download request
+        let request = DownloadRequest {
+            identifier,
+            output_dir,
+            include_formats,
+            exclude_formats,
+            min_file_size: min_size,
+            max_file_size: if max_size.is_empty() {
+                None
+            } else {
+                Some(max_size)
+            },
+            dry_run,
+            decompress_formats,
+        };
+
         // Start download in background
         if let Some(handle) = &self.rt_handle {
             let ctx_clone = ctx.clone();
             handle.spawn(async move {
                 let _result = controller
-                    .start_download(
-                        identifier,
-                        output_dir,
-                        include_formats,
-                        exclude_formats,
-                        min_size,
-                        if max_size.is_empty() {
-                            None
-                        } else {
-                            Some(max_size)
-                        },
-                        dry_run,
-                        decompress_formats,
-                        progress_tx,
-                    )
+                    .start_download(request, progress_tx)
                     .await;
 
                 // Request repaint when done

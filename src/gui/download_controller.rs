@@ -101,19 +101,19 @@ impl DownloadController {
             };
 
         // Apply file filters
-        let max_size = max_file_size
+        let max_size = request.max_file_size
             .as_ref()
             .and_then(|s| parse_size_string(s).ok());
-        let min_size = if min_file_size.is_empty() {
+        let min_size = if request.min_file_size.is_empty() {
             None
         } else {
-            parse_size_string(&min_file_size).ok()
+            parse_size_string(&request.min_file_size).ok()
         };
 
         let filtered_files = self.apply_file_filters(
             &metadata.files, 
-            &include_formats, 
-            &exclude_formats,
+            &request.include_formats, 
+            &request.exclude_formats,
             min_size,
             max_size
         );
@@ -135,16 +135,16 @@ impl DownloadController {
             status: format!("Found {} files to download", filtered_files.len()),
         });
 
-        if dry_run {
+        if request.dry_run {
             // For dry run, just return the file list information
             return Ok(DownloadResult::Success(Box::new(DownloadSession {
                 original_url: archive_url.clone(),
-                identifier: identifier.clone(),
+                identifier: request.identifier.clone(),
                 archive_metadata: metadata,
                 download_config: DownloadConfig {
-                    output_dir: output_dir.to_string_lossy().to_string(),
+                    output_dir: request.output_dir.to_string_lossy().to_string(),
                     max_concurrent: self.config.concurrent_downloads as u32,
-                    format_filters: include_formats,
+                    format_filters: request.include_formats,
                     min_size,
                     max_size,
                     verify_md5: true,
@@ -152,7 +152,7 @@ impl DownloadController {
                     user_agent: get_user_agent(),
                     enable_compression: self.config.default_compress,
                     auto_decompress: self.config.default_decompress,
-                    decompress_formats: decompress_formats.clone(),
+                    decompress_formats: request.decompress_formats.clone(),
                 },
                 requested_files: filtered_files.iter().map(|f| f.name.clone()).collect(),
                 file_status: std::collections::HashMap::new(),
@@ -169,9 +169,9 @@ impl DownloadController {
 
         // Create download configuration
         let download_config = DownloadConfig {
-            output_dir: output_dir.to_string_lossy().to_string(),
+            output_dir: request.output_dir.to_string_lossy().to_string(),
             max_concurrent: self.config.concurrent_downloads as u32,
-            format_filters: include_formats.clone(),
+            format_filters: request.include_formats.clone(),
             min_size,
             max_size,
             verify_md5: true,
@@ -179,11 +179,11 @@ impl DownloadController {
             user_agent: get_user_agent(),
             enable_compression: self.config.default_compress,
             auto_decompress: self.config.default_decompress,
-            decompress_formats: decompress_formats.clone(),
+            decompress_formats: request.decompress_formats.clone(),
         };
 
         // Create session directory
-        let session_dir = output_dir.join(".ia-get-sessions");
+        let session_dir = request.output_dir.join(".ia-get-sessions");
 
         // Initialize the archive downloader
         let downloader = ArchiveDownloader::new(
@@ -217,7 +217,7 @@ impl DownloadController {
         match downloader
             .download_with_metadata(
                 archive_url,
-                identifier,
+                request.identifier,
                 metadata,
                 download_config,
                 requested_files,
