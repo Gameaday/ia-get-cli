@@ -19,7 +19,7 @@ fn can_use_gui() -> bool {
     // Check if GUI features are compiled in
     #[cfg(not(feature = "gui"))]
     return false;
-    
+
     #[cfg(feature = "gui")]
     {
         // Check if we have a display available
@@ -28,13 +28,13 @@ fn can_use_gui() -> bool {
             #[cfg(not(target_os = "windows"))]
             return false;
         }
-        
+
         // Check if we're in a TTY (interactive terminal)
         // For now, just check if we have environment variables that suggest interactivity
         if std::env::var("TERM").is_err() {
             return false;
         }
-        
+
         true
     }
 }
@@ -43,7 +43,7 @@ fn can_use_gui() -> bool {
 #[cfg(feature = "gui")]
 async fn launch_gui() -> Result<()> {
     use ia_get::gui::IaGetApp;
-    
+
     // Set up logging for GUI
     if let Err(e) = env_logger::try_init() {
         eprintln!("Warning: Failed to initialize logger: {}", e);
@@ -77,7 +77,8 @@ async fn launch_gui() -> Result<()> {
         "ia-get GUI",
         options,
         Box::new(|cc| Ok(Box::new(IaGetApp::new(cc)))),
-    ).map_err(|e| {
+    )
+    .map_err(|e| {
         eprintln!("Error starting GUI: {}", e);
         eprintln!("This might be due to missing graphics drivers or display issues.");
         anyhow::anyhow!("Failed to start GUI: {}", e)
@@ -88,12 +89,11 @@ async fn launch_gui() -> Result<()> {
 fn load_icon() -> egui::IconData {
     // Create a simple icon (you can replace this with an actual icon file)
     let icon_data = vec![
-        255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
-        0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 255,
-        0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 255,
-        255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
     ];
-    
+
     egui::IconData {
         rgba: icon_data,
         width: 4,
@@ -103,7 +103,12 @@ fn load_icon() -> egui::IconData {
 
 /// Show an interactive menu when no arguments are provided
 fn show_interactive_menu() -> Result<()> {
-    println!("{}", "🚀 ia-get - Internet Archive Downloader".bright_cyan().bold());
+    println!(
+        "{}",
+        "🚀 ia-get - Internet Archive Downloader"
+            .bright_cyan()
+            .bold()
+    );
     println!();
     println!("No arguments provided. Choose an option:");
     println!();
@@ -112,13 +117,13 @@ fn show_interactive_menu() -> Result<()> {
     println!("  {} Exit", "3.".bright_green());
     println!();
     print!("Enter your choice (1-3): ");
-    
+
     use std::io::{self, Write};
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
-    
+
     match input.trim() {
         "1" => {
             #[cfg(feature = "gui")]
@@ -149,11 +154,14 @@ fn show_interactive_menu() -> Result<()> {
             return Ok(());
         }
         _ => {
-            println!("{} Invalid choice. Use 'ia-get --help' for command-line usage.", "⚠️".yellow());
+            println!(
+                "{} Invalid choice. Use 'ia-get --help' for command-line usage.",
+                "⚠️".yellow()
+            );
             return Err(anyhow::anyhow!("Invalid menu choice"));
         }
     }
-    
+
     Ok(())
 }
 
@@ -169,7 +177,7 @@ async fn main() -> Result<()> {
 
     // Parse command line arguments
     let matches = build_cli().try_get_matches();
-    
+
     // Handle parsing errors gracefully
     let matches = match matches {
         Ok(matches) => matches,
@@ -181,7 +189,10 @@ async fn main() -> Result<()> {
                 if can_use_gui() {
                     #[cfg(feature = "gui")]
                     {
-                        println!("{} No arguments provided, launching GUI mode...", "🎨".bright_blue());
+                        println!(
+                            "{} No arguments provided, launching GUI mode...",
+                            "🎨".bright_blue()
+                        );
                         return launch_gui().await;
                     }
                     #[cfg(not(feature = "gui"))]
