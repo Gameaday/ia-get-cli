@@ -2,15 +2,15 @@
 //!
 //! Provides the main application window and state management for the GUI interface.
 
-use crate::config::{Config, ConfigManager};
+use crate::{
+    config::{Config, ConfigManager},
+    download_service::{DownloadRequest, DownloadService, ProgressUpdate},
+};
 use egui::{Context, Ui};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
-use super::{
-    download_controller::{DownloadController, DownloadRequest, ProgressUpdate},
-    panels::{ConfigPanel, DownloadPanel, FiltersPanel},
-};
+use super::panels::{ConfigPanel, DownloadPanel, FiltersPanel};
 
 /// Main application state
 #[derive(Default)]
@@ -140,11 +140,11 @@ impl IaGetApp {
         let (progress_tx, progress_rx) = mpsc::unbounded_channel();
         self.progress_rx = Some(progress_rx);
 
-        // Create download controller
-        let controller = match DownloadController::new(self.config.clone()) {
-            Ok(c) => c,
+        // Create download service
+        let service = match DownloadService::new() {
+            Ok(s) => s,
             Err(e) => {
-                self.error_message = Some(format!("Failed to create download controller: {}", e));
+                self.error_message = Some(format!("Failed to create download service: {}", e));
                 self.is_downloading = false;
                 return;
             }
@@ -180,30 +180,30 @@ impl IaGetApp {
                     .collect()
             })
             .unwrap_or_default();
-        let dry_run = self.config.default_dry_run;
 
-        // Create download request
-        let request = DownloadRequest {
-            identifier,
-            output_dir,
-            include_formats,
-            exclude_formats,
-            min_file_size: min_size,
-            max_file_size: if max_size.is_empty() {
-                None
-            } else {
-                Some(max_size)
-            },
-            dry_run,
-            decompress_formats,
+        // Create unified download request using from_config
+        let mut request = DownloadRequest::from_config(&self.config, identifier, output_dir);
+        request.include_formats = include_formats;
+        request.exclude_formats = exclude_formats;
+        request.min_file_size = min_size;
+        request.max_file_size = if max_size.is_empty() {
+            None
+        } else {
+            Some(max_size)
         };
+        request.decompress_formats = decompress_formats;
+
+        // Create progress callback
+        let progress_callback = Box::new(move |update: ProgressUpdate| {
+            let _ = progress_tx.send(update);
+        });
 
         // Start download in background
         if let Some(handle) = &self.rt_handle {
             let ctx_clone = ctx.clone();
             handle.spawn(async move {
-                let _result = controller
-                    .start_download(request, progress_tx)
+                let _result = service
+                    .download(request, Some(progress_callback))
                     .await;
 
                 // Request repaint when done

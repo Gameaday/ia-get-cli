@@ -1,7 +1,7 @@
 //! Tests for GUI components
 
 use crate::config::Config;
-use crate::gui::download_controller::DownloadController;
+use crate::download_service::DownloadService;
 use crate::gui::panels::{ConfigPanel, DownloadPanel, FiltersPanel};
 
 #[test]
@@ -15,15 +15,12 @@ fn test_gui_panels_creation() {
 }
 
 #[test]
-fn test_download_controller_creation() {
-    // Test that download controller can be created
-    let config = Config::default();
-
-    // This should succeed even in test environment
-    let result = DownloadController::new(config);
+fn test_download_service_creation() {
+    // Test that download service can be created
+    let result = DownloadService::new();
     assert!(
         result.is_ok(),
-        "Download controller should be created successfully"
+        "Download service should be created successfully"
     );
 }
 
