@@ -25,11 +25,13 @@ pub struct ArchiveHealthPanel {
     
     // UI state
     auto_refresh: bool,
+    #[allow(dead_code)]
     show_guidelines: bool,
     test_in_progress: bool,
 }
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 enum ConnectionStatus {
     Unknown,
     Testing,
@@ -81,7 +83,7 @@ impl ArchiveHealthPanel {
 
         self.init_api_client();
         
-        if let Some(api_client_arc) = self.api_client.clone() {
+        if let Some(_api_client_arc) = self.api_client.clone() {
             self.test_in_progress = true;
             self.connection_status = ConnectionStatus::Testing;
             
@@ -95,7 +97,7 @@ impl ArchiveHealthPanel {
                 
                 // Simulate test result (since we can't do real HTTP in this context)
                 // In real implementation, this would be an actual API call
-                let test_result = ConnectionStatus::Success("200 OK".to_string());
+                let _test_result = ConnectionStatus::Success("200 OK".to_string());
                 
                 // Request repaint to update UI
                 ctx_clone.request_repaint();
