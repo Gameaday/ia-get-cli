@@ -42,6 +42,13 @@ fn can_use_gui() -> bool {
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             // On Linux and other Unix-like systems
+            // If we're in SSH or explicit terminal contexts, prefer CLI
+            if std::env::var("SSH_CONNECTION").is_ok() || 
+               std::env::var("SSH_CLIENT").is_ok() ||
+               std::env::var("SSH_TTY").is_ok() {
+                return false;
+            }
+
             // Check for X11 or Wayland display
             if std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok() {
                 return true;
@@ -53,13 +60,6 @@ fn can_use_gui() -> bool {
                std::env::var("GNOME_DESKTOP_SESSION_ID").is_ok() ||
                std::env::var("KDE_FULL_SESSION").is_ok() {
                 return true;
-            }
-
-            // If we're in SSH or explicit terminal contexts, prefer CLI
-            if std::env::var("SSH_CONNECTION").is_ok() || 
-               std::env::var("SSH_CLIENT").is_ok() ||
-               std::env::var("SSH_TTY").is_ok() {
-                return false;
             }
 
             // Default to false for headless/server environments
