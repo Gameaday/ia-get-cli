@@ -22,24 +22,53 @@ fn can_use_gui() -> bool {
 
     #[cfg(feature = "gui")]
     {
-        // Check if we have a display available
-        if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
-            // On Windows, we don't need DISPLAY
-            #[cfg(not(target_os = "windows"))]
-            return false;
+        // Platform-specific GUI detection
+        #[cfg(target_os = "windows")]
+        {
+            // On Windows, assume GUI is available unless we're in a Windows Terminal
+            // that explicitly indicates headless mode
+            std::env::var("WT_SESSION").is_ok() || std::env::var("SESSIONNAME").is_ok()
         }
 
-        // Check if we're in a TTY (interactive terminal)
-        // For now, just check if we have environment variables that suggest interactivity
-        if std::env::var("TERM").is_err() {
-            return false;
+        #[cfg(target_os = "macos")]
+        {
+            // On macOS, check for common GUI indicators
+            // Most macOS environments have GUI available
+            std::env::var("DISPLAY").is_ok() || 
+            std::env::var("TERM_PROGRAM").is_ok() || 
+            std::env::var("Apple_PubSub_Socket_Render").is_ok()
         }
 
-        true
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            // On Linux and other Unix-like systems
+            // Check for X11 or Wayland display
+            if std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok() {
+                return true;
+            }
+
+            // Check for desktop environment variables
+            if std::env::var("XDG_CURRENT_DESKTOP").is_ok() || 
+               std::env::var("DESKTOP_SESSION").is_ok() ||
+               std::env::var("GNOME_DESKTOP_SESSION_ID").is_ok() ||
+               std::env::var("KDE_FULL_SESSION").is_ok() {
+                return true;
+            }
+
+            // If we're in SSH or explicit terminal contexts, prefer CLI
+            if std::env::var("SSH_CONNECTION").is_ok() || 
+               std::env::var("SSH_CLIENT").is_ok() ||
+               std::env::var("SSH_TTY").is_ok() {
+                return false;
+            }
+
+            // Default to false for headless/server environments
+            false
+        }
     }
 }
 
-/// Launch GUI mode
+/// Launch GUI mode with graceful fallback
 #[cfg(feature = "gui")]
 async fn launch_gui() -> Result<()> {
     use ia_get::gui::IaGetApp;
@@ -48,16 +77,6 @@ async fn launch_gui() -> Result<()> {
     if let Err(e) = env_logger::try_init() {
         eprintln!("Warning: Failed to initialize logger: {}", e);
     }
-
-    // Create a tokio runtime for async operations
-    let rt = match tokio::runtime::Runtime::new() {
-        Ok(rt) => rt,
-        Err(e) => {
-            eprintln!("Error: Failed to create Tokio runtime: {}", e);
-            eprintln!("This error might occur if the system cannot create threads.");
-            return Err(e.into());
-        }
-    };
 
     // Configure GUI options
     let options = eframe::NativeOptions {
@@ -69,20 +88,19 @@ async fn launch_gui() -> Result<()> {
         ..Default::default()
     };
 
-    // Enter the async runtime context and run the GUI
-    let _guard = rt.enter();
-
-    // Run the GUI application
-    eframe::run_native(
+    // Try to run the GUI application
+    match eframe::run_native(
         "ia-get GUI",
         options,
         Box::new(|cc| Ok(Box::new(IaGetApp::new(cc)))),
-    )
-    .map_err(|e| {
-        eprintln!("Error starting GUI: {}", e);
-        eprintln!("This might be due to missing graphics drivers or display issues.");
-        anyhow::anyhow!("Failed to start GUI: {}", e)
-    })
+    ) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            eprintln!("{} GUI launch failed: {}", "⚠️".yellow(), e);
+            eprintln!("{} Falling back to interactive CLI menu...", "🔄".blue());
+            show_interactive_menu()
+        }
+    }
 }
 
 #[cfg(feature = "gui")]
@@ -186,20 +204,22 @@ async fn main() -> Result<()> {
             let args: Vec<String> = std::env::args().collect();
             if args.len() == 1 {
                 // No arguments provided - use smart detection
+                println!("{} No arguments provided, detecting best interface mode...", "🚀".bright_blue());
+                
                 if can_use_gui() {
                     #[cfg(feature = "gui")]
                     {
-                        println!(
-                            "{} No arguments provided, launching GUI mode...",
-                            "🎨".bright_blue()
-                        );
+                        println!("{} GUI environment detected, launching graphical interface...", "🎨".bright_green());
                         return launch_gui().await;
                     }
                     #[cfg(not(feature = "gui"))]
                     {
+                        println!("{} GUI environment detected but GUI features not compiled in.", "⚠️".yellow());
+                        println!("{} Using interactive CLI menu instead...", "📋".blue());
                         return show_interactive_menu();
                     }
                 } else {
+                    println!("{} Command-line environment detected, using interactive menu...", "💻".green());
                     return show_interactive_menu();
                 }
             } else {
