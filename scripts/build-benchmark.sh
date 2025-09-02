@@ -14,7 +14,12 @@ NC='\033[0m' # No Color
 # Function to format time
 format_time() {
     local seconds=$1
-    printf "%02d:%02d.%03d" $((seconds/60)) $((seconds%60)) $(((seconds*1000)%1000))
+    # Convert to integer seconds and milliseconds
+    local int_seconds=${seconds%.*}
+    local decimal_part=${seconds#*.}
+    # Pad decimal part to 3 digits
+    local milliseconds=$(printf "%.3s" "${decimal_part}000")
+    printf "%02d:%02d.%s" $((int_seconds/60)) $((int_seconds%60)) "$milliseconds"
 }
 
 # Function to run build and measure time
@@ -74,8 +79,10 @@ echo "==================="
 # Read and display results
 while IFS=',' read -r config time_seconds; do
     if [ "$config" != "Configuration" ]; then
-        formatted_time=$(format_time $time_seconds)
-        echo -e "${GREEN}$config: $formatted_time${NC}"
+        # Convert to integer seconds for display
+        int_seconds=${time_seconds%.*}
+        formatted_time=$(printf "%02d:%02d" $((int_seconds/60)) $((int_seconds%60)))
+        echo -e "${GREEN}$config: ${formatted_time}${NC}"
     fi
 done < build_times.csv
 
