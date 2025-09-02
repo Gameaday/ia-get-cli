@@ -4,7 +4,7 @@
 //! ensuring both CLI and GUI use exactly the same API and business logic.
 
 use crate::{
-    archive_api::{validate_identifier, ArchiveOrgApiClient},
+    archive_api::{validate_identifier, ArchiveOrgApiClient, ApiStats},
     config::Config,
     constants::get_user_agent,
     enhanced_downloader::ArchiveDownloader,
@@ -134,7 +134,7 @@ pub struct ProgressUpdate {
 /// Download operation result
 #[derive(Debug)]
 pub enum DownloadResult {
-    Success(Box<DownloadSession>),
+    Success(Box<DownloadSession>, Option<ApiStats>),
     Error(String),
 }
 
@@ -265,6 +265,7 @@ impl DownloadService {
 
         if request.dry_run {
             // For dry run, just return the file list information
+            let api_stats = api_client.get_stats();
             return Ok(DownloadResult::Success(Box::new(DownloadSession {
                 original_url: archive_url.clone(),
                 identifier: request.identifier.clone(),
@@ -292,7 +293,7 @@ impl DownloadService {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_secs(),
-            })));
+            }), Some(api_stats)));
         }
 
         // Create download configuration
@@ -355,7 +356,10 @@ impl DownloadService {
             )
             .await
         {
-            Ok(session) => Ok(DownloadResult::Success(Box::new(session))),
+            Ok(session) => {
+                let final_api_stats = api_client.get_stats();
+                Ok(DownloadResult::Success(Box::new(session), Some(final_api_stats)))
+            },
             Err(e) => Ok(DownloadResult::Error(format!("Download failed: {}", e))),
         }
     }

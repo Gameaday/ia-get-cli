@@ -10,7 +10,7 @@ use egui::{Context, Ui};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
-use super::panels::{ConfigPanel, DownloadPanel, FiltersPanel};
+use super::panels::{ArchiveHealthPanel, ConfigPanel, DownloadPanel, FiltersPanel};
 
 /// Main application state
 #[derive(Default)]
@@ -45,6 +45,7 @@ pub struct IaGetApp {
     rt_handle: Option<tokio::runtime::Handle>,
 
     // Panels
+    archive_health_panel: ArchiveHealthPanel,
     config_panel: ConfigPanel,
     download_panel: DownloadPanel,
     filters_panel: FiltersPanel,
@@ -61,6 +62,7 @@ enum AppTab {
     Filters,
     Config,
     History,
+    ArchiveHealth,
 }
 
 impl IaGetApp {
@@ -88,6 +90,7 @@ impl IaGetApp {
                     .to_string()
             }),
             rt_handle,
+            archive_health_panel: ArchiveHealthPanel::new(),
             config_panel: ConfigPanel::new(config.clone()),
             download_panel: DownloadPanel::new(),
             filters_panel: FiltersPanel::new(),
@@ -267,6 +270,7 @@ impl IaGetApp {
                 ui.selectable_value(&mut self.current_tab, AppTab::Filters, "Filters");
                 ui.selectable_value(&mut self.current_tab, AppTab::Config, "Settings");
                 ui.selectable_value(&mut self.current_tab, AppTab::History, "History");
+                ui.selectable_value(&mut self.current_tab, AppTab::ArchiveHealth, "API Health");
             });
 
             ui.separator();
@@ -276,6 +280,7 @@ impl IaGetApp {
                 AppTab::Filters => self.render_filters_tab(ui),
                 AppTab::Config => self.render_config_tab(ui),
                 AppTab::History => self.render_history_tab(ui),
+                AppTab::ArchiveHealth => self.render_archive_health_tab(ui),
             }
         });
 
@@ -483,6 +488,10 @@ impl IaGetApp {
         if ui.button("Clear History").clicked() {
             self.recent_downloads.clear();
         }
+    }
+
+    fn render_archive_health_tab(&mut self, ui: &mut Ui) {
+        self.archive_health_panel.show(ui);
     }
 
     /// Render dialogs

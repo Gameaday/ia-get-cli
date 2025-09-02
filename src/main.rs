@@ -10,6 +10,8 @@ use ia_get::{
     DownloadRequest, DownloadResult, DownloadService,
     filters::format_size,
     metadata_storage::DownloadState,
+    archive_api::{ArchiveOrgApiClient, get_archive_servers},
+    constants::get_user_agent,
 };
 
 /// Entry point for the ia-get CLI application
@@ -24,6 +26,12 @@ async fn main() -> Result<()> {
 
     // Parse command line arguments
     let matches = build_cli().get_matches();
+
+    // Check for API health command first
+    if matches.get_flag("api-health") {
+        display_api_health().await?;
+        return Ok(());
+    }
 
     // Extract arguments
     let identifier = matches
@@ -103,7 +111,7 @@ async fn main() -> Result<()> {
 
     // Execute download using unified API
     match service.download(request.clone(), None).await {
-        Ok(DownloadResult::Success(session)) => {
+        Ok(DownloadResult::Success(session, api_stats)) => {
             if !dry_run {
                 println!("\n{} Download completed successfully!", "✅".green().bold());
                 println!(
@@ -111,6 +119,17 @@ async fn main() -> Result<()> {
                     output_dir.display().to_string().bright_green()
                 );
                 DownloadService::display_download_summary(&session, &request);
+
+                // Display Archive.org API statistics
+                if let Some(stats) = api_stats {
+                    println!("\n{} Archive.org API Usage:", "📊".blue().bold());
+                    println!("  {}", stats);
+                    if verbose {
+                        println!("  Session healthy: {}", 
+                            if stats.average_requests_per_minute < 30.0 { "✅ Yes" } else { "⚠️ High rate" }
+                        );
+                    }
+                }
 
                 // Provide next steps if session has failed files
                 let failed_files: Vec<_> = session
@@ -151,6 +170,12 @@ async fn main() -> Result<()> {
                 }
 
                 println!("\n{} Use without --dry-run to download", "💡".yellow());
+                
+                // Display Archive.org API statistics for dry run too
+                if let Some(stats) = api_stats {
+                    println!("\n{} Archive.org API Usage:", "📊".blue().bold());
+                    println!("  {}", stats);
+                }
             }
         }
         Ok(DownloadResult::Error(error)) => {
@@ -166,6 +191,84 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Display Archive.org API health and monitoring information
+async fn display_api_health() -> Result<()> {
+    println!("{} Archive.org API Health Status", "🏥".blue().bold());
+    println!();
+
+    // Create a test API client
+    let client = reqwest::Client::builder()
+        .user_agent(get_user_agent())
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    let mut api_client = ArchiveOrgApiClient::new(client);
+
+    // Test basic connectivity
+    println!("{} Testing Archive.org connectivity...", "🔗".cyan());
+    match api_client.make_request("https://archive.org/metadata/nasa").await {
+        Ok(response) => {
+            println!("  ✅ Connection successful (status: {})", response.status());
+        }
+        Err(e) => {
+            println!("  ❌ Connection failed: {}", e);
+        }
+    }
+
+    // Display server list
+    println!("\n{} Available Archive.org Servers:", "🌐".green().bold());
+    let servers = get_archive_servers();
+    for (i, server) in servers.iter().enumerate() {
+        println!("  {:<2} {}", format!("{}.", i + 1).dimmed(), server.bright_blue());
+    }
+
+    // Test multiple requests to show rate limiting
+    println!("\n{} Testing API rate limiting...", "⏱️".yellow());
+    let _start_time = std::time::Instant::now();
+    
+    for i in 0..3 {
+        let test_url = format!("https://archive.org/metadata/test{}", i);
+        match api_client.make_request(&test_url).await {
+            Ok(_) => {
+                let stats = api_client.get_stats();
+                println!("  Request {}: ✅ (Rate: {:.1} req/min)", i + 1, stats.average_requests_per_minute);
+            }
+            Err(e) => {
+                println!("  Request {}: ❌ {}", i + 1, e);
+            }
+        }
+    }
+
+    // Display final statistics
+    println!("\n{} API Session Statistics:", "📊".purple().bold());
+    let final_stats = api_client.get_stats();
+    println!("  {}", final_stats);
+    
+    // Health assessment
+    println!("\n{} Health Assessment:", "🎯".bright_green().bold());
+    if api_client.is_rate_healthy() {
+        println!("  ✅ Request rate is healthy and Archive.org compliant");
+    } else {
+        println!("  ⚠️  Request rate is high - consider slowing down requests");
+    }
+
+    println!("\n{} Archive.org API Guidelines:", "📋".bright_cyan().bold());
+    println!("  • Keep concurrent connections ≤ 5 for respectful usage");
+    println!("  • Include descriptive User-Agent with contact information");
+    println!("  • Implement retry logic for transient failures");
+    println!("  • Honor rate limiting (429) and retry-after headers");
+    println!("  • Use appropriate timeouts for large file downloads");
+
+    println!("\n{} Current Configuration:", "⚙️".bright_magenta().bold());
+    println!("  User Agent: {}", get_user_agent().bright_green());
+    println!("  Default Timeout: 30 seconds");
+    println!("  Min Request Delay: 100ms");
+    println!("  Max Concurrent: 5 connections");
+
+    Ok(())
+}
+
 /// Build the CLI interface
 fn build_cli() -> Command {
     Command::new("ia-get")
@@ -175,7 +278,7 @@ fn build_cli() -> Command {
         .arg(
             Arg::new("identifier")
                 .help("Internet Archive identifier")
-                .required(true)
+                .required_unless_present("api-health")
                 .value_name("IDENTIFIER")
                 .index(1)
         )
@@ -240,6 +343,12 @@ fn build_cli() -> Command {
                 .value_name("FORMATS")
                 .value_delimiter(',')
                 .action(ArgAction::Append)
+        )
+        .arg(
+            Arg::new("api-health")
+                .long("api-health")
+                .help("Display Archive.org API health and monitoring information")
+                .action(ArgAction::SetTrue)
         )
 }
 
