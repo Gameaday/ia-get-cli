@@ -544,6 +544,17 @@ impl ArchiveDownloader {
             .map_err(|e| IaGetError::FileSystem(format!("Failed to flush file: {}", e)))?;
         drop(file);
 
+        // Verify that we downloaded the expected amount of data
+        if let Some(expected_size) = file_info.size {
+            if downloaded != expected_size {
+                let _ = tokio::fs::remove_file(&temp_path).await;
+                return Err(IaGetError::Network(format!(
+                    "Download incomplete: expected {} bytes, got {} bytes for {}",
+                    expected_size, downloaded, file_info.name
+                )));
+            }
+        }
+
         // Move temporary file to final location
         tokio::fs::rename(&temp_path, output_path)
             .await

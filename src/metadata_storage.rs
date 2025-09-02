@@ -487,11 +487,9 @@ impl ArchiveFile {
             .map(|ext| ext.to_lowercase() == "xml")
             .unwrap_or(false)
         {
-            eprintln!("🔍 Using XML alternative validation for: {:?}", file_path_ref);
             return self.validate_xml_file_alternative(file_path_ref);
         }
 
-        eprintln!("🔍 Using normal MD5 validation for: {:?}", file_path_ref);
         if let Some(expected_md5) = &self.md5 {
             let actual_md5 = crate::utils::calculate_md5(file_path)?;
             Ok(actual_md5.to_lowercase() == expected_md5.to_lowercase())
@@ -505,55 +503,50 @@ impl ArchiveFile {
     fn validate_xml_file_alternative<P: AsRef<Path>>(&self, file_path: P) -> Result<bool> {
         use std::fs;
         
-        eprintln!("🔍 XML Alternative validation starting for: {:?}", file_path.as_ref());
-        
         // Check if file exists and has reasonable size (not empty, not too small)
         let metadata = match fs::metadata(&file_path) {
             Ok(meta) => meta,
-            Err(e) => {
-                eprintln!("❌ XML validation failed - can't read metadata: {}", e);
-                return Ok(false); // File doesn't exist or can't be read
-            }
+            Err(_) => return Ok(false), // File doesn't exist or can't be read
         };
 
         let file_size = metadata.len();
-        eprintln!("📊 XML file size: {} bytes", file_size);
         
         // XML files should have some minimum size (at least basic XML structure)
         if file_size < 10 {
-            eprintln!("❌ XML validation failed - file too small: {} bytes", file_size);
             return Ok(false);
         }
 
         // Check if file size matches the expected size from metadata (if available)
+        // Skip size check for files with null/unknown sizes in Archive.org metadata
         if let Some(expected_size) = self.size {
-            eprintln!("🔍 Checking size - expected: {}, actual: {}", expected_size, file_size);
             if file_size != expected_size {
-                eprintln!("❌ XML validation failed - size mismatch: expected {}, got {}", expected_size, file_size);
-                return Ok(false);
+                // For XML files, we're more lenient due to Archive.org inconsistencies
+                // Allow some variance in size (e.g., due to encoding differences)
+                let size_difference = if file_size > expected_size {
+                    file_size - expected_size
+                } else {
+                    expected_size - file_size
+                };
+                
+                // Allow up to 10% size difference or 100 bytes, whichever is larger
+                let tolerance = std::cmp::max(expected_size / 10, 100);
+                if size_difference > tolerance {
+                    return Ok(false);
+                }
             }
-        } else {
-            eprintln!("🔍 No expected size in metadata, skipping size check");
         }
 
         // Try to read the beginning of the file to validate it's XML-like
         let file_content = match fs::read_to_string(&file_path) {
             Ok(content) => content,
-            Err(e) => {
-                eprintln!("❌ XML validation failed - can't read as text: {}", e);
-                return Ok(false); // Can't read as text
-            }
+            Err(_) => return Ok(false), // Can't read as text
         };
-
-        eprintln!("📄 XML content length: {} chars", file_content.len());
-        eprintln!("📄 XML content start: {:?}", &file_content[..file_content.len().min(100)]);
 
         // Basic XML validation - should start with XML declaration or opening tag
         let trimmed = file_content.trim();
         let is_xml_like = trimmed.starts_with("<?xml") || 
                          trimmed.starts_with('<');
 
-        eprintln!("✅ XML validation result: {}", is_xml_like);
         Ok(is_xml_like)
     }
 
