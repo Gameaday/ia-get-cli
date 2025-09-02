@@ -5,7 +5,7 @@
 use ia_get::{
     metadata::{get_json_url, parse_archive_metadata},
     url_processing::{construct_metadata_url, extract_identifier_from_url},
-    DownloadService, DownloadRequest, DownloadResult,
+    DownloadRequest, DownloadResult, DownloadService,
 };
 use std::path::PathBuf;
 
@@ -211,7 +211,11 @@ async fn test_mario_archive_dry_run() {
     let result = service.download(request, None).await;
 
     // Verify the request was successful
-    assert!(result.is_ok(), "Download service failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Download service failed: {:?}",
+        result.err()
+    );
 
     // Extract the result and verify it's a success
     match result.unwrap() {
@@ -219,23 +223,38 @@ async fn test_mario_archive_dry_run() {
             // Verify basic session data
             assert_eq!(session.identifier, "https://archive.org/details/mario");
             assert!(session.original_url.contains("mario"));
-            assert!(!session.archive_metadata.files.is_empty(), "No files found in mario archive");
-            
+            assert!(
+                !session.archive_metadata.files.is_empty(),
+                "No files found in mario archive"
+            );
+
             // Verify at least some common file characteristics
-            let file_names: Vec<&str> = session.archive_metadata.files.iter()
+            let file_names: Vec<&str> = session
+                .archive_metadata
+                .files
+                .iter()
                 .map(|f| f.name.as_str())
                 .collect();
-            
+
             // Mario archive should have some files
             assert!(!file_names.is_empty(), "Mario archive should contain files");
-            
+
             // Verify metadata structure is complete
-            assert!(!session.archive_metadata.server.is_empty(), "Server should be specified");
-            assert!(!session.archive_metadata.dir.is_empty(), "Directory should be specified");
-            
+            assert!(
+                !session.archive_metadata.server.is_empty(),
+                "Server should be specified"
+            );
+            assert!(
+                !session.archive_metadata.dir.is_empty(),
+                "Directory should be specified"
+            );
+
             // Verify API stats are present (Archive.org compliance monitoring)
-            assert!(api_stats.is_some(), "API stats should be available for monitoring");
-            
+            assert!(
+                api_stats.is_some(),
+                "API stats should be available for monitoring"
+            );
+
             // Print some info for manual verification if verbose testing
             if std::env::var("RUST_TEST_VERBOSE").is_ok() {
                 println!("✅ Mario archive dry-run successful:");
@@ -246,7 +265,7 @@ async fn test_mario_archive_dry_run() {
                     println!("   - API requests made: {}", stats.request_count);
                 }
             }
-        },
+        }
         DownloadResult::Error(error) => {
             panic!("Expected successful dry-run, got error: {}", error);
         }
