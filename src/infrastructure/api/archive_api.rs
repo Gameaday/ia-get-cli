@@ -348,7 +348,7 @@ impl EnhancedArchiveApiClient {
     /// Returns system health information
     pub async fn get_service_status(&mut self) -> Result<Response> {
         let url = endpoints::status();
-        self.base_client.make_request(&url).await
+        self.base_client.make_request(url).await
     }
 
     /// Get basic metadata for an item (wraps existing functionality)
