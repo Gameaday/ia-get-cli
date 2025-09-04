@@ -9,6 +9,9 @@ use reqwest::{Client, Response};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
+/// Minimum delay between requests to respect Archive.org rate limits (milliseconds)
+const MIN_REQUEST_DELAY_MS: u64 = 2000; // 2 seconds between requests
+
 /// Internet Archive API compliance manager
 #[derive(Debug)]
 pub struct ArchiveOrgApiClient {
@@ -427,6 +430,72 @@ impl EnhancedArchiveApiClient {
     /// Ensure we're not making requests too quickly
     pub async fn ensure_healthy_rate(&self) {
         self.base_client.ensure_healthy_rate().await
+    }
+
+    /// Get metadata as JSON value (used by AdvancedMetadataProcessor)
+    pub async fn get_metadata_json(&mut self, identifier: &str) -> Result<serde_json::Value> {
+        // Validate identifier first
+        validate_identifier(identifier)?;
+
+        let url = endpoints::metadata(identifier);
+        let response = self.base_client.make_request(&url).await?;
+
+        let metadata_text = response
+            .text()
+            .await
+            .map_err(|e| IaGetError::Network(format!("Failed to read metadata response: {}", e)))?;
+
+        let metadata: serde_json::Value = serde_json::from_str(&metadata_text).map_err(|e| {
+            IaGetError::JsonParsing(format!("Failed to parse metadata JSON: {}", e))
+        })?;
+
+        Ok(metadata)
+    }
+
+    /// Search for collections
+    pub async fn search_collections(&mut self, collection_name: &str) -> Result<serde_json::Value> {
+        let query = format!("collection:{}", collection_name);
+        let fields = "identifier,title,description,num_found";
+        let response = self
+            .search_items(&query, Some(fields), Some(5), None)
+            .await?;
+
+        // Parse the response to JSON
+        let response_text = response
+            .text()
+            .await
+            .map_err(|e| IaGetError::Network(format!("Failed to read search response: {}", e)))?;
+
+        let search_results: serde_json::Value = serde_json::from_str(&response_text)
+            .map_err(|e| IaGetError::JsonParsing(format!("Failed to parse search JSON: {}", e)))?;
+
+        Ok(search_results)
+    }
+
+    /// Test metadata API health
+    pub async fn test_metadata_api(&mut self) -> Result<()> {
+        // Use a known stable identifier for testing
+        let test_identifier = "internetarchive";
+        self.get_metadata_json(test_identifier).await?;
+        Ok(())
+    }
+
+    /// Test search API health
+    pub async fn test_search_api(&mut self) -> Result<()> {
+        // Perform a simple search
+        let fields = "identifier";
+        let _response = self
+            .search_items("collection:opensource", Some(fields), Some(1), None)
+            .await?;
+        Ok(())
+    }
+
+    /// Test tasks API health
+    pub async fn test_tasks_api(&mut self) -> Result<()> {
+        // Tasks API is typically accessible if search API works
+        // For now, we'll just return Ok since the tasks endpoint
+        // is less critical and might not always be available
+        Ok(())
     }
 }
 

@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use tokio::signal;
 
 use ia_get::{
+    core::archive::AdvancedMetadataProcessor,
     core::session::sanitize_filename_for_filesystem,
     core::session::DownloadState,
     infrastructure::api::{get_archive_servers, EnhancedArchiveApiClient},
@@ -840,85 +841,81 @@ async fn analyze_archive_metadata(identifier: &str) -> Result<()> {
         .build()
         .context("Failed to create HTTP client")?;
 
-    // Create progress indicator
-    let progress = indicatif::ProgressBar::new_spinner();
-    progress.set_style(
-        indicatif::ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap(),
-    );
+    // Create enhanced API client
+    let api_client = EnhancedArchiveApiClient::new(client.clone());
 
-    // Fetch enhanced metadata
-    match ia_get::core::archive::enhanced::fetch_enhanced_metadata(
-        identifier, &client, &progress, true, // include related items
-        true, // include tasks
-    )
-    .await
-    {
-        Ok(enhanced_metadata) => {
-            progress.finish_and_clear();
+    // Create advanced metadata processor
+    let mut processor = AdvancedMetadataProcessor::new(api_client);
 
-            // Analyze the metadata
-            let analysis = ia_get::core::archive::enhanced::analyze_metadata(&enhanced_metadata);
+    // Perform comprehensive analysis
+    match processor.analyze_metadata(identifier).await {
+        Ok(analysis) => {
+            // Display the comprehensive analysis
+            processor.display_analysis(&analysis);
 
-            // Display comprehensive analysis
-            println!("{}", analysis);
+            // Show additional insights
+            if analysis.completeness_score < 60.0 {
+                println!("{}", "💡 Suggestions for improvement:".yellow().bold());
+                if !analysis.quality_indicators.has_description {
+                    println!("  • Add a detailed description to improve discoverability");
+                }
+                if !analysis.quality_indicators.has_creator {
+                    println!("  • Specify the creator or author information");
+                }
+                if analysis.quality_indicators.files_have_checksums < 80.0 {
+                    println!(
+                        "  • Consider adding checksums to more files for integrity verification"
+                    );
+                }
+                println!();
+            }
 
-            // Display additional insights
-            if let Some(related) = &enhanced_metadata.related_items {
-                println!("\n{} Related Items Information:", "🔗".cyan().bold());
-                if let Some(response) = related.get("response") {
-                    if let Some(docs) = response.get("docs") {
-                        if let Some(docs_array) = docs.as_array() {
-                            for (i, doc) in docs_array.iter().take(3).enumerate() {
-                                if let Some(title) = doc.get("title").and_then(|t| t.as_str()) {
-                                    println!("  {}. {}", i + 1, title);
-                                }
-                            }
-                        }
+            // Show technical details for advanced users
+            if std::env::var("IA_GET_VERBOSE").is_ok() {
+                println!("{}", "🔧 Technical Details:".dimmed().bold());
+                println!("  Size Distribution:");
+                println!(
+                    "    Small files (< 1MB): {}",
+                    analysis.size_distribution.small_files
+                );
+                println!(
+                    "    Medium files (1MB-100MB): {}",
+                    analysis.size_distribution.medium_files
+                );
+                println!(
+                    "    Large files (100MB-1GB): {}",
+                    analysis.size_distribution.large_files
+                );
+                println!(
+                    "    Huge files (> 1GB): {}",
+                    analysis.size_distribution.huge_files
+                );
+                println!(
+                    "    Average size: {}",
+                    format_size(analysis.size_distribution.average_size)
+                );
+                println!(
+                    "    Median size: {}",
+                    format_size(analysis.size_distribution.median_size)
+                );
+
+                if !analysis.largest_files.is_empty() {
+                    println!("  Largest Files:");
+                    for (i, file) in analysis.largest_files.iter().take(5).enumerate() {
+                        let truncated_name = if file.name.len() > 50 {
+                            format!("{}...", &file.name[..47])
+                        } else {
+                            file.name.clone()
+                        };
+                        println!(
+                            "    {}. {} ({})",
+                            i + 1,
+                            truncated_name,
+                            format_size(file.size)
+                        );
                     }
                 }
-            }
-
-            if let Some(collection_info) = &enhanced_metadata.collection_info {
-                println!("\n{} Collection Information:", "📁".green().bold());
-                if let Some(response) = collection_info.get("response") {
-                    if let Some(num_found) = response.get("numFound") {
-                        println!("  Total items in collection: {}", num_found);
-                    }
-                }
-            }
-
-            if let Some(tasks) = &enhanced_metadata.tasks_status {
-                println!("\n{} Task Status:", "⚙️".yellow().bold());
-                if let Some(tasks_array) = tasks.as_array() {
-                    if tasks_array.is_empty() {
-                        println!("  No active tasks");
-                    } else {
-                        println!("  {} active tasks found", tasks_array.len());
-                    }
-                }
-            }
-
-            // Basic metadata summary
-            let basic = &enhanced_metadata.basic_metadata;
-            println!("\n{} Archive Details:", "📋".purple().bold());
-
-            if let Some(title) = basic.metadata.get("title").and_then(|t| t.as_str()) {
-                println!("  Title: {}", title);
-            }
-
-            if let Some(creator) = basic.metadata.get("creator").and_then(|c| c.as_str()) {
-                println!("  Creator: {}", creator);
-            }
-
-            if let Some(description) = basic.metadata.get("description").and_then(|d| d.as_str()) {
-                let truncated = if description.len() > 200 {
-                    format!("{}...", &description[..200])
-                } else {
-                    description.to_string()
-                };
-                println!("  Description: {}", truncated);
+                println!();
             }
 
             println!(
@@ -927,9 +924,13 @@ async fn analyze_archive_metadata(identifier: &str) -> Result<()> {
             );
         }
         Err(e) => {
-            progress.finish_and_clear();
-            eprintln!("❌ Failed to fetch enhanced metadata: {}", e);
-            return Err(e.into());
+            eprintln!(
+                "{} {} {}",
+                "❌".red(),
+                "Failed to analyze metadata:".red().bold(),
+                e
+            );
+            std::process::exit(1);
         }
     }
 

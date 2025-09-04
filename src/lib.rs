@@ -59,7 +59,10 @@ pub mod utilities;
 pub use error::{IaGetError, Result};
 
 // Re-export commonly used functions from organized modules
-pub use core::archive::{enhanced, fetch_json_metadata, get_json_url, parse_archive_metadata};
+pub use core::archive::{
+    fetch_json_metadata, get_json_url, parse_archive_metadata, AdvancedMetadataProcessor,
+    MetadataAnalysis,
+};
 pub use core::download::{
     download_files_with_retries, DownloadRequest, DownloadResult, DownloadService, DownloadStats,
     FileDownloadResult, ProgressUpdate, SimpleConcurrentDownloader,
