@@ -192,17 +192,13 @@ pub fn filter_files<T: FilterOptions, F: FileEntry>(files: Vec<F>, options: &T) 
                 .to_lowercase();
 
             // Check include extensions
-            if !include_extensions.is_empty() {
-                if !include_extensions.contains(&extension) {
-                    return false;
-                }
+            if !include_extensions.is_empty() && !include_extensions.contains(&extension) {
+                return false;
             }
 
             // Check exclude extensions
-            if !exclude_extensions.is_empty() {
-                if exclude_extensions.contains(&extension) {
-                    return false;
-                }
+            if !exclude_extensions.is_empty() && exclude_extensions.contains(&extension) {
+                return false;
             }
 
             // Check file size

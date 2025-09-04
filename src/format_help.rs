@@ -113,7 +113,7 @@ pub fn list_format_presets() {
         if !extensions.is_empty() {
             println!("    {} {}", "Formats:".yellow(), extensions.join(", "));
         } else {
-            println!("    {} {}", "Usage:".yellow(), "Use with --exclude-formats");
+            println!("    {} Use with --exclude-formats", "Usage:".yellow());
         }
         println!();
     }
