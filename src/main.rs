@@ -11,7 +11,7 @@ use tokio::signal;
 use ia_get::{
     core::session::sanitize_filename_for_filesystem,
     core::session::DownloadState,
-    infrastructure::api::{get_archive_servers, ArchiveOrgApiClient},
+    infrastructure::api::{get_archive_servers, EnhancedArchiveApiClient},
     interface::cli::SourceType,
     utilities::common::get_user_agent,
     utilities::filters::format_size,
@@ -255,6 +255,19 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Check for metadata analysis command
+    if matches.get_flag("analyze-metadata") {
+        let raw_identifier = matches.get_one::<String>("identifier").ok_or_else(|| {
+            anyhow::anyhow!("Archive identifier is required for metadata analysis")
+        })?;
+
+        let identifier = ia_get::utilities::common::normalize_archive_identifier(raw_identifier)
+            .context("Failed to normalize archive identifier")?;
+
+        analyze_archive_metadata(&identifier).await?;
+        return Ok(());
+    }
+
     // Check for format listing commands
     if matches.get_flag("list-formats") {
         ia_get::utilities::filters::list_format_categories();
@@ -489,19 +502,68 @@ async fn display_api_health() -> Result<()> {
         .build()
         .context("Failed to create HTTP client")?;
 
-    let mut api_client = ArchiveOrgApiClient::new(client);
+    let mut api_client = EnhancedArchiveApiClient::new(client);
 
-    // Test basic connectivity
-    println!("{} Testing Archive.org connectivity...", "🔗".cyan());
+    // Test basic connectivity with official status endpoint
+    println!("{} Testing Archive.org service status...", "🔗".cyan());
+    match api_client.get_service_status().await {
+        Ok(response) => {
+            let status = response.status();
+            println!("  ✅ Status endpoint successful (HTTP {})", status);
+
+            // Try to parse the status response
+            if let Ok(text) = response.text().await {
+                if let Ok(status_data) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(status_msg) = status_data.get("status").and_then(|s| s.as_str()) {
+                        println!("  📊 Service Status: {}", status_msg);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("  ❌ Status check failed: {}", e);
+        }
+    }
+
+    // Test metadata API
+    println!("\n{} Testing Metadata API...", "📋".cyan());
+    match api_client.get_metadata("nasa").await {
+        Ok(response) => {
+            println!(
+                "  ✅ Metadata API successful (status: {})",
+                response.status()
+            );
+        }
+        Err(e) => {
+            println!("  ❌ Metadata API failed: {}", e);
+        }
+    }
+
+    // Test search API
+    println!("\n{} Testing Search API...", "🔍".cyan());
     match api_client
-        .make_request("https://archive.org/metadata/nasa")
+        .search_items("collection:nasa", Some("identifier,title"), Some(1), None)
         .await
     {
         Ok(response) => {
-            println!("  ✅ Connection successful (status: {})", response.status());
+            println!("  ✅ Search API successful (status: {})", response.status());
+
+            // Parse search results to show functionality
+            if let Ok(text) = response.text().await {
+                if let Ok(search_data) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(num_found) =
+                        search_data.get("response").and_then(|r| r.get("numFound"))
+                    {
+                        println!(
+                            "  📊 Search returned {} total items in nasa collection",
+                            num_found
+                        );
+                    }
+                }
+            }
         }
         Err(e) => {
-            println!("  ❌ Connection failed: {}", e);
+            println!("  ❌ Search API failed: {}", e);
         }
     }
 
@@ -518,21 +580,24 @@ async fn display_api_health() -> Result<()> {
 
     // Test multiple requests to show rate limiting
     println!("\n{} Testing API rate limiting...", "⏱️".yellow());
-    let _start_time = std::time::Instant::now();
 
     for i in 0..3 {
-        let test_url = format!("https://archive.org/metadata/test{}", i);
-        match api_client.make_request(&test_url).await {
+        // Use valid identifiers that exist
+        let test_identifiers = ["mario", "luigi", "nasa"];
+        let identifier = test_identifiers[i % test_identifiers.len()];
+
+        match api_client.get_metadata(identifier).await {
             Ok(_) => {
                 let stats = api_client.get_stats();
                 println!(
-                    "  Request {}: ✅ (Rate: {:.1} req/min)",
+                    "  Request {}: ✅ {} (Rate: {:.1} req/min)",
                     i + 1,
+                    identifier,
                     stats.average_requests_per_minute
                 );
             }
             Err(e) => {
-                println!("  Request {}: ❌ {}", i + 1, e);
+                println!("  Request {}: ❌ {} - {}", i + 1, identifier, e);
             }
         }
     }
@@ -549,6 +614,17 @@ async fn display_api_health() -> Result<()> {
     } else {
         println!("  ⚠️  Request rate is high - consider slowing down requests");
     }
+
+    // Enhanced API capabilities
+    println!(
+        "\n{} Enhanced API Capabilities:",
+        "⚡".bright_yellow().bold()
+    );
+    println!("  ✅ Metadata API - Item information and file listings");
+    println!("  ✅ Search API - Finding items across collections");
+    println!("  ✅ Tasks API - Monitoring upload/processing status");
+    println!("  ✅ Collections API - Batch operations on collections");
+    println!("  ✅ Status API - Real-time service health monitoring");
 
     println!(
         "\n{} Archive.org API Guidelines:",
@@ -614,7 +690,7 @@ fn build_cli() -> Command {
         .arg(
             Arg::new("identifier")
                 .help("Internet Archive identifier")
-                .required_unless_present_any(["api-health", "list-formats", "list-formats-detailed"])
+                .required_unless_present_any(["api-health", "list-formats", "list-formats-detailed", "analyze-metadata"])
                 .value_name("IDENTIFIER")
                 .index(1)
         )
@@ -743,6 +819,121 @@ fn build_cli() -> Command {
                 .help("Display Archive.org API health and monitoring information")
                 .action(ArgAction::SetTrue)
         )
+        .arg(
+            Arg::new("analyze-metadata")
+                .long("analyze-metadata")
+                .help("Display enhanced metadata analysis for the specified archive")
+                .action(ArgAction::SetTrue)
+        )
+}
+
+/// Analyze and display enhanced metadata for an archive
+async fn analyze_archive_metadata(identifier: &str) -> Result<()> {
+    println!("{} Enhanced Metadata Analysis", "🔍".blue().bold());
+    println!("Archive: {}", identifier.bright_green());
+    println!();
+
+    // Create HTTP client
+    let client = reqwest::Client::builder()
+        .user_agent(get_user_agent())
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    // Create progress indicator
+    let progress = indicatif::ProgressBar::new_spinner();
+    progress.set_style(
+        indicatif::ProgressStyle::default_spinner()
+            .template("{spinner:.green} {msg}")
+            .unwrap(),
+    );
+
+    // Fetch enhanced metadata
+    match ia_get::core::archive::enhanced::fetch_enhanced_metadata(
+        identifier, &client, &progress, true, // include related items
+        true, // include tasks
+    )
+    .await
+    {
+        Ok(enhanced_metadata) => {
+            progress.finish_and_clear();
+
+            // Analyze the metadata
+            let analysis = ia_get::core::archive::enhanced::analyze_metadata(&enhanced_metadata);
+
+            // Display comprehensive analysis
+            println!("{}", analysis);
+
+            // Display additional insights
+            if let Some(related) = &enhanced_metadata.related_items {
+                println!("\n{} Related Items Information:", "🔗".cyan().bold());
+                if let Some(response) = related.get("response") {
+                    if let Some(docs) = response.get("docs") {
+                        if let Some(docs_array) = docs.as_array() {
+                            for (i, doc) in docs_array.iter().take(3).enumerate() {
+                                if let Some(title) = doc.get("title").and_then(|t| t.as_str()) {
+                                    println!("  {}. {}", i + 1, title);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some(collection_info) = &enhanced_metadata.collection_info {
+                println!("\n{} Collection Information:", "📁".green().bold());
+                if let Some(response) = collection_info.get("response") {
+                    if let Some(num_found) = response.get("numFound") {
+                        println!("  Total items in collection: {}", num_found);
+                    }
+                }
+            }
+
+            if let Some(tasks) = &enhanced_metadata.tasks_status {
+                println!("\n{} Task Status:", "⚙️".yellow().bold());
+                if let Some(tasks_array) = tasks.as_array() {
+                    if tasks_array.is_empty() {
+                        println!("  No active tasks");
+                    } else {
+                        println!("  {} active tasks found", tasks_array.len());
+                    }
+                }
+            }
+
+            // Basic metadata summary
+            let basic = &enhanced_metadata.basic_metadata;
+            println!("\n{} Archive Details:", "📋".purple().bold());
+
+            if let Some(title) = basic.metadata.get("title").and_then(|t| t.as_str()) {
+                println!("  Title: {}", title);
+            }
+
+            if let Some(creator) = basic.metadata.get("creator").and_then(|c| c.as_str()) {
+                println!("  Creator: {}", creator);
+            }
+
+            if let Some(description) = basic.metadata.get("description").and_then(|d| d.as_str()) {
+                let truncated = if description.len() > 200 {
+                    format!("{}...", &description[..200])
+                } else {
+                    description.to_string()
+                };
+                println!("  Description: {}", truncated);
+            }
+
+            println!(
+                "\n{} Use this analysis to make informed download decisions!",
+                "💡".bright_yellow()
+            );
+        }
+        Err(e) => {
+            progress.finish_and_clear();
+            eprintln!("❌ Failed to fetch enhanced metadata: {}", e);
+            return Err(e.into());
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

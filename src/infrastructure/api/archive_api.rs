@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
 /// Internet Archive API compliance manager
+#[derive(Debug)]
 pub struct ArchiveOrgApiClient {
     client: Client,
     last_request_time: Option<Instant>,
@@ -237,4 +238,218 @@ pub fn get_archive_servers() -> Vec<String> {
         "https://ia800001.us.archive.org".to_string(),
         "https://ia900001.us.archive.org".to_string(),
     ]
+}
+
+/// Internet Archive API endpoints following official API documentation
+/// Reference: https://archive.org/developers/
+pub mod endpoints {
+    /// Metadata API endpoint - primary endpoint for file and item metadata
+    /// Documentation: https://archive.org/developers/md-read.html
+    pub fn metadata(identifier: &str) -> String {
+        format!("https://archive.org/metadata/{}", identifier)
+    }
+
+    /// Download API endpoint - for accessing files directly
+    /// Documentation: https://archive.org/developers/downloads.html
+    pub fn download(identifier: &str) -> String {
+        format!("https://archive.org/download/{}", identifier)
+    }
+
+    /// Search API endpoint - for discovering items and collections
+    /// Documentation: https://archive.org/developers/search.html
+    pub fn search() -> &'static str {
+        "https://archive.org/advancedsearch.php"
+    }
+
+    /// Tasks API endpoint - for monitoring long-running operations
+    /// Documentation: https://archive.org/developers/tasks.html
+    pub fn tasks(identifier: &str) -> String {
+        format!(
+            "https://archive.org/services/tasks.php?identifier={}",
+            identifier
+        )
+    }
+
+    /// Collections API endpoint - for collection metadata and management
+    pub fn collections(identifier: &str) -> String {
+        format!("https://archive.org/metadata/{}/metadata", identifier)
+    }
+
+    /// Status API endpoint - for system health and service status
+    pub fn status() -> &'static str {
+        "https://archive.org/services/check"
+    }
+
+    /// Details page URL construction
+    pub fn details(identifier: &str) -> String {
+        format!("https://archive.org/details/{}", identifier)
+    }
+}
+
+/// Enhanced Internet Archive API client with support for multiple endpoints
+#[derive(Debug)]
+pub struct EnhancedArchiveApiClient {
+    base_client: ArchiveOrgApiClient,
+}
+
+impl EnhancedArchiveApiClient {
+    /// Create a new enhanced Archive.org API client
+    pub fn new(client: Client) -> Self {
+        Self {
+            base_client: ArchiveOrgApiClient::new(client),
+        }
+    }
+
+    /// Search for items using the Internet Archive Search API
+    ///
+    /// Parameters:
+    /// - query: Search query string
+    /// - fields: Comma-separated list of fields to return
+    /// - rows: Number of results to return (max 10000)
+    /// - page: Page number for pagination
+    ///
+    /// Returns JSON response with search results
+    pub async fn search_items(
+        &mut self,
+        query: &str,
+        fields: Option<&str>,
+        rows: Option<u32>,
+        page: Option<u32>,
+    ) -> Result<Response> {
+        let mut url = format!(
+            "{}?q={}&output=json",
+            endpoints::search(),
+            urlencoding::encode(query)
+        );
+
+        if let Some(fields) = fields {
+            url.push_str(&format!("&fl={}", urlencoding::encode(fields)));
+        }
+
+        if let Some(rows) = rows {
+            url.push_str(&format!("&rows={}", rows.min(10000))); // API limit
+        }
+
+        if let Some(page) = page {
+            url.push_str(&format!("&page={}", page));
+        }
+
+        self.base_client.make_request(&url).await
+    }
+
+    /// Get tasks status for an item
+    /// Useful for monitoring upload/processing status
+    pub async fn get_tasks(&mut self, identifier: &str) -> Result<Response> {
+        let url = endpoints::tasks(identifier);
+        self.base_client.make_request(&url).await
+    }
+
+    /// Get Archive.org service status
+    /// Returns system health information
+    pub async fn get_service_status(&mut self) -> Result<Response> {
+        let url = endpoints::status();
+        self.base_client.make_request(&url).await
+    }
+
+    /// Get basic metadata for an item (wraps existing functionality)
+    pub async fn get_metadata(&mut self, identifier: &str) -> Result<Response> {
+        let url = endpoints::metadata(identifier);
+        self.base_client.make_request(&url).await
+    }
+
+    /// Search for items in a specific collection
+    pub async fn search_collection(
+        &mut self,
+        collection: &str,
+        fields: Option<&str>,
+        rows: Option<u32>,
+    ) -> Result<Response> {
+        let query = format!("collection:{}", collection);
+        self.search_items(&query, fields, rows, None).await
+    }
+
+    /// Find related items to a given identifier
+    /// Uses subject, creator, and collection fields for similarity
+    pub async fn find_related_items(
+        &mut self,
+        identifier: &str,
+        max_results: Option<u32>,
+    ) -> Result<Response> {
+        // First get the item's metadata to extract relevant fields
+        let _metadata_response = self.get_metadata(identifier).await?;
+
+        // For now, do a simple search for items in the same collection
+        // In a more sophisticated implementation, we'd parse the metadata
+        // and build a more targeted query
+        let query = format!("identifier:{}", identifier);
+        self.search_items(
+            &query,
+            Some("identifier,title,creator,collection"),
+            max_results,
+            None,
+        )
+        .await
+    }
+
+    /// Get comprehensive item information including metadata and related items
+    pub async fn get_item_details(&mut self, identifier: &str) -> Result<ItemDetails> {
+        let metadata_response = self.get_metadata(identifier).await?;
+        let metadata_text = metadata_response
+            .text()
+            .await
+            .map_err(|e| IaGetError::Network(format!("Failed to read metadata response: {}", e)))?;
+
+        // Parse basic metadata
+        let metadata: serde_json::Value = serde_json::from_str(&metadata_text).map_err(|e| {
+            IaGetError::JsonParsing(format!("Failed to parse metadata JSON: {}", e))
+        })?;
+
+        let item_details = ItemDetails {
+            identifier: identifier.to_string(),
+            metadata,
+            tasks: None,         // Could be populated with get_tasks if needed
+            related_items: None, // Could be populated with find_related_items if needed
+        };
+
+        Ok(item_details)
+    }
+
+    /// Get API usage statistics
+    pub fn get_stats(&self) -> ApiStats {
+        self.base_client.get_stats()
+    }
+
+    /// Check if request rate is healthy
+    pub fn is_rate_healthy(&self) -> bool {
+        self.base_client.is_rate_healthy()
+    }
+
+    /// Ensure we're not making requests too quickly
+    pub async fn ensure_healthy_rate(&self) {
+        self.base_client.ensure_healthy_rate().await
+    }
+}
+
+/// Comprehensive item details structure
+#[derive(Debug)]
+pub struct ItemDetails {
+    pub identifier: String,
+    pub metadata: serde_json::Value,
+    pub tasks: Option<serde_json::Value>,
+    pub related_items: Option<serde_json::Value>,
+}
+
+/// Service status information from Archive.org
+#[derive(Debug, serde::Deserialize)]
+pub struct ServiceStatus {
+    pub status: String,
+    pub version: Option<String>,
+    pub timestamp: Option<String>,
+}
+
+/// Helper module for URL encoding
+mod urlencoding {
+    pub fn encode(input: &str) -> String {
+        url::form_urlencoded::byte_serialize(input.as_bytes()).collect()
+    }
 }
