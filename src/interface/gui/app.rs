@@ -3,9 +3,9 @@
 //! Provides the main application window and state management for the GUI interface.
 
 use crate::{
-    config::{Config, ConfigManager},
-    download_service::{DownloadRequest, DownloadService, ProgressUpdate},
-    metadata_storage::sanitize_filename_for_filesystem,
+    core::download::download_service::{DownloadRequest, DownloadService, ProgressUpdate},
+    core::session::metadata_storage::sanitize_filename_for_filesystem,
+    infrastructure::config::{Config, ConfigManager},
 };
 use egui::{Context, Ui};
 use std::path::PathBuf;

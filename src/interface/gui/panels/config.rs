@@ -1,6 +1,6 @@
 //! Configuration panel for the GUI
 
-use crate::config::{Config, FilterPreset};
+use crate::infrastructure::config::{Config, FilterPreset};
 use egui::Ui;
 
 #[derive(Default)]

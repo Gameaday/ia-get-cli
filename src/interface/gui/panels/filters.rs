@@ -1,6 +1,6 @@
 //! File filtering panel
 
-use crate::config::{Config, FilterPreset};
+use crate::infrastructure::config::{Config, FilterPreset};
 use crate::interface::cli::SourceType;
 use egui::Ui;
 
