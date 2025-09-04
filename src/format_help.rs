@@ -9,21 +9,24 @@ use colored::Colorize;
 
 /// Display all available format categories and their descriptions
 pub fn list_format_categories() {
-    println!("{}", "📁 Internet Archive File Format Categories".green().bold());
+    println!(
+        "{}",
+        "📁 Internet Archive File Format Categories".green().bold()
+    );
     println!();
-    
+
     let file_formats = FileFormats::new();
-    
+
     for category in FormatCategory::all() {
         let formats = file_formats.get_formats(&category);
         let sample_formats: Vec<String> = formats.iter().take(5).cloned().collect();
-        
+
         println!(
             "  {} {}",
             format!("{}:", category.display_name()).cyan().bold(),
             category.description().dimmed()
         );
-        
+
         println!(
             "    {} {}{}",
             "Examples:".yellow(),
@@ -40,9 +43,12 @@ pub fn list_format_categories() {
 
 /// Display detailed format information for specific categories
 pub fn list_detailed_formats(categories: Option<Vec<String>>) {
-    println!("{}", "📁 Internet Archive File Formats (Detailed)".green().bold());
+    println!(
+        "{}",
+        "📁 Internet Archive File Formats (Detailed)".green().bold()
+    );
     println!();
-    
+
     let file_formats = FileFormats::new();
     let categories_to_show = if let Some(cats) = categories {
         let mut result = Vec::new();
@@ -59,17 +65,17 @@ pub fn list_detailed_formats(categories: Option<Vec<String>>) {
     } else {
         FormatCategory::all()
     };
-    
+
     for category in categories_to_show {
         let formats = file_formats.get_formats(&category);
-        
+
         println!(
             "  {} {} ({} formats)",
             format!("{}:", category.display_name()).cyan().bold(),
             category.description().dimmed(),
             formats.len().to_string().yellow()
         );
-        
+
         // Print formats in a nice grid layout
         let mut current_line = String::new();
         for (i, format) in formats.iter().enumerate() {
@@ -85,7 +91,7 @@ pub fn list_detailed_formats(categories: Option<Vec<String>>) {
         if !current_line.is_empty() {
             println!("    {}", current_line);
         }
-        
+
         println!();
     }
 }
@@ -94,16 +100,16 @@ pub fn list_detailed_formats(categories: Option<Vec<String>>) {
 pub fn list_format_presets() {
     println!("{}", "🎯 Common Format Presets".green().bold());
     println!();
-    
+
     let presets = FileFormats::get_common_presets();
-    
+
     for (name, description, extensions) in presets {
         println!(
             "  {} {}",
             format!("{}:", name).cyan().bold(),
             description.dimmed()
         );
-        
+
         if !extensions.is_empty() {
             println!("    {} {}", "Formats:".yellow(), extensions.join(", "));
         } else {
@@ -117,25 +123,47 @@ pub fn list_format_presets() {
 pub fn show_format_usage_examples() {
     println!("{}", "💡 Format Filtering Usage Examples".green().bold());
     println!();
-    
+
     println!("  {} Include only documents:", "Example 1:".cyan().bold());
-    println!("    {}", "ia-get --include-formats documents https://archive.org/details/example".dimmed());
+    println!(
+        "    {}",
+        "ia-get --include-formats documents https://archive.org/details/example".dimmed()
+    );
     println!();
-    
-    println!("  {} Include multiple categories:", "Example 2:".cyan().bold());
-    println!("    {}", "ia-get --include-formats documents,images https://archive.org/details/example".dimmed());
+
+    println!(
+        "  {} Include multiple categories:",
+        "Example 2:".cyan().bold()
+    );
+    println!(
+        "    {}",
+        "ia-get --include-formats documents,images https://archive.org/details/example".dimmed()
+    );
     println!();
-    
-    println!("  {} Exclude metadata and system files:", "Example 3:".cyan().bold());
-    println!("    {}", "ia-get --exclude-formats metadata https://archive.org/details/example".dimmed());
+
+    println!(
+        "  {} Exclude metadata and system files:",
+        "Example 3:".cyan().bold()
+    );
+    println!(
+        "    {}",
+        "ia-get --exclude-formats metadata https://archive.org/details/example".dimmed()
+    );
     println!();
-    
-    println!("  {} Combine category and extension filtering:", "Example 4:".cyan().bold());
+
+    println!(
+        "  {} Combine category and extension filtering:",
+        "Example 4:".cyan().bold()
+    );
     println!("    {}", "ia-get --include-formats documents --exclude-ext log,tmp https://archive.org/details/example".dimmed());
     println!();
-    
+
     println!("  {} Use with size filtering:", "Example 5:".cyan().bold());
-    println!("    {}", "ia-get --include-formats video --max-file-size 100MB https://archive.org/details/example".dimmed());
+    println!(
+        "    {}",
+        "ia-get --include-formats video --max-file-size 100MB https://archive.org/details/example"
+            .dimmed()
+    );
     println!();
 }
 

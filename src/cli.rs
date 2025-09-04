@@ -67,7 +67,7 @@ pub enum Commands {
         /// Show detailed information including all file extensions in each category
         #[arg(short, long)]
         detailed: bool,
-        
+
         /// Show only specific categories (comma-separated)
         #[arg(short, long, value_delimiter = ',')]
         categories: Vec<String>,
@@ -244,10 +244,10 @@ impl Cli {
         if !self.include_formats.is_empty() {
             use crate::file_formats::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
-            
+
             for format_name in &self.include_formats {
                 let format_name_lower = format_name.to_lowercase();
-                
+
                 // Try to match category name
                 for category in FormatCategory::all() {
                     if category.display_name().to_lowercase() == format_name_lower {
@@ -267,14 +267,14 @@ impl Cli {
     pub fn get_exclude_extensions(&self) -> Vec<String> {
         let mut extensions = self.exclude_extensions();
 
-        // Add extensions from format categories  
+        // Add extensions from format categories
         if !self.exclude_formats.is_empty() {
             use crate::file_formats::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
-            
+
             for format_name in &self.exclude_formats {
                 let format_name_lower = format_name.to_lowercase();
-                
+
                 // Try to match category name
                 for category in FormatCategory::all() {
                     if category.display_name().to_lowercase() == format_name_lower {

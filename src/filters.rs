@@ -47,7 +47,7 @@ pub trait FilterOptions {
     fn exclude_ext(&self) -> &Option<String>;
     fn max_file_size(&self) -> &Option<String>;
     fn source_types(&self) -> Vec<SourceType>;
-    
+
     /// Get resolved extensions to include (combining manual extensions and format categories)
     fn get_resolved_include_extensions(&self) -> Vec<String> {
         self.include_ext()
@@ -55,7 +55,7 @@ pub trait FilterOptions {
             .map(|s| s.split(',').map(|ext| ext.trim().to_lowercase()).collect())
             .unwrap_or_default()
     }
-    
+
     /// Get resolved extensions to exclude (combining manual extensions and format categories)
     fn get_resolved_exclude_extensions(&self) -> Vec<String> {
         self.exclude_ext()
@@ -109,11 +109,11 @@ impl FilterOptions for Cli {
     fn source_types(&self) -> Vec<SourceType> {
         self.get_source_types()
     }
-    
+
     fn get_resolved_include_extensions(&self) -> Vec<String> {
         self.get_include_extensions()
     }
-    
+
     fn get_resolved_exclude_extensions(&self) -> Vec<String> {
         self.get_exclude_extensions()
     }

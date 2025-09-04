@@ -303,7 +303,7 @@ async fn main() -> Result<()> {
     if let Some(format_categories) = matches.get_many::<String>("include-formats") {
         use ia_get::file_formats::{FileFormats, FormatCategory};
         let file_formats = FileFormats::new();
-        
+
         for category_name in format_categories {
             let category_name_lower = category_name.to_lowercase();
             for category in FormatCategory::all() {
@@ -316,12 +316,12 @@ async fn main() -> Result<()> {
     }
 
     let mut exclude_formats = Vec::new();
-    
+
     // Add exclude formats from format categories
     if let Some(exclude_format_categories) = matches.get_many::<String>("exclude-formats") {
         use ia_get::file_formats::{FileFormats, FormatCategory};
         let file_formats = FileFormats::new();
-        
+
         for category_name in exclude_format_categories {
             let category_name_lower = category_name.to_lowercase();
             for category in FormatCategory::all() {
@@ -348,7 +348,7 @@ async fn main() -> Result<()> {
         identifier: identifier.clone(),
         output_dir: output_dir.clone(),
         include_formats,
-        exclude_formats, // Now we support exclude formats
+        exclude_formats,              // Now we support exclude formats
         min_file_size: String::new(), // CLI doesn't support min size yet, but unified API does
         max_file_size,
         concurrent_downloads,

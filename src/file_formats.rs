@@ -38,7 +38,7 @@ impl FormatCategory {
     pub fn display_name(&self) -> &'static str {
         match self {
             FormatCategory::Documents => "Documents",
-            FormatCategory::Images => "Images", 
+            FormatCategory::Images => "Images",
             FormatCategory::Audio => "Audio",
             FormatCategory::Video => "Video",
             FormatCategory::Software => "Software",
@@ -247,10 +247,6 @@ impl FileFormats {
                 "h".to_string(),
                 "py".to_string(),
                 "java".to_string(),
-                "js".to_string(),
-                "html".to_string(),
-                "css".to_string(),
-                "php".to_string(),
                 "rb".to_string(),
                 "go".to_string(),
                 "rs".to_string(),
@@ -376,10 +372,7 @@ impl FileFormats {
 
     /// Get all formats for a specific category
     pub fn get_formats(&self, category: &FormatCategory) -> Vec<String> {
-        self.formats
-            .get(category)
-            .cloned()
-            .unwrap_or_default()
+        self.formats.get(category).cloned().unwrap_or_default()
     }
 
     /// Get all formats as a flat list
@@ -393,12 +386,28 @@ impl FileFormats {
         all_formats
     }
 
-    /// Find which category a format belongs to
+    /// Find which category a format belongs to (returns the most specific category)
     pub fn find_category(&self, format: &str) -> Option<FormatCategory> {
         let format_lower = format.to_lowercase();
-        for (category, formats) in &self.formats {
-            if formats.iter().any(|f| f == &format_lower) {
-                return Some(category.clone());
+
+        // Define priority order - more specific categories first
+        let priority_order = vec![
+            FormatCategory::Metadata,  // Most specific
+            FormatCategory::Web,       // Web-specific files
+            FormatCategory::Software,  // Software/code files
+            FormatCategory::Data,      // Structured data
+            FormatCategory::Archives,  // Archive formats
+            FormatCategory::Documents, // Documents
+            FormatCategory::Images,    // Images
+            FormatCategory::Audio,     // Audio
+            FormatCategory::Video,     // Video
+        ];
+
+        for category in priority_order {
+            if let Some(formats) = self.formats.get(&category) {
+                if formats.iter().any(|f| f == &format_lower) {
+                    return Some(category);
+                }
             }
         }
         None
@@ -413,7 +422,7 @@ impl FileFormats {
     pub fn suggest_formats(&self, partial: &str) -> Vec<String> {
         let partial_lower = partial.to_lowercase();
         let mut suggestions = Vec::new();
-        
+
         for formats in self.formats.values() {
             for format in formats {
                 if format.starts_with(&partial_lower) {
@@ -421,7 +430,7 @@ impl FileFormats {
                 }
             }
         }
-        
+
         suggestions.sort();
         suggestions.dedup();
         suggestions
@@ -433,31 +442,61 @@ impl FileFormats {
             (
                 "Documents".to_string(),
                 "PDF files, eBooks, and text documents".to_string(),
-                vec!["pdf".to_string(), "epub".to_string(), "txt".to_string(), "doc".to_string(), "docx".to_string()],
+                vec![
+                    "pdf".to_string(),
+                    "epub".to_string(),
+                    "txt".to_string(),
+                    "doc".to_string(),
+                    "docx".to_string(),
+                ],
             ),
             (
-                "Images".to_string(), 
+                "Images".to_string(),
                 "Photos and graphics in common formats".to_string(),
-                vec!["jpg".to_string(), "jpeg".to_string(), "png".to_string(), "gif".to_string(), "tiff".to_string()],
+                vec![
+                    "jpg".to_string(),
+                    "jpeg".to_string(),
+                    "png".to_string(),
+                    "gif".to_string(),
+                    "tiff".to_string(),
+                ],
             ),
             (
                 "Audio".to_string(),
-                "Music and audio recordings".to_string(), 
-                vec!["mp3".to_string(), "flac".to_string(), "ogg".to_string(), "wav".to_string(), "m4a".to_string()],
+                "Music and audio recordings".to_string(),
+                vec![
+                    "mp3".to_string(),
+                    "flac".to_string(),
+                    "ogg".to_string(),
+                    "wav".to_string(),
+                    "m4a".to_string(),
+                ],
             ),
             (
                 "Video".to_string(),
                 "Movies and video files".to_string(),
-                vec!["mp4".to_string(), "mkv".to_string(), "avi".to_string(), "mov".to_string(), "webm".to_string()],
+                vec![
+                    "mp4".to_string(),
+                    "mkv".to_string(),
+                    "avi".to_string(),
+                    "mov".to_string(),
+                    "webm".to_string(),
+                ],
             ),
             (
                 "Archives".to_string(),
                 "Compressed files and archives".to_string(),
-                vec!["zip".to_string(), "rar".to_string(), "7z".to_string(), "tar.gz".to_string(), "tar.bz2".to_string()],
+                vec![
+                    "zip".to_string(),
+                    "rar".to_string(),
+                    "7z".to_string(),
+                    "tar.gz".to_string(),
+                    "tar.bz2".to_string(),
+                ],
             ),
             (
                 "No Metadata".to_string(),
-                "Exclude archive metadata and system files".to_string(), 
+                "Exclude archive metadata and system files".to_string(),
                 vec![], // This is an exclude preset
             ),
         ]
@@ -484,19 +523,26 @@ mod tests {
     #[test]
     fn test_format_categories() {
         let formats = FileFormats::new();
-        
+
         // Test that all categories have formats
         for category in FormatCategory::all() {
             let category_formats = formats.get_formats(&category);
-            assert!(!category_formats.is_empty(), "Category {:?} should have formats", category);
+            assert!(
+                !category_formats.is_empty(),
+                "Category {:?} should have formats",
+                category
+            );
         }
     }
 
     #[test]
     fn test_find_category() {
         let formats = FileFormats::new();
-        
-        assert_eq!(formats.find_category("pdf"), Some(FormatCategory::Documents));
+
+        assert_eq!(
+            formats.find_category("pdf"),
+            Some(FormatCategory::Documents)
+        );
         assert_eq!(formats.find_category("jpg"), Some(FormatCategory::Images));
         assert_eq!(formats.find_category("mp3"), Some(FormatCategory::Audio));
         assert_eq!(formats.find_category("mp4"), Some(FormatCategory::Video));
@@ -507,11 +553,11 @@ mod tests {
     #[test]
     fn test_format_suggestions() {
         let formats = FileFormats::new();
-        
+
         let suggestions = formats.suggest_formats("mp");
         assert!(suggestions.contains(&"mp3".to_string()));
         assert!(suggestions.contains(&"mp4".to_string()));
-        
+
         let pdf_suggestions = formats.suggest_formats("pd");
         assert!(pdf_suggestions.contains(&"pdf".to_string()));
     }
@@ -520,7 +566,7 @@ mod tests {
     fn test_common_presets() {
         let presets = FileFormats::get_common_presets();
         assert!(!presets.is_empty());
-        
+
         // Check that each preset has required fields
         for (name, description, _formats) in presets {
             assert!(!name.is_empty());
@@ -536,7 +582,7 @@ mod tests {
         let mut sorted_formats = all_formats.clone();
         sorted_formats.sort();
         sorted_formats.dedup();
-        
+
         // Should be the same length if no duplicates
         assert_eq!(all_formats.len(), sorted_formats.len());
     }
