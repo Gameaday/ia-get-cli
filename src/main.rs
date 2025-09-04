@@ -92,48 +92,46 @@ async fn launch_gui_with_mode_switching() -> Result<()> {
         eprintln!("Warning: Failed to initialize logger: {}", e);
     }
 
-    loop {
-        // Configure GUI options
-        let options = eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default()
-                .with_inner_size([1000.0, 700.0])
-                .with_min_inner_size([800.0, 600.0])
-                .with_title("ia-get - Internet Archive Downloader")
-                .with_icon(load_icon()),
-            ..Default::default()
-        };
+    // Configure GUI options
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1000.0, 700.0])
+            .with_min_inner_size([800.0, 600.0])
+            .with_title("ia-get - Internet Archive Downloader")
+            .with_icon(load_icon()),
+        ..Default::default()
+    };
 
-        // Shared state to detect mode switching
-        let switch_to_cli = Arc::new(Mutex::new(false));
-        let switch_checker = Arc::clone(&switch_to_cli);
+    // Shared state to detect mode switching
+    let switch_to_cli = Arc::new(Mutex::new(false));
+    let switch_checker = Arc::clone(&switch_to_cli);
 
-        // Try to run the GUI application
-        let gui_result = eframe::run_native(
-            "ia-get GUI",
-            options,
-            Box::new(move |cc| {
-                let app = IaGetApp::new(cc);
-                let app_with_checker = AppWrapper::new(app, switch_checker);
-                Ok(Box::new(app_with_checker))
-            }),
-        );
+    // Try to run the GUI application
+    let gui_result = eframe::run_native(
+        "ia-get GUI",
+        options,
+        Box::new(move |cc| {
+            let app = IaGetApp::new(cc);
+            let app_with_checker = AppWrapper::new(app, switch_checker);
+            Ok(Box::new(app_with_checker))
+        }),
+    );
 
-        match gui_result {
-            Ok(()) => {
-                // Check if we should switch to CLI mode
-                if *switch_to_cli.lock().unwrap() {
-                    println!("{} Switching to CLI mode...", "🔄".blue());
-                    return show_interactive_menu().await;
-                } else {
-                    // GUI closed normally
-                    return Ok(());
-                }
+    match gui_result {
+        Ok(()) => {
+            // Check if we should switch to CLI mode
+            if *switch_to_cli.lock().unwrap() {
+                println!("{} Switching to CLI mode...", "🔄".blue());
+                show_interactive_menu().await
+            } else {
+                // GUI closed normally
+                Ok(())
             }
-            Err(e) => {
-                eprintln!("{} GUI launch failed: {}", "⚠️".yellow(), e);
-                eprintln!("{} Falling back to interactive CLI menu...", "🔄".blue());
-                return show_interactive_menu().await;
-            }
+        }
+        Err(e) => {
+            eprintln!("{} GUI launch failed: {}", "⚠️".yellow(), e);
+            eprintln!("{} Falling back to interactive CLI menu...", "🔄".blue());
+            show_interactive_menu().await
         }
     }
 }

@@ -135,12 +135,12 @@ impl InteractiveCli {
             match Command::new(current_exe).spawn() {
                 Ok(_) => {
                     println!("{} GUI launched successfully!", "✅".bright_green());
-                    return Ok(());
+                    Ok(())
                 }
                 Err(e) => {
                     self.show_error(&format!("Failed to launch GUI: {}", e));
                     self.wait_for_keypress();
-                    return Ok(());
+                    Ok(())
                 }
             }
         }
