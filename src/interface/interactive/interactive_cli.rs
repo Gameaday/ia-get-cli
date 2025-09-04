@@ -4,9 +4,9 @@
 //! with live updating progress, non-scrolling interface, and unified API usage.
 
 use crate::{
-    config::{Config, ConfigManager},
-    download_service::{DownloadRequest, DownloadResult, DownloadService, ProgressUpdate},
-    filters::format_size,
+    core::download::{DownloadRequest, DownloadResult, DownloadService, ProgressUpdate},
+    infrastructure::config::{Config, ConfigManager},
+    utilities::filters::format_size,
     Result,
 };
 use colored::*;
@@ -513,7 +513,7 @@ impl InteractiveCli {
         // Save current config before launching config menu
         self.config_manager.save_config(&self.config)?;
 
-        use crate::interactive_menu::launch_config_menu;
+        use crate::interface::interactive::launch_config_menu;
         launch_config_menu().await?;
 
         // Reload config after configuration
@@ -999,7 +999,7 @@ impl InteractiveCli {
     }
 
     fn configure_format_categories_only(&self, request: &mut DownloadRequest) -> Result<()> {
-        use crate::file_formats::{FileFormats, FormatCategory};
+        use crate::utilities::filters::{FileFormats, FormatCategory};
 
         println!("\n📁 Available Format Categories:");
         let file_formats = FileFormats::new();
@@ -1161,7 +1161,7 @@ impl InteractiveCli {
         let choice =
             self.get_string_input("Enter choice (1-7)", "Default: 1 (original files only)")?;
 
-        use crate::cli::SourceType;
+        use crate::interface::cli::SourceType;
 
         request.source_types = match choice.trim() {
             "1" | "" => vec![SourceType::Original],
@@ -1214,7 +1214,7 @@ impl InteractiveCli {
         }
 
         // Show source types
-        use crate::cli::SourceType;
+        use crate::interface::cli::SourceType;
         let source_type_names: Vec<&str> = request
             .source_types
             .iter()
@@ -1236,7 +1236,7 @@ impl InteractiveCli {
         println!();
     }
 
-    fn show_success_summary(&self, session: &crate::metadata_storage::DownloadSession) {
+    fn show_success_summary(&self, session: &crate::core::session::DownloadSession) {
         println!(
             "{}",
             "╔══════════════════════════════════════════════════════════════════════════════╗"

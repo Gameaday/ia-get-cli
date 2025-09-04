@@ -233,7 +233,7 @@ impl Cli {
     pub fn max_file_size_bytes(&self) -> Option<u64> {
         self.max_file_size
             .as_ref()
-            .and_then(|size| crate::filters::parse_size_string(size).ok())
+            .and_then(|size| crate::utilities::filters::parse_size_string(size).ok())
     }
 
     /// Get all extensions to include based on both --include-ext and --include-formats  
@@ -242,7 +242,7 @@ impl Cli {
 
         // Add extensions from format categories
         if !self.include_formats.is_empty() {
-            use crate::file_formats::{FileFormats, FormatCategory};
+            use crate::utilities::filters::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
 
             for format_name in &self.include_formats {
@@ -269,7 +269,7 @@ impl Cli {
 
         // Add extensions from format categories
         if !self.exclude_formats.is_empty() {
-            use crate::file_formats::{FileFormats, FormatCategory};
+            use crate::utilities::filters::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
 
             for format_name in &self.exclude_formats {

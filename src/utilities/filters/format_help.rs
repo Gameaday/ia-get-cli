@@ -4,7 +4,7 @@
 //! and their associated file extensions. It can be used both as a standalone
 //! command and as help text in interactive mode.
 
-use crate::file_formats::{FileFormats, FormatCategory};
+use crate::utilities::filters::{FileFormats, FormatCategory};
 use colored::Colorize;
 
 /// Display all available format categories and their descriptions

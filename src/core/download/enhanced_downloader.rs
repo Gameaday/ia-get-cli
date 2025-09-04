@@ -31,7 +31,7 @@
 //! ```
 
 use crate::{
-    metadata_storage::{
+    core::session::{
         ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
         FileDownloadStatus,
     },
@@ -119,11 +119,9 @@ impl ArchiveDownloader {
             })?;
 
         // Save initial session state
-        let session_file =
-            self.session_dir
-                .join(crate::metadata_storage::generate_session_filename(
-                    &identifier,
-                ));
+        let session_file = self
+            .session_dir
+            .join(crate::core::session::generate_session_filename(&identifier));
         session.save_to_file(&session_file)?;
 
         progress_bar.set_message("Initializing downloads...".to_string());
@@ -417,11 +415,11 @@ impl ArchiveDownloader {
                     if auto_decompress && file_info.is_compressed() {
                         if let Some(_compression_format) = file_info.get_compression_format() {
                             if let Some(format) =
-                                crate::compression::CompressionFormat::from_filename(
+                                crate::utilities::compression::CompressionFormat::from_filename(
                                     &file_info.name,
                                 )
                             {
-                                if crate::compression::should_decompress(
+                                if crate::utilities::compression::should_decompress(
                                     &format,
                                     &decompress_formats,
                                 ) {
@@ -444,7 +442,7 @@ impl ArchiveDownloader {
 
                                     let decompress_result =
                                         tokio::task::spawn_blocking(move || {
-                                            crate::compression::decompress_file(
+                                            crate::utilities::compression::decompress_file(
                                                 &output_path_clone,
                                                 &decompressed_path_clone,
                                                 format,
@@ -786,7 +784,7 @@ impl ArchiveDownloader {
         requested_files: Vec<String>,
     ) -> Result<DownloadSession> {
         // Try to find existing session
-        if let Ok(Some(session_file)) = crate::metadata_storage::find_latest_session_file(
+        if let Ok(Some(session_file)) = crate::core::session::find_latest_session_file(
             &identifier,
             &self.session_dir.to_string_lossy(),
         ) {
@@ -798,14 +796,12 @@ impl ArchiveDownloader {
                             archive_metadata.files.iter().find(|f| f.name == *file_name)
                         {
                             let sanitized_filename =
-                                crate::metadata_storage::sanitize_filename_for_filesystem(
-                                    file_name,
-                                );
+                                crate::core::session::sanitize_filename_for_filesystem(file_name);
                             let local_path =
                                 format!("{}/{}", download_config.output_dir, sanitized_filename);
 
                             // Validate path length for Windows compatibility
-                            if let Err(e) = crate::metadata_storage::validate_path_length(
+                            if let Err(e) = crate::core::session::validate_path_length(
                                 &download_config.output_dir,
                                 &sanitized_filename,
                             ) {

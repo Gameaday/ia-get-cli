@@ -5,9 +5,9 @@
 //! and performance monitoring.
 
 use crate::{
-    constants::get_user_agent,
     error::IaGetError,
-    performance::{AdaptiveBufferManager, PerformanceMonitor},
+    utilities::common::get_user_agent,
+    utilities::common::{AdaptiveBufferManager, PerformanceMonitor},
     Result,
 };
 use reqwest::{Client, ClientBuilder};

@@ -40,7 +40,8 @@
 //! - **Error Context**: Detailed error messages with context
 
 use crate::{
-    error::IaGetError, metadata_storage::ArchiveMetadata, network::is_transient_error, Result,
+    core::session::ArchiveMetadata, error::IaGetError, infrastructure::http::is_transient_error,
+    Result,
 };
 use colored::*;
 use indicatif::ProgressBar;
@@ -120,7 +121,9 @@ pub async fn fetch_json_metadata(
     ));
 
     // Check JSON URL accessibility
-    if let Err(e) = crate::network::is_url_accessible(&json_url, client, Some(progress)).await {
+    if let Err(e) =
+        crate::infrastructure::http::is_url_accessible(&json_url, client, Some(progress)).await
+    {
         progress.finish_with_message(format!(
             "{} JSON metadata not accessible: {}",
             "✘".red().bold(),

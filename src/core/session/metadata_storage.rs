@@ -316,11 +316,11 @@ impl DownloadSession {
         for file_name in &requested_files {
             if let Some(file_info) = archive_metadata.files.iter().find(|f| f.name == *file_name) {
                 let sanitized_filename =
-                    crate::metadata_storage::sanitize_filename_for_filesystem(file_name);
+                    crate::core::session::sanitize_filename_for_filesystem(file_name);
                 let local_path = format!("{}/{}", download_config.output_dir, sanitized_filename);
 
                 // Validate path length for Windows compatibility
-                if let Err(e) = crate::metadata_storage::validate_path_length(
+                if let Err(e) = crate::core::session::validate_path_length(
                     &download_config.output_dir,
                     &sanitized_filename,
                 ) {
@@ -496,7 +496,7 @@ impl ArchiveFile {
         }
 
         if let Some(expected_md5) = &self.md5 {
-            let actual_md5 = crate::utils::calculate_md5(file_path)?;
+            let actual_md5 = crate::utilities::common::calculate_md5(file_path)?;
             Ok(actual_md5.to_lowercase() == expected_md5.to_lowercase())
         } else {
             Ok(true) // No MD5 to validate

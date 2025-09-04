@@ -2,7 +2,7 @@
 //!
 //! Handles file download orchestration with retry logic.
 
-use crate::{downloader, error::IaGetError, Result};
+use crate::{core::download::downloader, error::IaGetError, Result};
 use colored::*;
 use reqwest::Client;
 use std::sync::{atomic::AtomicBool, Arc};

@@ -34,8 +34,8 @@
 //! integrates with the metadata storage system for session tracking and resume functionality.
 
 use crate::{
-    constants::get_user_agent,
-    metadata_storage::{ArchiveFile, ArchiveMetadata, DownloadSession, DownloadState},
+    core::session::{ArchiveFile, ArchiveMetadata, DownloadSession, DownloadState},
+    utilities::common::get_user_agent,
     IaGetError, Result,
 };
 use reqwest::Client;
@@ -95,7 +95,7 @@ impl DownloadStats {
     }
 
     pub fn format_speed(&self) -> String {
-        crate::filters::format_size(self.current_speed as u64) + "/s"
+        crate::utilities::filters::format_size(self.current_speed as u64) + "/s"
     }
 }
 
@@ -254,7 +254,7 @@ impl SimpleConcurrentDownloader {
         if total_downloaded > 0 {
             println!(
                 "📦 Total downloaded: {}",
-                crate::filters::format_size(total_downloaded)
+                crate::utilities::filters::format_size(total_downloaded)
             );
         }
 

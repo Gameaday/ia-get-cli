@@ -2,7 +2,7 @@
 //!
 //! Provides detailed statistics, ETA calculations, and summary reports.
 
-use crate::filters::format_size;
+use crate::utilities::filters::format_size;
 use colored::*;
 use std::time::{Duration, Instant};
 

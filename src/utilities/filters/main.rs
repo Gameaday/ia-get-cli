@@ -35,9 +35,9 @@
 //! - **TB**: Terabytes (1000 GB)
 
 use crate::{
-    archive_metadata::FileEntry,
-    cli::{Cli, Commands, SourceType},
+    core::archive::FileEntry,
     error::IaGetError,
+    interface::cli::{Cli, Commands, SourceType},
     Result,
 };
 

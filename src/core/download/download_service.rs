@@ -4,15 +4,15 @@
 //! ensuring both CLI and GUI use exactly the same API and business logic.
 
 use crate::{
-    archive_api::{validate_identifier, ApiStats, ArchiveOrgApiClient},
-    cli::SourceType,
-    config::Config,
-    constants::get_user_agent,
-    enhanced_downloader::ArchiveDownloader,
-    fetch_json_metadata,
-    filters::{format_size, parse_size_string},
-    metadata_storage::{ArchiveFile, DownloadConfig, DownloadSession},
-    url_processing::extract_identifier_from_url,
+    core::archive::fetch_json_metadata,
+    core::download::ArchiveDownloader,
+    core::session::{ArchiveFile, DownloadConfig, DownloadSession},
+    infrastructure::api::{validate_identifier, ApiStats, ArchiveOrgApiClient},
+    infrastructure::config::Config,
+    interface::cli::SourceType,
+    utilities::common::extract_identifier_from_url,
+    utilities::common::get_user_agent,
+    utilities::filters::{format_size, parse_size_string},
     IaGetError, Result,
 };
 use reqwest::Client;
@@ -462,7 +462,7 @@ impl DownloadService {
             .filter(|status| {
                 matches!(
                     status.status,
-                    crate::metadata_storage::DownloadState::Completed
+                    crate::core::session::DownloadState::Completed
                 )
             })
             .count();
@@ -473,7 +473,7 @@ impl DownloadService {
             .filter(|status| {
                 matches!(
                     status.status,
-                    crate::metadata_storage::DownloadState::Completed
+                    crate::core::session::DownloadState::Completed
                 )
             })
             .map(|status| status.file_info.size.unwrap_or(0))
@@ -496,7 +496,7 @@ impl DownloadService {
             for (filename, status) in &session.file_status {
                 if !matches!(
                     status.status,
-                    crate::metadata_storage::DownloadState::Completed
+                    crate::core::session::DownloadState::Completed
                 ) {
                     println!("  • {} - {:?}", filename, status.status);
                 }

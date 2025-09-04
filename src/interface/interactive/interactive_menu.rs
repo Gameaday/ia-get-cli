@@ -4,8 +4,8 @@
 //! with navigation, editing, and preview capabilities.
 
 use crate::{
-    config::{Config, ConfigManager, FilterPreset},
-    filters::parse_size_string,
+    infrastructure::config::{Config, ConfigManager, FilterPreset},
+    utilities::filters::parse_size_string,
     Result,
 };
 use colored::*;
