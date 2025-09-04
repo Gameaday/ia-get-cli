@@ -123,7 +123,7 @@ async fn launch_gui_with_mode_switching() -> Result<()> {
                 // Check if we should switch to CLI mode
                 if *switch_to_cli.lock().unwrap() {
                     println!("{} Switching to CLI mode...", "🔄".blue());
-                    return show_interactive_menu();
+                    return show_interactive_menu().await;
                 } else {
                     // GUI closed normally
                     return Ok(());
@@ -132,7 +132,7 @@ async fn launch_gui_with_mode_switching() -> Result<()> {
             Err(e) => {
                 eprintln!("{} GUI launch failed: {}", "⚠️".yellow(), e);
                 eprintln!("{} Falling back to interactive CLI menu...", "🔄".blue());
-                return show_interactive_menu();
+                return show_interactive_menu().await;
             }
         }
     }
@@ -185,10 +185,10 @@ fn load_icon() -> egui::IconData {
 }
 
 /// Show an interactive menu when no arguments are provided
-fn show_interactive_menu() -> Result<()> {
-    // Use the enhanced interactive CLI
-    let rt = tokio::runtime::Runtime::new()?;
-    Ok(rt.block_on(async { ia_get::interactive_cli::launch_interactive_cli().await })?)
+async fn show_interactive_menu() -> Result<()> {
+    // Use the enhanced interactive CLI directly without creating a new runtime
+    ia_get::interactive_cli::launch_interactive_cli().await
+        .map_err(|e| anyhow::anyhow!("Interactive CLI error: {}", e))
 }
 
 /// Entry point for the ia-get CLI application  
@@ -233,14 +233,14 @@ async fn main() -> Result<()> {
                             "⚠️".yellow()
                         );
                         println!("{} Using interactive CLI menu instead...", "📋".blue());
-                        return show_interactive_menu();
+                        return show_interactive_menu().await;
                     }
                 } else {
                     println!(
                         "{} Command-line environment detected, using interactive menu...",
                         "💻".green()
                     );
-                    return show_interactive_menu();
+                    return show_interactive_menu().await;
                 }
             } else {
                 // Other parsing errors, show them normally

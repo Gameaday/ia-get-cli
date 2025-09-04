@@ -162,74 +162,172 @@ impl InteractiveCli {
     }
 
     fn print_header(&self) {
+        // Enhanced header with gradient-like effect using Unicode blocks
         println!(
             "{}",
             "╔══════════════════════════════════════════════════════════════════════════════╗"
+                .bright_cyan()
+        );
+        println!(
+            "{}",
+            "║  🚀 ████████ ███████  ████████  ████████ ██████████   █████████████████████ ║"
                 .cyan()
         );
         println!(
             "{}",
-            "║                    🚀 ia-get - Internet Archive Downloader                   ║"
+            "║  📦 ██    ██ ██    ██ ██        ██          ██        ██                  █ ║"
                 .cyan()
+        );
+        println!(
+            "{}",
+            "║  📚 ██ ██ ██ ███████  ██  ████  ██████      ██        █████████████████   █ ║"
+                .cyan()
+        );
+        println!(
+            "{}",
+            "║  🌐 ██    ██ ██    ██ ██    ██  ██          ██                        ██  █ ║"
+                .cyan()
+        );
+        println!(
+            "{}",
+            "║  ⚡ ██    ██ ██    ██  ████████ ████████    ██        █████████████████   █ ║"
+                .cyan()
+        );
+        println!(
+            "{}",
+            "║                                                                              ║"
+                .cyan()
+        );
+        println!(
+            "{}",
+            "║                    🌐 Internet Archive Downloader                          ║"
+                .bright_white()
+        );
+        println!(
+            "{}",
+            "║                      High-performance file downloader                       ║"
+                .dimmed()
         );
         println!(
             "{}",
             "╚══════════════════════════════════════════════════════════════════════════════╝"
-                .cyan()
+                .bright_cyan()
+        );
+        println!();
+        
+        // Add version and environment info
+        println!(
+            "{}{}{}",
+            "🔧 Version: ".dimmed(),
+            env!("CARGO_PKG_VERSION").bright_blue(),
+            " | Enhanced Interactive Mode".dimmed()
         );
         println!();
     }
 
     fn print_main_menu(&self) {
-        println!("{}", "📋 MAIN MENU".bold().bright_blue());
-        println!("{}", "━".repeat(50).blue());
-        println!();
+        println!("{}", "┌─ 📋 MAIN MENU ─────────────────────────────────────────────────┐".bold().bright_blue());
+        println!("{}", "│                                                                 │".blue());
+        
         println!(
-            "  {} {} Full Archive Download",
-            "1.".bright_green(),
-            "📦".cyan()
+            "│  {} {} {}{}│",
+            "1.".bright_green().bold(),
+            "📦".cyan(),
+            "Full Archive Download                               ".normal(),
+            " ".blue()
         );
-        println!("     Download complete archives with filtering options");
-        println!();
+        println!("{}", "│     Download complete archives with filtering options           │".dimmed());
+        println!("{}", "│                                                                 │".blue());
+        
         println!(
-            "  {} {} Quick URL Download",
-            "2.".bright_green(),
-            "⚡".cyan()
+            "│  {} {} {}{}│",
+            "2.".bright_green().bold(),
+            "⚡".cyan(),
+            "Quick URL Download                                  ".normal(),
+            " ".blue()
         );
-        println!("     Fast download from Archive URL or identifier");
-        println!();
-        println!("  {} {} Browse & Select", "3.".bright_green(), "🔍".cyan());
-        println!("     Browse archive contents and select files");
-        println!();
+        println!("{}", "│     Fast download from Archive URL or identifier               │".dimmed());
+        println!("{}", "│                                                                 │".blue());
+        
         println!(
-            "  {} {} Settings & Configuration",
-            "4.".bright_green(),
-            "⚙️".cyan()
+            "│  {} {} {}{}│",
+            "3.".bright_green().bold(),
+            "🔍".cyan(),
+            "Browse & Select                                     ".normal(),
+            " ".blue()
         );
-        println!("     Configure download preferences and filters");
-        println!();
-        println!("  {} {} Download History", "5.".bright_green(), "📚".cyan());
-        println!("     View and manage download history");
-        println!();
+        println!("{}", "│     Browse archive contents and select files                   │".dimmed());
+        println!("{}", "│                                                                 │".blue());
+        
+        println!(
+            "│  {} {} {}{}│",
+            "4.".bright_green().bold(),
+            "⚙️".cyan(),
+            "Settings & Configuration                           ".normal(),
+            " ".blue()
+        );
+        println!("{}", "│     Configure download preferences and filters                  │".dimmed());
+        println!("{}", "│                                                                 │".blue());
+        
+        println!(
+            "│  {} {} {}{}│",
+            "5.".bright_green().bold(),
+            "📚".cyan(),
+            "Download History                                    ".normal(),
+            " ".blue()
+        );
+        println!("{}", "│     View and manage download history                            │".dimmed());
+        println!("{}", "│                                                                 │".blue());
         
         // Only show GUI option if GUI features are compiled and available
         #[cfg(feature = "gui")]
         {
             if crate::can_use_gui() {
-                println!("  {} {} Switch to GUI Mode", "6.".bright_green(), "🎨".cyan());
-                println!("     Launch graphical user interface");
-                println!();
-                println!("  {} {} Exit", "7.".bright_green(), "🚪".cyan());
+                println!(
+                    "│  {} {} {}{}│",
+                    "6.".bright_green().bold(),
+                    "🎨".cyan(),
+                    "Switch to GUI Mode                                 ".normal(),
+                    " ".blue()
+                );
+                println!("{}", "│     Launch graphical user interface                            │".dimmed());
+                println!("{}", "│                                                                 │".blue());
+                
+                println!(
+                    "│  {} {} {}{}│",
+                    "7.".bright_green().bold(),
+                    "🚪".cyan(),
+                    "Exit                                                ".normal(),
+                    " ".blue()
+                );
             } else {
-                println!("  {} {} Exit", "6.".bright_green(), "🚪".cyan());
+                println!(
+                    "│  {} {} {}{}│",
+                    "6.".bright_green().bold(),
+                    "🚪".cyan(),
+                    "Exit                                                ".normal(),
+                    " ".blue()
+                );
             }
         }
         
         #[cfg(not(feature = "gui"))]
         {
-            println!("  {} {} Exit", "6.".bright_green(), "🚪".cyan());
+            println!(
+                "│  {} {} {}{}│",
+                "6.".bright_green().bold(),
+                "🚪".cyan(),
+                "Exit                                                ".normal(),
+                " ".blue()
+            );
         }
         
+        println!("{}", "│                                                                 │".blue());
+        println!("{}", "└─────────────────────────────────────────────────────────────────┘".bright_blue());
+        println!();
+        
+        // Add a helpful tip
+        println!("{}", "💡 Tip: Type the number and press Enter to select an option".dimmed());
         println!();
     }
 
@@ -489,15 +587,23 @@ impl InteractiveCli {
         // Move cursor to top and clear from there
         print!("\x1B[H\x1B[J");
 
+        // Enhanced header with animation
+        let time_elapsed = state.start_time.map(|t| t.elapsed()).unwrap_or_default();
+        let spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        let spinner_index = (time_elapsed.as_millis() / 100) % spinner_chars.len() as u128;
+        let spinner = spinner_chars[spinner_index as usize];
+
         println!(
             "{}",
             "╔══════════════════════════════════════════════════════════════════════════════╗"
                 .cyan()
         );
         println!(
-            "{}",
-            "║                           📥 Download Progress                               ║"
-                .cyan()
+            "{} {} {} {}",
+            "║".cyan(),
+            format!("{} 📥 Download Progress - ia-get", spinner).bold(),
+            " ".repeat(28),
+            "║".cyan()
         );
         println!(
             "{}",
@@ -506,68 +612,142 @@ impl InteractiveCli {
         );
         println!();
 
-        // Status
-        println!("{} {}", "Status:".bold(), state.status.bright_blue());
+        // Status with color coding
+        let status_color = if state.status.contains("Error") || state.status.contains("Failed") {
+            state.status.red()
+        } else if state.status.contains("Complete") {
+            state.status.green()
+        } else {
+            state.status.bright_blue()
+        };
+        
+        println!("{} {}", "Status:".bold(), status_color);
         println!();
 
-        // Current file
+        // Current file with smart truncation
         if !state.current_file.is_empty() {
+            let display_file = if state.current_file.len() > 60 {
+                format!("...{}", &state.current_file[state.current_file.len() - 57..])
+            } else {
+                state.current_file.clone()
+            };
+            
             println!(
                 "{} {}",
-                "Current:".bold(),
-                state.current_file.truncate_with_ellipsis(60).cyan()
+                "📄 Current:".bold(),
+                display_file.cyan()
             );
             println!();
         }
 
-        // Progress bar
+        // Enhanced progress bar with percentage and visual indicators
         if state.total_files > 0 {
             let progress = state.completed_files as f32 / state.total_files as f32;
-            let bar_width = 60;
+            let bar_width = 50;
             let filled = (progress * bar_width as f32) as usize;
             let empty = bar_width - filled;
 
-            let bar = format!(
-                "[{}{}] {:.1}%",
-                "█".repeat(filled).green(),
-                "░".repeat(empty).dimmed(),
-                progress * 100.0
-            );
+            // Create a more detailed progress bar
+            let completed_char = "█";
+            let partial_char = "▓"; 
+            let empty_char = "░";
+            
+            let bar = if filled == bar_width {
+                format!("[{}] {:.1}%", completed_char.repeat(bar_width).bright_green(), progress * 100.0)
+            } else if filled > 0 {
+                format!(
+                    "[{}{}{}] {:.1}%",
+                    completed_char.repeat(filled).green(),
+                    partial_char.yellow(),
+                    empty_char.repeat(empty.saturating_sub(1)).dimmed(),
+                    progress * 100.0
+                )
+            } else {
+                format!("[{}] {:.1}%", empty_char.repeat(bar_width).dimmed(), progress * 100.0)
+            };
 
-            println!("Progress: {}", bar);
+            println!("📊 Progress: {}", bar);
+            
+            // Progress details
+            println!(
+                "    {} {} / {} files",
+                "📁".cyan(),
+                state.completed_files.to_string().bright_green(),
+                state.total_files.to_string().bright_blue()
+            );
             println!();
         }
 
-        // Statistics
-        println!("{}", "Statistics:".bold());
+        // Enhanced statistics section
+        println!("{}", "📈 Statistics:".bold().bright_magenta());
+        
+        // Files status with icons
         println!(
-            "  Files: {} / {} completed",
-            state.completed_files.to_string().green(),
-            state.total_files.to_string().cyan()
+            "  {} Completed: {}",
+            "✅".green(),
+            state.completed_files.to_string().bright_green()
         );
-
-        if state.failed_files > 0 {
-            println!("  Failed: {}", state.failed_files.to_string().red());
+        
+        if state.total_files > 0 {
+            let remaining = state.total_files - state.completed_files;
+            if remaining > 0 {
+                println!(
+                    "  {} Remaining: {}",
+                    "⏳".yellow(),
+                    remaining.to_string().bright_yellow()
+                );
+            }
         }
 
-        if state.current_speed > 0.0 {
+        if state.failed_files > 0 {
             println!(
-                "  Speed: {}",
-                format_speed(state.current_speed).bright_yellow()
+                "  {} Failed: {}",
+                "❌".red(),
+                state.failed_files.to_string().red()
             );
         }
 
-        if !state.eta.is_empty() {
-            println!("  ETA: {}", state.eta.bright_blue());
+        // Performance metrics
+        if state.current_speed > 0.0 {
+            let speed_str = format_speed(state.current_speed);
+            let speed_color = if state.current_speed > 10_000_000.0 {
+                speed_str.bright_green()
+            } else if state.current_speed > 1_000_000.0 {
+                speed_str.green()
+            } else {
+                speed_str.yellow()
+            };
+            
+            println!(
+                "  {} Speed: {}",
+                "🚀".bright_blue(),
+                speed_color
+            );
+        }
+
+        if !state.eta.is_empty() && state.eta != "Unknown" {
+            println!(
+                "  {} ETA: {}",
+                "⏰".bright_cyan(),
+                state.eta.bright_blue()
+            );
         }
 
         if let Some(start_time) = state.start_time {
             let elapsed = start_time.elapsed();
-            println!("  Elapsed: {}", format_duration(elapsed).bright_magenta());
+            println!(
+                "  {} Elapsed: {}",
+                "⏱️".bright_magenta(),
+                format_duration(elapsed).bright_magenta()
+            );
         }
 
         println!();
-        println!("{}", "Press Ctrl+C to cancel".dimmed());
+        
+        // Interactive controls hint
+        println!("{}", "┌─ Controls ─────────────────────────────────────────────────────┐".dimmed());
+        println!("{}", "│ Press Ctrl+C to cancel download                                │".dimmed());
+        println!("{}", "└────────────────────────────────────────────────────────────────┘".dimmed());
 
         io::stdout().flush().unwrap();
     }
@@ -575,20 +755,26 @@ impl InteractiveCli {
     // Helper methods...
 
     fn print_section_header(&self, title: &str) {
-        println!("{}", format!("🔧 {}", title).bold().bright_cyan());
-        println!("{}", "━".repeat(60).cyan());
         println!();
+        println!("{}", format!("┌─ 🔧 {} ─{:─<width$}┐", title, "", width = 60 - title.len()).bold().bright_cyan());
+        println!("{}", "│                                                                 │".cyan());
     }
 
     fn print_subsection(&self, title: &str) {
         println!();
         println!("{}", format!("📋 {}", title).bold().blue());
-        println!("{}", "─".repeat(40).blue());
+        println!("{}", "─".repeat(title.len() + 4).blue());
+        println!();
     }
 
     fn get_user_choice(&self, prompt: &str, max: usize) -> Result<usize> {
         loop {
-            print!("{} (1-{}): ", prompt.bold(), max);
+            print!(
+                "{} {} (1-{}): ",
+                "❯".bright_green(),
+                prompt.bold(),
+                max.to_string().bright_cyan()
+            );
             io::stdout().flush()?;
 
             let mut input = String::new();
@@ -597,18 +783,24 @@ impl InteractiveCli {
             match input.trim().parse::<usize>() {
                 Ok(choice) if choice >= 1 && choice <= max => return Ok(choice),
                 _ => {
-                    self.show_error(&format!("Please enter a number between 1 and {}", max));
+                    println!(
+                        "{} {} {}",
+                        "❌".red(),
+                        "Invalid choice.".red(),
+                        format!("Please enter a number between 1 and {}", max).yellow()
+                    );
                 }
             }
         }
     }
 
     fn get_string_input(&self, prompt: &str, hint: &str) -> Result<String> {
-        println!("{}", prompt.bold());
+        println!();
+        println!("{} {}", "📝".bright_blue(), prompt.bold());
         if !hint.is_empty() {
-            println!("{}", format!("  {}", hint).dimmed());
+            println!("{} {}", "💡".yellow(), hint.dimmed());
         }
-        print!("> ");
+        print!("{} ", "❯".bright_green());
         io::stdout().flush()?;
 
         let mut input = String::new();
@@ -622,11 +814,13 @@ impl InteractiveCli {
         hint: &str,
         default: &str,
     ) -> Result<String> {
-        println!("{}", prompt.bold());
+        println!();
+        println!("{} {}", "📝".bright_blue(), prompt.bold());
         if !hint.is_empty() {
-            println!("{}", format!("  {}", hint).dimmed());
+            println!("{} {}", "💡".yellow(), hint.dimmed());
         }
-        print!("> ");
+        println!("{} Default: {}", "🔧".cyan(), default.bright_cyan());
+        print!("{} ", "❯".bright_green());
         io::stdout().flush()?;
 
         let mut input = String::new();
@@ -641,9 +835,19 @@ impl InteractiveCli {
     }
 
     fn get_yes_no(&self, prompt: &str, default: bool) -> Result<bool> {
-        let default_str = if default { "Y/n" } else { "y/N" };
+        let default_display = if default { 
+            format!("{}/{}", "Y".bright_green(), "n".dimmed())
+        } else { 
+            format!("{}/{}", "y".dimmed(), "N".bright_red())
+        };
+        
         loop {
-            print!("{} ({}): ", prompt.bold(), default_str);
+            print!(
+                "{} {} ({}): ",
+                "❓".bright_yellow(),
+                prompt.bold(),
+                default_display
+            );
             io::stdout().flush()?;
 
             let mut input = String::new();
@@ -653,7 +857,11 @@ impl InteractiveCli {
                 "y" | "yes" => return Ok(true),
                 "n" | "no" => return Ok(false),
                 "" => return Ok(default),
-                _ => self.show_error("Please enter 'y' for yes or 'n' for no"),
+                _ => println!(
+                    "{} {}",
+                    "❌".red(),
+                    "Please enter 'y' for yes or 'n' for no".yellow()
+                ),
             }
         }
     }
@@ -861,14 +1069,20 @@ impl InteractiveCli {
     }
 
     fn show_error(&self, message: &str) {
-        println!("{} {}", "❌".red(), message.red());
+        println!();
+        println!("{}", "┌─ ❌ Error ─────────────────────────────────────────────────────┐".red());
+        println!("{} {} {}", "│".red(), message.red(), " ".repeat(60 - message.len().min(60)).red());
+        println!("{}", "└────────────────────────────────────────────────────────────────┘".red());
+        println!();
     }
 
     fn wait_for_keypress(&self) {
-        print!("\n{}", "Press Enter to continue...".dimmed());
+        println!();
+        print!("{} {}", "⏸️".bright_blue(), "Press Enter to continue...".dimmed());
         io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
+        println!();
     }
 }
 
@@ -896,21 +1110,6 @@ fn format_duration(duration: Duration) -> String {
         format!("{}m {}s", minutes, seconds)
     } else {
         format!("{}s", seconds)
-    }
-}
-
-// Extension trait for string truncation
-trait StringExt {
-    fn truncate_with_ellipsis(&self, max_len: usize) -> String;
-}
-
-impl StringExt for str {
-    fn truncate_with_ellipsis(&self, max_len: usize) -> String {
-        if self.len() <= max_len {
-            self.to_string()
-        } else {
-            format!("{}...", &self[..max_len.saturating_sub(3)])
-        }
     }
 }
 
