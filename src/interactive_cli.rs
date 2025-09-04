@@ -73,10 +73,7 @@ impl InteractiveCli {
                     {
                         if crate::can_use_gui() {
                             // Switch to GUI mode
-                            println!(
-                                "{}",
-                                "\n🎨 Switching to GUI mode...".bright_cyan()
-                            );
+                            println!("{}", "\n🎨 Switching to GUI mode...".bright_cyan());
                             self.launch_gui_mode().await?;
                             break;
                         } else {
@@ -121,19 +118,20 @@ impl InteractiveCli {
         Ok(())
     }
 
+    #[cfg(feature = "gui")]
     async fn launch_gui_mode(&self) -> Result<()> {
         #[cfg(feature = "gui")]
         {
             use std::process::Command;
-            
+
             // Try to launch GUI mode by spawning a new process
             // This is a simple approach - we restart the program without arguments
             // which will trigger the smart detection and launch GUI
             let current_exe = std::env::current_exe()
                 .map_err(|e| anyhow::anyhow!("Failed to get current executable path: {}", e))?;
-            
+
             println!("{} Launching GUI interface...", "🚀".bright_green());
-            
+
             match Command::new(current_exe).spawn() {
                 Ok(_) => {
                     println!("{} GUI launched successfully!", "✅".bright_green());
@@ -146,7 +144,7 @@ impl InteractiveCli {
                 }
             }
         }
-        
+
         #[cfg(not(feature = "gui"))]
         {
             self.show_error("GUI features not compiled in this build");
@@ -214,7 +212,7 @@ impl InteractiveCli {
                 .bright_cyan()
         );
         println!();
-        
+
         // Add version and environment info
         println!(
             "{}{}{}",
@@ -226,9 +224,17 @@ impl InteractiveCli {
     }
 
     fn print_main_menu(&self) {
-        println!("{}", "┌─ 📋 MAIN MENU ─────────────────────────────────────────────────┐".bold().bright_blue());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "┌─ 📋 MAIN MENU ─────────────────────────────────────────────────┐"
+                .bold()
+                .bright_blue()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         println!(
             "│  {} {} {}{}│",
             "1.".bright_green().bold(),
@@ -236,9 +242,15 @@ impl InteractiveCli {
             "Full Archive Download                               ".normal(),
             " ".blue()
         );
-        println!("{}", "│     Download complete archives with filtering options           │".dimmed());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "│     Download complete archives with filtering options           │".dimmed()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         println!(
             "│  {} {} {}{}│",
             "2.".bright_green().bold(),
@@ -246,9 +258,15 @@ impl InteractiveCli {
             "Quick URL Download                                  ".normal(),
             " ".blue()
         );
-        println!("{}", "│     Fast download from Archive URL or identifier               │".dimmed());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "│     Fast download from Archive URL or identifier               │".dimmed()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         println!(
             "│  {} {} {}{}│",
             "3.".bright_green().bold(),
@@ -256,9 +274,15 @@ impl InteractiveCli {
             "Browse & Select                                     ".normal(),
             " ".blue()
         );
-        println!("{}", "│     Browse archive contents and select files                   │".dimmed());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "│     Browse archive contents and select files                   │".dimmed()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         println!(
             "│  {} {} {}{}│",
             "4.".bright_green().bold(),
@@ -266,9 +290,15 @@ impl InteractiveCli {
             "Settings & Configuration                           ".normal(),
             " ".blue()
         );
-        println!("{}", "│     Configure download preferences and filters                  │".dimmed());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "│     Configure download preferences and filters                  │".dimmed()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         println!(
             "│  {} {} {}{}│",
             "5.".bright_green().bold(),
@@ -276,9 +306,15 @@ impl InteractiveCli {
             "Download History                                    ".normal(),
             " ".blue()
         );
-        println!("{}", "│     View and manage download history                            │".dimmed());
-        println!("{}", "│                                                                 │".blue());
-        
+        println!(
+            "{}",
+            "│     View and manage download history                            │".dimmed()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+
         // Only show GUI option if GUI features are compiled and available
         #[cfg(feature = "gui")]
         {
@@ -290,9 +326,15 @@ impl InteractiveCli {
                     "Switch to GUI Mode                                 ".normal(),
                     " ".blue()
                 );
-                println!("{}", "│     Launch graphical user interface                            │".dimmed());
-                println!("{}", "│                                                                 │".blue());
-                
+                println!(
+                    "{}",
+                    "│     Launch graphical user interface                            │".dimmed()
+                );
+                println!(
+                    "{}",
+                    "│                                                                 │".blue()
+                );
+
                 println!(
                     "│  {} {} {}{}│",
                     "7.".bright_green().bold(),
@@ -310,7 +352,7 @@ impl InteractiveCli {
                 );
             }
         }
-        
+
         #[cfg(not(feature = "gui"))]
         {
             println!(
@@ -321,13 +363,22 @@ impl InteractiveCli {
                 " ".blue()
             );
         }
-        
-        println!("{}", "│                                                                 │".blue());
-        println!("{}", "└─────────────────────────────────────────────────────────────────┘".bright_blue());
+
+        println!(
+            "{}",
+            "│                                                                 │".blue()
+        );
+        println!(
+            "{}",
+            "└─────────────────────────────────────────────────────────────────┘".bright_blue()
+        );
         println!();
-        
+
         // Add a helpful tip
-        println!("{}", "💡 Tip: Type the number and press Enter to select an option".dimmed());
+        println!(
+            "{}",
+            "💡 Tip: Type the number and press Enter to select an option".dimmed()
+        );
         println!();
     }
 
@@ -620,23 +671,22 @@ impl InteractiveCli {
         } else {
             state.status.bright_blue()
         };
-        
+
         println!("{} {}", "Status:".bold(), status_color);
         println!();
 
         // Current file with smart truncation
         if !state.current_file.is_empty() {
             let display_file = if state.current_file.len() > 60 {
-                format!("...{}", &state.current_file[state.current_file.len() - 57..])
+                format!(
+                    "...{}",
+                    &state.current_file[state.current_file.len() - 57..]
+                )
             } else {
                 state.current_file.clone()
             };
-            
-            println!(
-                "{} {}",
-                "📄 Current:".bold(),
-                display_file.cyan()
-            );
+
+            println!("{} {}", "📄 Current:".bold(), display_file.cyan());
             println!();
         }
 
@@ -649,11 +699,15 @@ impl InteractiveCli {
 
             // Create a more detailed progress bar
             let completed_char = "█";
-            let partial_char = "▓"; 
+            let partial_char = "▓";
             let empty_char = "░";
-            
+
             let bar = if filled == bar_width {
-                format!("[{}] {:.1}%", completed_char.repeat(bar_width).bright_green(), progress * 100.0)
+                format!(
+                    "[{}] {:.1}%",
+                    completed_char.repeat(bar_width).bright_green(),
+                    progress * 100.0
+                )
             } else if filled > 0 {
                 format!(
                     "[{}{}{}] {:.1}%",
@@ -663,11 +717,15 @@ impl InteractiveCli {
                     progress * 100.0
                 )
             } else {
-                format!("[{}] {:.1}%", empty_char.repeat(bar_width).dimmed(), progress * 100.0)
+                format!(
+                    "[{}] {:.1}%",
+                    empty_char.repeat(bar_width).dimmed(),
+                    progress * 100.0
+                )
             };
 
             println!("📊 Progress: {}", bar);
-            
+
             // Progress details
             println!(
                 "    {} {} / {} files",
@@ -680,14 +738,14 @@ impl InteractiveCli {
 
         // Enhanced statistics section
         println!("{}", "📈 Statistics:".bold().bright_magenta());
-        
+
         // Files status with icons
         println!(
             "  {} Completed: {}",
             "✅".green(),
             state.completed_files.to_string().bright_green()
         );
-        
+
         if state.total_files > 0 {
             let remaining = state.total_files - state.completed_files;
             if remaining > 0 {
@@ -717,20 +775,12 @@ impl InteractiveCli {
             } else {
                 speed_str.yellow()
             };
-            
-            println!(
-                "  {} Speed: {}",
-                "🚀".bright_blue(),
-                speed_color
-            );
+
+            println!("  {} Speed: {}", "🚀".bright_blue(), speed_color);
         }
 
         if !state.eta.is_empty() && state.eta != "Unknown" {
-            println!(
-                "  {} ETA: {}",
-                "⏰".bright_cyan(),
-                state.eta.bright_blue()
-            );
+            println!("  {} ETA: {}", "⏰".bright_cyan(), state.eta.bright_blue());
         }
 
         if let Some(start_time) = state.start_time {
@@ -743,11 +793,20 @@ impl InteractiveCli {
         }
 
         println!();
-        
+
         // Interactive controls hint
-        println!("{}", "┌─ Controls ─────────────────────────────────────────────────────┐".dimmed());
-        println!("{}", "│ Press Ctrl+C to cancel download                                │".dimmed());
-        println!("{}", "└────────────────────────────────────────────────────────────────┘".dimmed());
+        println!(
+            "{}",
+            "┌─ Controls ─────────────────────────────────────────────────────┐".dimmed()
+        );
+        println!(
+            "{}",
+            "│ Press Ctrl+C to cancel download                                │".dimmed()
+        );
+        println!(
+            "{}",
+            "└────────────────────────────────────────────────────────────────┘".dimmed()
+        );
 
         io::stdout().flush().unwrap();
     }
@@ -756,8 +815,21 @@ impl InteractiveCli {
 
     fn print_section_header(&self, title: &str) {
         println!();
-        println!("{}", format!("┌─ 🔧 {} ─{:─<width$}┐", title, "", width = 60 - title.len()).bold().bright_cyan());
-        println!("{}", "│                                                                 │".cyan());
+        println!(
+            "{}",
+            format!(
+                "┌─ 🔧 {} ─{:─<width$}┐",
+                title,
+                "",
+                width = 60 - title.len()
+            )
+            .bold()
+            .bright_cyan()
+        );
+        println!(
+            "{}",
+            "│                                                                 │".cyan()
+        );
     }
 
     fn print_subsection(&self, title: &str) {
@@ -835,12 +907,12 @@ impl InteractiveCli {
     }
 
     fn get_yes_no(&self, prompt: &str, default: bool) -> Result<bool> {
-        let default_display = if default { 
+        let default_display = if default {
             format!("{}/{}", "Y".bright_green(), "n".dimmed())
-        } else { 
+        } else {
             format!("{}/{}", "y".dimmed(), "N".bright_red())
         };
-        
+
         loop {
             print!(
                 "{} {} ({}): ",
@@ -1070,15 +1142,30 @@ impl InteractiveCli {
 
     fn show_error(&self, message: &str) {
         println!();
-        println!("{}", "┌─ ❌ Error ─────────────────────────────────────────────────────┐".red());
-        println!("{} {} {}", "│".red(), message.red(), " ".repeat(60 - message.len().min(60)).red());
-        println!("{}", "└────────────────────────────────────────────────────────────────┘".red());
+        println!(
+            "{}",
+            "┌─ ❌ Error ─────────────────────────────────────────────────────┐".red()
+        );
+        println!(
+            "{} {} {}",
+            "│".red(),
+            message.red(),
+            " ".repeat(60 - message.len().min(60)).red()
+        );
+        println!(
+            "{}",
+            "└────────────────────────────────────────────────────────────────┘".red()
+        );
         println!();
     }
 
     fn wait_for_keypress(&self) {
         println!();
-        print!("{} {}", "⏸️".bright_blue(), "Press Enter to continue...".dimmed());
+        print!(
+            "{} {}",
+            "⏸️".bright_blue(),
+            "Press Enter to continue...".dimmed()
+        );
         io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();

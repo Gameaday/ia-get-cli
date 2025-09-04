@@ -54,7 +54,7 @@ pub struct IaGetApp {
     // Dialog state
     show_about_dialog: bool,
     show_open_dialog: bool,
-    
+
     // Mode switching state
     switch_to_cli: bool,
 }

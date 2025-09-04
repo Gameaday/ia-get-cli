@@ -159,7 +159,7 @@ impl AppWrapper {
 impl eframe::App for AppWrapper {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.app.update(ctx, frame);
-        
+
         // Check if we should switch to CLI mode
         if self.app.should_switch_to_cli() {
             *self.switch_checker.lock().unwrap() = true;
@@ -187,7 +187,8 @@ fn load_icon() -> egui::IconData {
 /// Show an interactive menu when no arguments are provided
 async fn show_interactive_menu() -> Result<()> {
     // Use the enhanced interactive CLI directly without creating a new runtime
-    ia_get::interactive_cli::launch_interactive_cli().await
+    ia_get::interactive_cli::launch_interactive_cli()
+        .await
         .map_err(|e| anyhow::anyhow!("Interactive CLI error: {}", e))
 }
 
