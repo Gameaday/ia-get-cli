@@ -4,7 +4,7 @@
 //! CLI args > saved preferences/config file > defaults (for CLI)
 //! One-time options > saved preferences/config file > defaults (for GUI)
 
-use crate::{infrastructure::config::Config, error::IaGetError, Result};
+use crate::{error::IaGetError, infrastructure::config::Config, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -108,22 +108,61 @@ impl Default for ConfigWithSources {
     fn default() -> Self {
         let default_config = Config::default();
         Self {
-            default_output_path: ConfigValue::new(default_config.default_output_path, ConfigSource::Default),
-            concurrent_downloads: ConfigValue::new(default_config.concurrent_downloads, ConfigSource::Default),
+            default_output_path: ConfigValue::new(
+                default_config.default_output_path,
+                ConfigSource::Default,
+            ),
+            concurrent_downloads: ConfigValue::new(
+                default_config.concurrent_downloads,
+                ConfigSource::Default,
+            ),
             max_retries: ConfigValue::new(default_config.max_retries, ConfigSource::Default),
-            default_include_ext: ConfigValue::new(default_config.default_include_ext, ConfigSource::Default),
-            default_exclude_ext: ConfigValue::new(default_config.default_exclude_ext, ConfigSource::Default),
-            default_min_file_size: ConfigValue::new(default_config.default_min_file_size, ConfigSource::Default),
-            default_max_file_size: ConfigValue::new(default_config.default_max_file_size, ConfigSource::Default),
+            default_include_ext: ConfigValue::new(
+                default_config.default_include_ext,
+                ConfigSource::Default,
+            ),
+            default_exclude_ext: ConfigValue::new(
+                default_config.default_exclude_ext,
+                ConfigSource::Default,
+            ),
+            default_min_file_size: ConfigValue::new(
+                default_config.default_min_file_size,
+                ConfigSource::Default,
+            ),
+            default_max_file_size: ConfigValue::new(
+                default_config.default_max_file_size,
+                ConfigSource::Default,
+            ),
             default_resume: ConfigValue::new(default_config.default_resume, ConfigSource::Default),
-            default_verbose: ConfigValue::new(default_config.default_verbose, ConfigSource::Default),
-            default_log_hash_errors: ConfigValue::new(default_config.default_log_hash_errors, ConfigSource::Default),
-            default_dry_run: ConfigValue::new(default_config.default_dry_run, ConfigSource::Default),
-            default_compress: ConfigValue::new(default_config.default_compress, ConfigSource::Default),
-            default_decompress: ConfigValue::new(default_config.default_decompress, ConfigSource::Default),
-            default_decompress_formats: ConfigValue::new(default_config.default_decompress_formats, ConfigSource::Default),
+            default_verbose: ConfigValue::new(
+                default_config.default_verbose,
+                ConfigSource::Default,
+            ),
+            default_log_hash_errors: ConfigValue::new(
+                default_config.default_log_hash_errors,
+                ConfigSource::Default,
+            ),
+            default_dry_run: ConfigValue::new(
+                default_config.default_dry_run,
+                ConfigSource::Default,
+            ),
+            default_compress: ConfigValue::new(
+                default_config.default_compress,
+                ConfigSource::Default,
+            ),
+            default_decompress: ConfigValue::new(
+                default_config.default_decompress,
+                ConfigSource::Default,
+            ),
+            default_decompress_formats: ConfigValue::new(
+                default_config.default_decompress_formats,
+                ConfigSource::Default,
+            ),
             http_timeout: ConfigValue::new(default_config.http_timeout, ConfigSource::Default),
-            user_agent_override: ConfigValue::new(default_config.user_agent_override, ConfigSource::Default),
+            user_agent_override: ConfigValue::new(
+                default_config.user_agent_override,
+                ConfigSource::Default,
+            ),
         }
     }
 }
@@ -265,15 +304,15 @@ impl ConfigPersistence {
         if self.config_file.exists() && !self.conf_file.exists() {
             // Load from old format
             let config = self.load_config_from_file(&self.config_file)?;
-            
+
             // Save in new format
             self.save_config(&config)?;
-            
+
             // Optionally remove old file (for clean migration)
             if let Err(e) = fs::remove_file(&self.config_file) {
                 eprintln!("Warning: Could not remove old config.toml: {}", e);
             }
-            
+
             Ok(true)
         } else {
             Ok(false)
@@ -323,11 +362,17 @@ impl ConfigPersistence {
             default_max_file_size: ConfigValue::new(config.default_max_file_size, source.clone()),
             default_resume: ConfigValue::new(config.default_resume, source.clone()),
             default_verbose: ConfigValue::new(config.default_verbose, source.clone()),
-            default_log_hash_errors: ConfigValue::new(config.default_log_hash_errors, source.clone()),
+            default_log_hash_errors: ConfigValue::new(
+                config.default_log_hash_errors,
+                source.clone(),
+            ),
             default_dry_run: ConfigValue::new(config.default_dry_run, source.clone()),
             default_compress: ConfigValue::new(config.default_compress, source.clone()),
             default_decompress: ConfigValue::new(config.default_decompress, source.clone()),
-            default_decompress_formats: ConfigValue::new(config.default_decompress_formats, source.clone()),
+            default_decompress_formats: ConfigValue::new(
+                config.default_decompress_formats,
+                source.clone(),
+            ),
             http_timeout: ConfigValue::new(config.http_timeout, source.clone()),
             user_agent_override: ConfigValue::new(config.user_agent_override, source),
         }
@@ -370,14 +415,17 @@ mod tests {
         base_config.apply_from(&override_config, false);
 
         assert_eq!(base_config.concurrent_downloads.value, 5);
-        assert_eq!(base_config.concurrent_downloads.source, ConfigSource::CommandLine);
+        assert_eq!(
+            base_config.concurrent_downloads.source,
+            ConfigSource::CommandLine
+        );
     }
 
     #[test]
     fn test_config_persistence() -> Result<()> {
         let temp_dir = TempDir::new().unwrap();
         let config_dir = temp_dir.path().to_path_buf();
-        
+
         let persistence = ConfigPersistence {
             config_dir: config_dir.clone(),
             config_file: config_dir.join("config.toml"),

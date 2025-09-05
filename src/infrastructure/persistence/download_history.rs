@@ -107,7 +107,7 @@ impl DownloadHistory {
 
         // Validate and clean up old entries if needed
         history.cleanup_old_entries();
-        
+
         Ok(history)
     }
 
@@ -118,12 +118,14 @@ impl DownloadHistory {
 
         // Ensure parent directory exists
         if let Some(parent) = path.as_ref().parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| IaGetError::Config(format!("Failed to create config directory: {}", e)))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                IaGetError::Config(format!("Failed to create config directory: {}", e))
+            })?;
         }
 
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| IaGetError::Config(format!("Failed to serialize download history: {}", e)))?;
+        let content = serde_json::to_string_pretty(self).map_err(|e| {
+            IaGetError::Config(format!("Failed to serialize download history: {}", e))
+        })?;
 
         fs::write(path.as_ref(), content)
             .map_err(|e| IaGetError::Config(format!("Failed to write download history: {}", e)))?;
@@ -146,7 +148,10 @@ impl DownloadHistory {
             updater(entry);
             Ok(())
         } else {
-            Err(IaGetError::Config(format!("Download entry with ID '{}' not found", id)))
+            Err(IaGetError::Config(format!(
+                "Download entry with ID '{}' not found",
+                id
+            )))
         }
     }
 
@@ -196,10 +201,26 @@ impl DownloadHistory {
     /// Get statistics about downloads
     pub fn get_statistics(&self) -> DownloadStatistics {
         let total_downloads = self.entries.len();
-        let successful = self.entries.iter().filter(|e| matches!(e.status, TaskStatus::Success)).count();
-        let failed = self.entries.iter().filter(|e| matches!(e.status, TaskStatus::Failed(_))).count();
-        let in_progress = self.entries.iter().filter(|e| matches!(e.status, TaskStatus::InProgress)).count();
-        let cancelled = self.entries.iter().filter(|e| matches!(e.status, TaskStatus::Cancelled)).count();
+        let successful = self
+            .entries
+            .iter()
+            .filter(|e| matches!(e.status, TaskStatus::Success))
+            .count();
+        let failed = self
+            .entries
+            .iter()
+            .filter(|e| matches!(e.status, TaskStatus::Failed(_)))
+            .count();
+        let in_progress = self
+            .entries
+            .iter()
+            .filter(|e| matches!(e.status, TaskStatus::InProgress))
+            .count();
+        let cancelled = self
+            .entries
+            .iter()
+            .filter(|e| matches!(e.status, TaskStatus::Cancelled))
+            .count();
 
         let total_bytes_downloaded: u64 = self.entries.iter().map(|e| e.bytes_downloaded).sum();
         let total_files_downloaded: usize = self.entries.iter().map(|e| e.completed_files).sum();
@@ -249,7 +270,7 @@ impl DownloadHistoryEntry {
         download_config: DownloadConfig,
     ) -> Self {
         let id = format!("{}-{}", archive_identifier, Utc::now().timestamp());
-        
+
         Self {
             id,
             archive_identifier,
@@ -289,7 +310,12 @@ impl DownloadHistoryEntry {
     }
 
     /// Update progress information
-    pub fn update_progress(&mut self, completed_files: usize, failed_files: usize, bytes_downloaded: u64) {
+    pub fn update_progress(
+        &mut self,
+        completed_files: usize,
+        failed_files: usize,
+        bytes_downloaded: u64,
+    ) {
         self.completed_files = completed_files;
         self.failed_files = failed_files;
         self.bytes_downloaded = bytes_downloaded;

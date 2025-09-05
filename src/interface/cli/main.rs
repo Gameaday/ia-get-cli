@@ -23,9 +23,17 @@ pub enum ConfigAction {
 
 #[derive(Debug, Clone)]
 pub enum HistoryAction {
-    Show { limit: usize, status: Option<String>, detailed: bool },
-    Clear { force: bool },
-    Remove { id: String },
+    Show {
+        limit: usize,
+        status: Option<String>,
+        detailed: bool,
+    },
+    Clear {
+        force: bool,
+    },
+    Remove {
+        id: String,
+    },
     Stats,
 }
 
@@ -160,7 +168,7 @@ impl Cli {
         if !self.include_formats.is_empty() {
             use crate::utilities::filters::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
-            
+
             for format_name in &self.include_formats {
                 let format_name_lower = format_name.to_lowercase();
                 for category in FormatCategory::all() {
@@ -185,7 +193,7 @@ impl Cli {
         if !self.exclude_formats.is_empty() {
             use crate::utilities::filters::{FileFormats, FormatCategory};
             let file_formats = FileFormats::new();
-            
+
             for format_name in &self.exclude_formats {
                 let format_name_lower = format_name.to_lowercase();
                 for category in FormatCategory::all() {

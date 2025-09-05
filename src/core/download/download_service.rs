@@ -162,8 +162,8 @@ impl DownloadService {
         request: DownloadRequest,
         progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadResult> {
-        use crate::infrastructure::persistence::{
-            download_history::{DownloadHistory, DownloadHistoryEntry, get_default_history_db_path},
+        use crate::infrastructure::persistence::download_history::{
+            get_default_history_db_path, DownloadHistory, DownloadHistoryEntry,
         };
 
         // Validate identifier for Archive.org compliance
@@ -331,11 +331,11 @@ impl DownloadService {
             request.output_dir.to_string_lossy().to_string(),
             download_config.clone(),
         );
-        
+
         // Set initial progress information
         history_entry.total_files = filtered_files.len();
         history_entry.total_bytes = filtered_files.iter().map(|f| f.size.unwrap_or(0)).sum();
-        
+
         // Add to history and save
         let entry_id = history_entry.id.clone();
         download_history.add_entry(history_entry);
