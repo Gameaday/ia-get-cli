@@ -13,7 +13,9 @@ use egui::{Context, Ui};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
-use super::panels::{ArchiveHealthPanel, ConfigPanel, DownloadPanel, FiltersPanel};
+use super::panels::{
+    ArchiveHealthPanel, ConfigPanel, DownloadPanel, FileBrowserPanel, FiltersPanel,
+};
 
 /// Main application state
 #[derive(Default)]
@@ -54,6 +56,7 @@ pub struct IaGetApp {
     archive_health_panel: ArchiveHealthPanel,
     config_panel: ConfigPanel,
     download_panel: DownloadPanel,
+    file_browser_panel: FileBrowserPanel,
     filters_panel: FiltersPanel,
 
     // Dialog state
@@ -68,6 +71,7 @@ pub struct IaGetApp {
 enum AppTab {
     #[default]
     Download,
+    FileBrowser,
     Filters,
     Config,
     History,
@@ -102,6 +106,7 @@ impl IaGetApp {
             archive_health_panel: ArchiveHealthPanel::new(),
             config_panel: ConfigPanel::new(config.clone()),
             download_panel: DownloadPanel::new(),
+            file_browser_panel: FileBrowserPanel::new(),
             filters_panel: FiltersPanel::new(),
             config,
             switch_to_cli: false,
@@ -309,6 +314,7 @@ impl IaGetApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.selectable_value(&mut self.current_tab, AppTab::Download, "Download");
+                ui.selectable_value(&mut self.current_tab, AppTab::FileBrowser, "File Browser");
                 ui.selectable_value(&mut self.current_tab, AppTab::Filters, "Filters");
                 ui.selectable_value(&mut self.current_tab, AppTab::Config, "Settings");
                 ui.selectable_value(&mut self.current_tab, AppTab::History, "History");
@@ -319,6 +325,7 @@ impl IaGetApp {
 
             match self.current_tab {
                 AppTab::Download => self.render_download_tab(ui, ctx),
+                AppTab::FileBrowser => self.render_file_browser_tab(ui),
                 AppTab::Filters => self.render_filters_tab(ui),
                 AppTab::Config => self.render_config_tab(ui),
                 AppTab::History => self.render_history_tab(ui),
@@ -462,6 +469,11 @@ impl IaGetApp {
             // Use the download panel for progress display
             self.download_panel.render(ui);
         }
+    }
+
+    /// Render the file browser tab
+    fn render_file_browser_tab(&mut self, ui: &mut Ui) {
+        self.file_browser_panel.render(ui, &self.config);
     }
 
     /// Render the filters tab
