@@ -234,8 +234,8 @@ fn test_validate_path_length() {
                 }
                 Err(_) => {
                     // If long path detection fails, just verify the error message is reasonable
-                    if result.is_err() {
-                        let error_msg = result.unwrap_err().to_string();
+                    if let Err(error) = result {
+                        let error_msg = error.to_string();
                         assert!(
                             error_msg.contains("Path too long") || error_msg.contains("characters"),
                             "Error message should contain path length information. Got: {}",
