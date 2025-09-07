@@ -3,7 +3,9 @@
 //! Provides the main application window and state management for the GUI interface.
 
 use crate::{
-    core::download::download_service::{DownloadRequest, DownloadService, ProgressUpdate},
+    core::download::download_service::{
+        DownloadRequest, DownloadResult, DownloadService, ProgressUpdate,
+    },
     core::session::metadata_storage::sanitize_filename_for_filesystem,
     infrastructure::config::{Config, ConfigManager},
 };
@@ -34,6 +36,9 @@ pub struct IaGetApp {
 
     // Progress receiver for updates from download controller
     progress_rx: Option<mpsc::UnboundedReceiver<ProgressUpdate>>,
+
+    // Completion receiver for download results
+    completion_rx: Option<mpsc::UnboundedReceiver<DownloadResult>>,
 
     // Recent operations
     recent_downloads: Vec<String>,
@@ -153,6 +158,10 @@ impl IaGetApp {
         let (progress_tx, progress_rx) = mpsc::unbounded_channel();
         self.progress_rx = Some(progress_rx);
 
+        // Create completion channel
+        let (completion_tx, completion_rx) = mpsc::unbounded_channel();
+        self.completion_rx = Some(completion_rx);
+
         // Create download service
         let service = match DownloadService::new() {
             Ok(s) => s,
@@ -229,7 +238,14 @@ impl IaGetApp {
         if let Some(handle) = &self.rt_handle {
             let ctx_clone = ctx.clone();
             handle.spawn(async move {
-                let _result = service.download(request, Some(progress_callback)).await;
+                let result = service.download(request, Some(progress_callback)).await;
+
+                // Send completion result
+                if let Ok(download_result) = result {
+                    let _ = completion_tx.send(download_result);
+                } else if let Err(e) = result {
+                    let _ = completion_tx.send(DownloadResult::Error(e.to_string()));
+                }
 
                 // Request repaint when done
                 ctx_clone.request_repaint();
@@ -611,6 +627,61 @@ impl eframe::App for IaGetApp {
                 if update.total_files > 0 {
                     self.download_progress =
                         (update.completed_files as f32 / update.total_files as f32) * 100.0;
+                }
+            }
+        }
+
+        // Handle completion results
+        if let Some(rx) = &mut self.completion_rx {
+            while let Ok(result) = rx.try_recv() {
+                self.is_downloading = false;
+                match result {
+                    DownloadResult::Success(session, _api_stats, is_dry_run) => {
+                        if is_dry_run {
+                            // This was a dry run - display the results
+                            let file_count = session.archive_metadata.files.len();
+                            let total_size: u64 = session
+                                .archive_metadata
+                                .files
+                                .iter()
+                                .map(|f| f.size.unwrap_or(0))
+                                .sum();
+
+                            self.success_message = Some(format!(
+                                "Dry run completed: {} files found (total size: {} bytes)",
+                                file_count, total_size
+                            ));
+                            self.download_status =
+                                format!("Dry run completed - {} files found", file_count);
+                        } else {
+                            // This was a real download
+                            let progress = session.get_progress_summary();
+                            if progress.completed_files == progress.total_files {
+                                self.success_message = Some(format!(
+                                    "Download completed successfully! {} files downloaded",
+                                    progress.completed_files
+                                ));
+                                self.download_status =
+                                    "Download completed successfully".to_string();
+                            } else {
+                                let failed_files = progress.total_files - progress.completed_files;
+                                self.error_message = Some(format!(
+                                    "Download completed with {} failed files. {} of {} files downloaded successfully",
+                                    failed_files, progress.completed_files, progress.total_files
+                                ));
+                                self.download_status =
+                                    format!("Completed with {} failed files", failed_files);
+                            }
+                        }
+                        // Reset progress panel
+                        self.download_panel.reset();
+                    }
+                    DownloadResult::Error(error_msg) => {
+                        self.error_message = Some(format!("Download failed: {}", error_msg));
+                        self.download_status = "Download failed".to_string();
+                        // Reset progress panel
+                        self.download_panel.reset();
+                    }
                 }
             }
         }

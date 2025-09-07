@@ -740,7 +740,7 @@ impl InteractiveCli {
         // Show final result
         self.clear_screen();
         match result {
-            DownloadResult::Success(session, _stats) => {
+            DownloadResult::Success(session, _stats, _is_dry_run) => {
                 self.show_success_summary(&session);
             }
             DownloadResult::Error(error) => {
