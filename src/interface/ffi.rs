@@ -18,6 +18,7 @@ use crate::utilities::filters::parse_size_string;
 
 // Simple session structure for FFI
 #[derive(Debug)]
+#[allow(dead_code)] // FFI struct fields are accessed from C/foreign code
 struct FfiSession {
     identifier: String,
     output_dir: String,
@@ -158,8 +159,12 @@ pub extern "C" fn ia_get_cleanup() {
 
 /// Fetch archive metadata asynchronously
 /// Returns a session ID that can be used to cancel the operation
+///
+/// # Safety
+/// The `identifier` parameter must be a valid null-terminated C string pointer.
+/// The caller must ensure the string remains valid for the duration of the call.
 #[no_mangle]
-pub extern "C" fn ia_get_fetch_metadata(
+pub unsafe extern "C" fn ia_get_fetch_metadata(
     identifier: *const c_char,
     progress_callback: ProgressCallback,
     completion_callback: CompletionCallback,
@@ -169,7 +174,7 @@ pub extern "C" fn ia_get_fetch_metadata(
         return -1;
     }
 
-    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+    let identifier_str = match CStr::from_ptr(identifier).to_str() {
         Ok(s) => s.to_string(),
         Err(_) => return -1,
     };
@@ -199,7 +204,7 @@ pub extern "C" fn ia_get_fetch_metadata(
             let progress_bar = ProgressBar::new_spinner();
 
             // Fetch metadata
-            match fetch_json_metadata(&identifier_str, &client, &progress_bar).await {
+            match fetch_json_metadata(&identifier_str, client, &progress_bar).await {
                 Ok((metadata, _url)) => {
                     let progress_msg = CString::new("Parsing metadata...").unwrap();
                     progress_callback(0.8, progress_msg.as_ptr(), user_data);
@@ -227,13 +232,17 @@ pub extern "C" fn ia_get_fetch_metadata(
 
 /// Get cached metadata as JSON string
 /// Returns null if metadata not found
+///
+/// # Safety
+/// The `identifier` parameter must be a valid null-terminated C string pointer.
+/// The returned pointer must be freed using `ia_get_free_string`.
 #[no_mangle]
-pub extern "C" fn ia_get_get_metadata_json(identifier: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ia_get_get_metadata_json(identifier: *const c_char) -> *mut c_char {
     if identifier.is_null() {
         return ptr::null_mut();
     }
 
-    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+    let identifier_str = match CStr::from_ptr(identifier).to_str() {
         Ok(s) => s,
         Err(_) => return ptr::null_mut(),
     };
@@ -254,8 +263,13 @@ pub extern "C" fn ia_get_get_metadata_json(identifier: *const c_char) -> *mut c_
 
 /// Create a new download session
 /// Returns session ID for tracking
+///
+/// # Safety
+/// Both `identifier` and `config` must be valid pointers.
+/// The `identifier` must be a valid null-terminated C string.
+/// The `config` must point to a valid `FfiDownloadConfig` structure.
 #[no_mangle]
-pub extern "C" fn ia_get_create_session(
+pub unsafe extern "C" fn ia_get_create_session(
     identifier: *const c_char,
     config: *const FfiDownloadConfig,
 ) -> c_int {
@@ -263,12 +277,12 @@ pub extern "C" fn ia_get_create_session(
         return -1;
     }
 
-    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+    let identifier_str = match CStr::from_ptr(identifier).to_str() {
         Ok(s) => s.to_string(),
         Err(_) => return -1,
     };
 
-    let ffi_config = unsafe { &*config };
+    let ffi_config = &*config;
     let session_id = next_session_id();
 
     // Convert FFI config to internal config
@@ -300,8 +314,14 @@ pub extern "C" fn ia_get_create_session(
 
 /// Filter files based on criteria
 /// Returns JSON string with filtered file list
+///
+/// # Safety
+/// The `metadata_json` parameter must be a valid null-terminated C string pointer.
+/// The optional parameters (`include_formats`, `exclude_formats`, `max_size_str`) can be null
+/// or must be valid null-terminated C string pointers.
+/// The returned pointer must be freed using `ia_get_free_string`.
 #[no_mangle]
-pub extern "C" fn ia_get_filter_files(
+pub unsafe extern "C" fn ia_get_filter_files(
     metadata_json: *const c_char,
     include_formats: *const c_char,
     exclude_formats: *const c_char,
@@ -311,7 +331,7 @@ pub extern "C" fn ia_get_filter_files(
         return ptr::null_mut();
     }
 
-    let metadata_str = match unsafe { CStr::from_ptr(metadata_json) }.to_str() {
+    let metadata_str = match CStr::from_ptr(metadata_json).to_str() {
         Ok(s) => s,
         Err(_) => return ptr::null_mut(),
     };
@@ -326,7 +346,7 @@ pub extern "C" fn ia_get_filter_files(
     let include_formats = if include_formats.is_null() {
         Vec::new()
     } else {
-        match unsafe { CStr::from_ptr(include_formats) }.to_str() {
+        match CStr::from_ptr(include_formats).to_str() {
             Ok(s) => s.split(',').map(|s| s.trim().to_string()).collect(),
             Err(_) => Vec::new(),
         }
@@ -335,7 +355,7 @@ pub extern "C" fn ia_get_filter_files(
     let exclude_formats = if exclude_formats.is_null() {
         Vec::new()
     } else {
-        match unsafe { CStr::from_ptr(exclude_formats) }.to_str() {
+        match CStr::from_ptr(exclude_formats).to_str() {
             Ok(s) => s.split(',').map(|s| s.trim().to_string()).collect(),
             Err(_) => Vec::new(),
         }
@@ -344,7 +364,7 @@ pub extern "C" fn ia_get_filter_files(
     let max_size = if max_size_str.is_null() {
         None
     } else {
-        match unsafe { CStr::from_ptr(max_size_str) }.to_str() {
+        match CStr::from_ptr(max_size_str).to_str() {
             Ok(s) => parse_size_string(s).ok(),
             Err(_) => None,
         }
@@ -381,7 +401,7 @@ pub extern "C" fn ia_get_filter_files(
 
     // Filter by max size
     if let Some(max_size) = max_size {
-        filtered_files.retain(|file| file.size.map_or(true, |size| size <= max_size));
+        filtered_files.retain(|file| file.size.is_none_or(|size| size <= max_size));
     }
 
     // Serialize filtered results
@@ -396,8 +416,13 @@ pub extern "C" fn ia_get_filter_files(
 
 /// Start a download session
 /// Returns 0 on success, error code on failure
+/// Start downloading selected files
+///
+/// # Safety
+/// The `files_json` parameter must be a valid null-terminated C string pointer
+/// containing valid JSON data.
 #[no_mangle]
-pub extern "C" fn ia_get_start_download(
+pub unsafe extern "C" fn ia_get_start_download(
     _session_id: c_int,
     files_json: *const c_char,
     progress_callback: ProgressCallback,
@@ -408,7 +433,7 @@ pub extern "C" fn ia_get_start_download(
         return IaGetErrorCode::InvalidInput;
     }
 
-    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+    let files_str = match CStr::from_ptr(files_json).to_str() {
         Ok(s) => s,
         Err(_) => return IaGetErrorCode::InvalidInput,
     };
@@ -456,8 +481,12 @@ pub extern "C" fn ia_get_start_download(
 }
 
 /// Get download progress for a session
+/// Get current download progress for a session
+///
+/// # Safety
+/// The `progress` parameter must be a valid pointer to an allocated `FfiDownloadProgress` structure.
 #[no_mangle]
-pub extern "C" fn ia_get_get_download_progress(
+pub unsafe extern "C" fn ia_get_get_download_progress(
     session_id: c_int,
     progress: *mut FfiDownloadProgress,
 ) -> IaGetErrorCode {
@@ -484,9 +513,7 @@ pub extern "C" fn ia_get_get_download_progress(
         total_bytes: 1024 * 1024 * 20,      // 20 MB
     };
 
-    unsafe {
-        *progress = mock_progress;
-    }
+    *progress = mock_progress;
 
     IaGetErrorCode::Success
 }
@@ -560,13 +587,17 @@ pub extern "C" fn ia_get_get_session_info(session_id: c_int) -> *mut c_char {
 }
 
 /// Get available download formats for an archive
+///
+/// # Safety
+/// The `identifier` parameter must be a valid null-terminated C string pointer.
+/// The returned pointer must be freed using `ia_get_free_string`.
 #[no_mangle]
-pub extern "C" fn ia_get_get_available_formats(identifier: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ia_get_get_available_formats(identifier: *const c_char) -> *mut c_char {
     if identifier.is_null() {
         return ptr::null_mut();
     }
 
-    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+    let identifier_str = match CStr::from_ptr(identifier).to_str() {
         Ok(s) => s,
         Err(_) => return ptr::null_mut(),
     };
@@ -578,7 +609,7 @@ pub extern "C" fn ia_get_get_available_formats(identifier: *const c_char) -> *mu
             .files
             .iter()
             .filter_map(|file| file.format.as_ref())
-            .map(|f| f.clone())
+            .cloned()
             .collect();
 
         formats.sort();
@@ -597,13 +628,17 @@ pub extern "C" fn ia_get_get_available_formats(identifier: *const c_char) -> *mu
 }
 
 /// Calculate total size of selected files
+///
+/// # Safety
+/// The `files_json` parameter must be a valid null-terminated C string pointer
+/// containing valid JSON data.
 #[no_mangle]
-pub extern "C" fn ia_get_calculate_total_size(files_json: *const c_char) -> u64 {
+pub unsafe extern "C" fn ia_get_calculate_total_size(files_json: *const c_char) -> u64 {
     if files_json.is_null() {
         return 0;
     }
 
-    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+    let files_str = match CStr::from_ptr(files_json).to_str() {
         Ok(s) => s,
         Err(_) => return 0,
     };
@@ -620,8 +655,12 @@ pub extern "C" fn ia_get_calculate_total_size(files_json: *const c_char) -> u64 
 }
 
 /// Validate download URL accessibility
+///
+/// # Safety
+/// The `files_json` parameter must be a valid null-terminated C string pointer
+/// containing valid JSON data.
 #[no_mangle]
-pub extern "C" fn ia_get_validate_urls(
+pub unsafe extern "C" fn ia_get_validate_urls(
     files_json: *const c_char,
     progress_callback: ProgressCallback,
     completion_callback: CompletionCallback,
@@ -631,7 +670,7 @@ pub extern "C" fn ia_get_validate_urls(
         return -1;
     }
 
-    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+    let files_str = match CStr::from_ptr(files_json).to_str() {
         Ok(s) => s.to_string(),
         Err(_) => return -1,
     };
@@ -675,12 +714,15 @@ pub extern "C" fn ia_get_validate_urls(
 }
 
 /// Free memory allocated by FFI functions
+///
+/// # Safety
+/// The `ptr` parameter must be a valid pointer previously returned by an FFI function
+/// that allocates memory, or null. Calling this function with an invalid pointer
+/// or calling it more than once with the same pointer will cause undefined behavior.
 #[no_mangle]
-pub extern "C" fn ia_get_free_string(ptr: *mut c_char) {
+pub unsafe extern "C" fn ia_get_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
-        unsafe {
-            let _ = CString::from_raw(ptr);
-        }
+        let _ = CString::from_raw(ptr);
     }
 }
 
@@ -752,29 +794,35 @@ mod tests {
         let metadata_cstr = CString::new(metadata_json).unwrap();
         let include_formats = CString::new("pdf").unwrap();
 
-        let result = ia_get_filter_files(
-            metadata_cstr.as_ptr(),
-            include_formats.as_ptr(),
-            std::ptr::null(),
-            std::ptr::null(),
-        );
+        let result = unsafe {
+            ia_get_filter_files(
+                metadata_cstr.as_ptr(),
+                include_formats.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+            )
+        };
 
         assert!(!result.is_null());
 
         // Clean up
-        ia_get_free_string(result);
+        unsafe {
+            ia_get_free_string(result);
+        }
     }
 
     #[test]
     fn test_ffi_fetch_metadata() {
         let identifier = CString::new("commute_test").unwrap();
 
-        let request_id = ia_get_fetch_metadata(
-            identifier.as_ptr(),
-            test_progress_callback,
-            test_completion_callback,
-            0,
-        );
+        let request_id = unsafe {
+            ia_get_fetch_metadata(
+                identifier.as_ptr(),
+                test_progress_callback,
+                test_completion_callback,
+                0,
+            )
+        };
 
         assert!(request_id > 0);
 
