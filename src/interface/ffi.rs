@@ -18,7 +18,6 @@ use crate::utilities::filters::parse_size_string;
 
 // Simple session structure for FFI
 #[derive(Debug)]
-#[allow(dead_code)] // FFI struct fields are accessed from C/foreign code
 struct FfiSession {
     identifier: String,
     output_dir: String,
@@ -41,6 +40,31 @@ impl FfiSession {
             auto_decompress,
             created_at: chrono::Utc::now(),
         }
+    }
+
+    /// Get the archive identifier for this session
+    fn get_identifier(&self) -> &str {
+        &self.identifier
+    }
+
+    /// Get the output directory for this session
+    fn get_output_dir(&self) -> &str {
+        &self.output_dir
+    }
+
+    /// Get the number of concurrent downloads for this session
+    fn get_concurrent_downloads(&self) -> u32 {
+        self.concurrent_downloads
+    }
+
+    /// Check if auto-decompression is enabled for this session
+    fn is_auto_decompress_enabled(&self) -> bool {
+        self.auto_decompress
+    }
+
+    /// Get the creation timestamp of this session
+    fn get_created_at(&self) -> &chrono::DateTime<chrono::Utc> {
+        &self.created_at
     }
 }
 
@@ -423,7 +447,7 @@ pub unsafe extern "C" fn ia_get_filter_files(
 /// containing valid JSON data.
 #[no_mangle]
 pub unsafe extern "C" fn ia_get_start_download(
-    _session_id: c_int,
+    session_id: c_int,
     files_json: *const c_char,
     progress_callback: ProgressCallback,
     completion_callback: CompletionCallback,
@@ -444,13 +468,34 @@ pub unsafe extern "C" fn ia_get_start_download(
         Err(_) => return IaGetErrorCode::ParseError,
     };
 
+    // Get session information to use in download
+    let session_info = {
+        let sessions = SESSIONS.lock().unwrap();
+        sessions.get(&session_id).map(|session| {
+            (
+                session.get_identifier().to_string(),
+                session.get_output_dir().to_string(),
+                session.get_concurrent_downloads(),
+                session.is_auto_decompress_enabled(),
+            )
+        })
+    };
+
+    let Some((identifier, output_dir, concurrent_downloads, auto_decompress)) = session_info else {
+        return IaGetErrorCode::InvalidInput;
+    };
+
     let runtime = RUNTIME.clone();
 
-    // Spawn download operation
+    // Spawn download operation using session configuration
     std::thread::spawn(move || {
         runtime.block_on(async move {
-            // Progress update: Starting download
-            let progress_msg = CString::new("Initializing download...").unwrap();
+            // Progress update: Starting download with session info
+            let progress_msg = CString::new(format!(
+                "Initializing download for '{}' to '{}' (concurrency: {}, decompress: {})",
+                identifier, output_dir, concurrent_downloads, auto_decompress
+            ))
+            .unwrap();
             progress_callback(0.0, progress_msg.as_ptr(), user_data);
 
             // In a real implementation, this would:
@@ -520,20 +565,28 @@ pub unsafe extern "C" fn ia_get_get_download_progress(
 
 /// Pause a download session
 #[no_mangle]
-pub extern "C" fn ia_get_pause_download(_session_id: c_int) -> IaGetErrorCode {
+pub extern "C" fn ia_get_pause_download(session_id: c_int) -> IaGetErrorCode {
     // In a real implementation, this would pause the download session
-    let _sessions = SESSIONS.lock().unwrap();
-    // sessions.get_mut(&session_id).map(|session| session.pause());
-    IaGetErrorCode::Success
+    let sessions = SESSIONS.lock().unwrap();
+    if sessions.contains_key(&session_id) {
+        // Session exists, would pause it here
+        IaGetErrorCode::Success
+    } else {
+        IaGetErrorCode::InvalidInput
+    }
 }
 
 /// Resume a download session
 #[no_mangle]
-pub extern "C" fn ia_get_resume_download(_session_id: c_int) -> IaGetErrorCode {
+pub extern "C" fn ia_get_resume_download(session_id: c_int) -> IaGetErrorCode {
     // In a real implementation, this would resume the download session
-    let _sessions = SESSIONS.lock().unwrap();
-    // sessions.get_mut(&session_id).map(|session| session.resume());
-    IaGetErrorCode::Success
+    let sessions = SESSIONS.lock().unwrap();
+    if sessions.contains_key(&session_id) {
+        // Session exists, would resume it here
+        IaGetErrorCode::Success
+    } else {
+        IaGetErrorCode::InvalidInput
+    }
 }
 
 /// Cancel a download session
@@ -566,12 +619,16 @@ pub extern "C" fn ia_get_cancel_operation(operation_id: c_int) -> IaGetErrorCode
 #[no_mangle]
 pub extern "C" fn ia_get_get_session_info(session_id: c_int) -> *mut c_char {
     let sessions = SESSIONS.lock().unwrap();
-    if let Some(_session) = sessions.get(&session_id) {
-        // In a real implementation, serialize session info
+    if let Some(session) = sessions.get(&session_id) {
+        // Use the actual session data
         let session_info = serde_json::json!({
             "session_id": session_id,
+            "identifier": session.get_identifier(),
+            "output_dir": session.get_output_dir(),
+            "concurrent_downloads": session.get_concurrent_downloads(),
+            "auto_decompress": session.is_auto_decompress_enabled(),
             "status": "active",
-            "created_at": chrono::Utc::now().to_rfc3339()
+            "created_at": session.get_created_at().to_rfc3339()
         });
 
         match serde_json::to_string(&session_info) {
