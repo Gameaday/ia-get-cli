@@ -4,15 +4,49 @@
 //! to enable integration with mobile applications (Flutter, React Native, etc.)
 
 use indicatif::ProgressBar;
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
 use std::ptr;
+use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
 use crate::core::archive::fetch_json_metadata;
 use crate::core::session::ArchiveMetadata;
 use crate::infrastructure::http::HttpClientFactory;
 use crate::utilities::filters::parse_size_string;
+
+// Simple session structure for FFI
+#[derive(Debug)]
+struct FfiSession {
+    identifier: String,
+    output_dir: String,
+    concurrent_downloads: u32,
+    auto_decompress: bool,
+    created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl FfiSession {
+    fn new(identifier: String, output_dir: String, concurrent_downloads: u32, auto_decompress: bool) -> Self {
+        Self {
+            identifier,
+            output_dir,
+            concurrent_downloads,
+            auto_decompress,
+            created_at: chrono::Utc::now(),
+        }
+    }
+}
+
+// Global state management for mobile platforms
+lazy_static::lazy_static! {
+    static ref RUNTIME: Arc<Runtime> = Arc::new(
+        Runtime::new().expect("Failed to create Tokio runtime")
+    );
+    static ref SESSIONS: Arc<Mutex<HashMap<i32, FfiSession>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref METADATA_CACHE: Arc<Mutex<HashMap<String, ArchiveMetadata>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref NEXT_SESSION_ID: Arc<Mutex<i32>> = Arc::new(Mutex::new(1));
+}
 
 /// Callback function type for progress updates
 pub type ProgressCallback = extern "C" fn(progress: f64, message: *const c_char, user_data: usize);
@@ -43,6 +77,8 @@ pub struct FfiDownloadConfig {
     pub dry_run: bool,
     pub verbose: bool,
     pub auto_decompress: bool,
+    pub resume_downloads: bool,
+    pub verify_checksums: bool,
 }
 
 /// FFI-compatible file information
@@ -52,6 +88,9 @@ pub struct FfiFileInfo {
     pub size: u64,
     pub format: *const c_char,
     pub download_url: *const c_char,
+    pub md5: *const c_char,
+    pub sha1: *const c_char,
+    pub selected: bool,  // For UI selection state
 }
 
 /// FFI-compatible archive metadata
@@ -59,10 +98,36 @@ pub struct FfiFileInfo {
 pub struct FfiArchiveMetadata {
     pub identifier: *const c_char,
     pub title: *const c_char,
+    pub description: *const c_char,
+    pub creator: *const c_char,
+    pub date: *const c_char,
     pub total_files: u32,
     pub total_size: u64,
     pub files: *const FfiFileInfo,
     pub files_count: u32,
+}
+
+/// FFI-compatible download progress information
+#[repr(C)]
+pub struct FfiDownloadProgress {
+    pub session_id: i32,
+    pub overall_progress: f64,      // 0.0 to 1.0
+    pub current_file: *const c_char,
+    pub current_file_progress: f64, // 0.0 to 1.0  
+    pub download_speed: u64,        // bytes per second
+    pub eta_seconds: u64,           // estimated time remaining
+    pub completed_files: u32,
+    pub total_files: u32,
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+}
+
+/// Generate next session ID
+fn next_session_id() -> i32 {
+    let mut next_id = NEXT_SESSION_ID.lock().unwrap();
+    let id = *next_id;
+    *next_id += 1;
+    id
 }
 
 /// Initialize the FFI interface
@@ -87,7 +152,7 @@ pub extern "C" fn ia_get_cleanup() {
 }
 
 /// Fetch archive metadata asynchronously
-/// Returns a request ID that can be used to cancel the operation
+/// Returns a session ID that can be used to cancel the operation
 #[no_mangle]
 pub extern "C" fn ia_get_fetch_metadata(
     identifier: *const c_char,
@@ -104,18 +169,12 @@ pub extern "C" fn ia_get_fetch_metadata(
         Err(_) => return -1,
     };
 
+    let session_id = next_session_id();
+    let runtime = RUNTIME.clone();
+
     // Spawn async operation in background thread
     std::thread::spawn(move || {
-        let rt = match Runtime::new() {
-            Ok(rt) => rt,
-            Err(_) => {
-                let error_msg = CString::new("Failed to create async runtime").unwrap();
-                completion_callback(false, error_msg.as_ptr(), user_data);
-                return;
-            }
-        };
-
-        rt.block_on(async move {
+        runtime.block_on(async move {
             // Create HTTP client
             let enhanced_client = match HttpClientFactory::for_metadata_requests() {
                 Ok(c) => c,
@@ -136,12 +195,15 @@ pub extern "C" fn ia_get_fetch_metadata(
 
             // Fetch metadata
             match fetch_json_metadata(&identifier_str, &client, &progress_bar).await {
-                Ok((_metadata, _url)) => {
+                Ok((metadata, _url)) => {
                     let progress_msg = CString::new("Parsing metadata...").unwrap();
                     progress_callback(0.8, progress_msg.as_ptr(), user_data);
 
-                    // Store metadata for later retrieval
-                    // In a real implementation, you'd store this in a global map with the request ID
+                    // Store metadata in cache
+                    {
+                        let mut cache = METADATA_CACHE.lock().unwrap();
+                        cache.insert(identifier_str.clone(), metadata);
+                    }
 
                     let progress_msg = CString::new("Metadata fetch complete").unwrap();
                     progress_callback(1.0, progress_msg.as_ptr(), user_data);
@@ -155,8 +217,80 @@ pub extern "C" fn ia_get_fetch_metadata(
         });
     });
 
-    // Return a mock request ID (in real implementation, this would be unique)
-    1
+    session_id
+}
+
+/// Get cached metadata as JSON string
+/// Returns null if metadata not found
+#[no_mangle]
+pub extern "C" fn ia_get_get_metadata_json(identifier: *const c_char) -> *mut c_char {
+    if identifier.is_null() {
+        return ptr::null_mut();
+    }
+
+    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let cache = METADATA_CACHE.lock().unwrap();
+    if let Some(metadata) = cache.get(identifier_str) {
+        match serde_json::to_string(metadata) {
+            Ok(json) => {
+                let c_string = CString::new(json).unwrap();
+                c_string.into_raw()
+            }
+            Err(_) => ptr::null_mut(),
+        }
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Create a new download session
+/// Returns session ID for tracking
+#[no_mangle] 
+pub extern "C" fn ia_get_create_session(
+    identifier: *const c_char,
+    config: *const FfiDownloadConfig,
+) -> c_int {
+    if identifier.is_null() || config.is_null() {
+        return -1;
+    }
+
+    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return -1,
+    };
+
+    let ffi_config = unsafe { &*config };
+    let session_id = next_session_id();
+
+    // Convert FFI config to internal config
+    let output_dir = if ffi_config.output_directory.is_null() {
+        "./downloads".to_string()
+    } else {
+        match unsafe { CStr::from_ptr(ffi_config.output_directory) }.to_str() {
+            Ok(s) => s.to_string(),
+            Err(_) => "./downloads".to_string(),
+        }
+    };
+
+    // Create session object (simplified for FFI demonstration)
+    let session = FfiSession::new(
+        identifier_str,
+        output_dir,
+        ffi_config.concurrent_downloads,
+        ffi_config.auto_decompress,
+    );
+
+    // Store session
+    {
+        let mut sessions = SESSIONS.lock().unwrap();
+        sessions.insert(session_id, session);
+    }
+
+    session_id
 }
 
 /// Filter files based on criteria
@@ -211,7 +345,7 @@ pub extern "C" fn ia_get_filter_files(
         }
     };
 
-    // Apply basic filtering logic (simplified for FFI)
+    // Apply filtering logic manually for FFI compatibility
     let mut filtered_files = metadata.files.clone();
 
     // Filter by include formats
@@ -256,74 +390,281 @@ pub extern "C" fn ia_get_filter_files(
 }
 
 /// Start a download session
-/// Returns session ID for tracking progress
+/// Returns 0 on success, error code on failure
 #[no_mangle]
 pub extern "C" fn ia_get_start_download(
-    identifier: *const c_char,
-    config: *const FfiDownloadConfig,
+    _session_id: c_int,
+    files_json: *const c_char,
     progress_callback: ProgressCallback,
     completion_callback: CompletionCallback,
     user_data: usize,
-) -> c_int {
-    if identifier.is_null() || config.is_null() {
-        return -1;
+) -> IaGetErrorCode {
+    if files_json.is_null() {
+        return IaGetErrorCode::InvalidInput;
     }
 
-    let _identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
-        Ok(s) => s.to_string(),
-        Err(_) => return -1,
+    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return IaGetErrorCode::InvalidInput,
     };
 
-    let ffi_config = unsafe { &*config };
-
-    // Convert FFI config to internal config
-    let _output_dir = if ffi_config.output_directory.is_null() {
-        "./downloads".to_string()
-    } else {
-        match unsafe { CStr::from_ptr(ffi_config.output_directory) }.to_str() {
-            Ok(s) => s.to_string(),
-            Err(_) => "./downloads".to_string(),
-        }
+    // Parse selected files
+    let _selected_files: Vec<serde_json::Value> = match serde_json::from_str(files_str) {
+        Ok(f) => f,
+        Err(_) => return IaGetErrorCode::ParseError,
     };
+
+    let runtime = RUNTIME.clone();
 
     // Spawn download operation
     std::thread::spawn(move || {
-        let rt = match Runtime::new() {
-            Ok(rt) => rt,
-            Err(_) => {
-                let error_msg = CString::new("Failed to create async runtime").unwrap();
-                completion_callback(false, error_msg.as_ptr(), user_data);
-                return;
-            }
-        };
-
-        rt.block_on(async move {
+        runtime.block_on(async move {
             // Progress update: Starting download
             let progress_msg = CString::new("Initializing download...").unwrap();
             progress_callback(0.0, progress_msg.as_ptr(), user_data);
 
             // In a real implementation, this would:
-            // 1. Create DownloadService with the configuration
-            // 2. Set up progress reporting callbacks
-            // 3. Start the download with proper session management
-            // 4. Handle errors and completion
+            // 1. Get session from SESSIONS map
+            // 2. Create DownloadService with the configuration  
+            // 3. Set up progress reporting callbacks with proper tracking
+            // 4. Start the download with proper session management
+            // 5. Handle errors and completion with detailed progress info
 
-            // Mock successful completion for demonstration
+            // Simulate download progress
+            for i in 1..=10 {
+                let progress = i as f64 / 10.0;
+                let progress_msg = CString::new(format!("Downloading... {}%", (progress * 100.0) as i32)).unwrap();
+                progress_callback(progress, progress_msg.as_ptr(), user_data);
+                
+                // Simulate work
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
+
             let progress_msg = CString::new("Download completed").unwrap();
             progress_callback(1.0, progress_msg.as_ptr(), user_data);
             completion_callback(true, ptr::null(), user_data);
         });
     });
 
-    // Return mock session ID
-    2
+    IaGetErrorCode::Success
+}
+
+/// Get download progress for a session
+#[no_mangle]
+pub extern "C" fn ia_get_get_download_progress(
+    session_id: c_int,
+    progress: *mut FfiDownloadProgress,
+) -> IaGetErrorCode {
+    if progress.is_null() {
+        return IaGetErrorCode::InvalidInput;
+    }
+
+    // In a real implementation, this would:
+    // 1. Look up session in SESSIONS map
+    // 2. Get actual progress from the download service
+    // 3. Fill in the progress structure
+
+    // Mock progress data for demonstration
+    let mock_progress = FfiDownloadProgress {
+        session_id,
+        overall_progress: 0.5,
+        current_file: CString::new("test.pdf").unwrap().into_raw(),
+        current_file_progress: 0.7,
+        download_speed: 1024 * 1024, // 1 MB/s
+        eta_seconds: 30,
+        completed_files: 2,
+        total_files: 5,
+        downloaded_bytes: 1024 * 1024 * 10, // 10 MB
+        total_bytes: 1024 * 1024 * 20,      // 20 MB
+    };
+
+    unsafe {
+        *progress = mock_progress;
+    }
+
+    IaGetErrorCode::Success
+}
+
+/// Pause a download session
+#[no_mangle]
+pub extern "C" fn ia_get_pause_download(_session_id: c_int) -> IaGetErrorCode {
+    // In a real implementation, this would pause the download session
+    let _sessions = SESSIONS.lock().unwrap();
+    // sessions.get_mut(&session_id).map(|session| session.pause());
+    IaGetErrorCode::Success
+}
+
+/// Resume a download session
+#[no_mangle]
+pub extern "C" fn ia_get_resume_download(_session_id: c_int) -> IaGetErrorCode {
+    // In a real implementation, this would resume the download session
+    let _sessions = SESSIONS.lock().unwrap();
+    // sessions.get_mut(&session_id).map(|session| session.resume());
+    IaGetErrorCode::Success
+}
+
+/// Cancel a download session
+#[no_mangle]
+pub extern "C" fn ia_get_cancel_download(session_id: c_int) -> IaGetErrorCode {
+    // Cancel the download and remove session
+    let mut sessions = SESSIONS.lock().unwrap();
+    if sessions.remove(&session_id).is_some() {
+        IaGetErrorCode::Success
+    } else {
+        IaGetErrorCode::InvalidInput
+    }
 }
 
 /// Cancel an ongoing operation
 #[no_mangle]
-pub extern "C" fn ia_get_cancel_operation(_operation_id: c_int) -> IaGetErrorCode {
-    // In a real implementation, this would cancel the operation with the given ID
-    IaGetErrorCode::Success
+pub extern "C" fn ia_get_cancel_operation(operation_id: c_int) -> IaGetErrorCode {
+    // This can cancel either metadata fetch or download operations
+    if operation_id > 0 {
+        // In a real implementation, this would cancel the operation with the given ID
+        let mut sessions = SESSIONS.lock().unwrap();
+        sessions.remove(&operation_id);
+        IaGetErrorCode::Success
+    } else {
+        IaGetErrorCode::InvalidInput
+    }
+}
+
+/// Get session information as JSON
+#[no_mangle]
+pub extern "C" fn ia_get_get_session_info(session_id: c_int) -> *mut c_char {
+    let sessions = SESSIONS.lock().unwrap();
+    if let Some(_session) = sessions.get(&session_id) {
+        // In a real implementation, serialize session info
+        let session_info = serde_json::json!({
+            "session_id": session_id,
+            "status": "active",
+            "created_at": chrono::Utc::now().to_rfc3339()
+        });
+        
+        match serde_json::to_string(&session_info) {
+            Ok(json) => {
+                let c_string = CString::new(json).unwrap();
+                c_string.into_raw()
+            }
+            Err(_) => ptr::null_mut(),
+        }
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Get available download formats for an archive
+#[no_mangle]
+pub extern "C" fn ia_get_get_available_formats(identifier: *const c_char) -> *mut c_char {
+    if identifier.is_null() {
+        return ptr::null_mut();
+    }
+
+    let identifier_str = match unsafe { CStr::from_ptr(identifier) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+
+    let cache = METADATA_CACHE.lock().unwrap();
+    if let Some(metadata) = cache.get(identifier_str) {
+        // Extract unique formats from files
+        let mut formats: Vec<String> = metadata
+            .files
+            .iter()
+            .filter_map(|file| file.format.as_ref())
+            .map(|f| f.clone())
+            .collect();
+        
+        formats.sort();
+        formats.dedup();
+
+        match serde_json::to_string(&formats) {
+            Ok(json) => {
+                let c_string = CString::new(json).unwrap();
+                c_string.into_raw()
+            }
+            Err(_) => ptr::null_mut(),
+        }
+    } else {
+        ptr::null_mut()
+    }
+}
+
+/// Calculate total size of selected files
+#[no_mangle]
+pub extern "C" fn ia_get_calculate_total_size(files_json: *const c_char) -> u64 {
+    if files_json.is_null() {
+        return 0;
+    }
+
+    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+
+    let files: Vec<serde_json::Value> = match serde_json::from_str(files_str) {
+        Ok(f) => f,
+        Err(_) => return 0,
+    };
+
+    files
+        .iter()
+        .filter_map(|file| file.get("size")?.as_u64())
+        .sum()
+}
+
+/// Validate download URL accessibility
+#[no_mangle]
+pub extern "C" fn ia_get_validate_urls(
+    files_json: *const c_char,
+    progress_callback: ProgressCallback,
+    completion_callback: CompletionCallback,
+    user_data: usize,
+) -> c_int {
+    if files_json.is_null() {
+        return -1;
+    }
+
+    let files_str = match unsafe { CStr::from_ptr(files_json) }.to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return -1,
+    };
+
+    let runtime = RUNTIME.clone();
+    let validation_id = next_session_id();
+
+    std::thread::spawn(move || {
+        runtime.block_on(async move {
+            let progress_msg = CString::new("Validating download URLs...").unwrap();
+            progress_callback(0.0, progress_msg.as_ptr(), user_data);
+
+            // Parse files
+            let files: Vec<serde_json::Value> = match serde_json::from_str(&files_str) {
+                Ok(f) => f,
+                Err(_) => {
+                    let error_msg = CString::new("Failed to parse files JSON").unwrap();
+                    completion_callback(false, error_msg.as_ptr(), user_data);
+                    return;
+                }
+            };
+
+            // In a real implementation, this would check each URL's accessibility
+            // For now, simulate validation
+            for (i, _file) in files.iter().enumerate() {
+                let progress = (i + 1) as f64 / files.len() as f64;
+                let progress_msg = CString::new(format!("Validating {}/{}", i + 1, files.len())).unwrap();
+                progress_callback(progress, progress_msg.as_ptr(), user_data);
+                
+                tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            }
+
+            let progress_msg = CString::new("URL validation complete").unwrap();
+            progress_callback(1.0, progress_msg.as_ptr(), user_data);
+            completion_callback(true, ptr::null(), user_data);
+        });
+    });
+
+    validation_id
 }
 
 /// Free memory allocated by FFI functions
