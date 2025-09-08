@@ -67,44 +67,94 @@ fi
 echo -e "${GREEN}✓ Using Android NDK: $ANDROID_NDK_HOME${NC}"
 echo -e "${GREEN}✓ Android API level: $ANDROID_API_LEVEL${NC}"
 
+# Function to get compiler prefix for each target
+get_compiler_prefix() {
+    local target="$1"
+    case "$target" in
+        "aarch64")
+            echo "aarch64-linux-android"
+            ;;
+        "armv7a")
+            echo "armv7a-linux-androideabi"
+            ;;
+        "x86_64")
+            echo "x86_64-linux-android"
+            ;;
+        "i686")
+            echo "i686-linux-android"
+            ;;
+        *)
+            echo "Unknown target: $target" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Function to get Rust target name from short target name
+get_rust_target() {
+    local target="$1"
+    case "$target" in
+        "aarch64")
+            echo "aarch64-linux-android"
+            ;;
+        "armv7a")
+            echo "armv7-linux-androideabi"
+            ;;
+        "x86_64")
+            echo "x86_64-linux-android"
+            ;;
+        "i686")
+            echo "i686-linux-android"
+            ;;
+        *)
+            echo "Unknown target: $target" >&2
+            return 1
+            ;;
+    esac
+}
+
+# Function to get Android ABI name from target name
+get_android_abi() {
+    local target="$1"
+    case "$target" in
+        "aarch64")
+            echo "arm64-v8a"
+            ;;
+        "armv7a")
+            echo "armeabi-v7a"
+            ;;
+        "x86_64")
+            echo "x86_64"
+            ;;
+        "i686")
+            echo "x86"
+            ;;
+        *)
+            echo "Unknown target: $target" >&2
+            return 1
+            ;;
+    esac
+}
+
 # Configure cross-compilation environment variables
-export CC_aarch64_linux_android="$NDK_BIN_DIR/aarch64-linux-android${ANDROID_API_LEVEL}-clang"
-export CC_armv7_linux_androideabi="$NDK_BIN_DIR/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang"
-export CC_x86_64_linux_android="$NDK_BIN_DIR/x86_64-linux-android${ANDROID_API_LEVEL}-clang"
-export CC_i686_linux_android="$NDK_BIN_DIR/i686-linux-android${ANDROID_API_LEVEL}-clang"
-
-export CXX_aarch64_linux_android="$NDK_BIN_DIR/aarch64-linux-android${ANDROID_API_LEVEL}-clang++"
-export CXX_armv7_linux_androideabi="$NDK_BIN_DIR/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang++"
-export CXX_x86_64_linux_android="$NDK_BIN_DIR/x86_64-linux-android${ANDROID_API_LEVEL}-clang++"
-export CXX_i686_linux_android="$NDK_BIN_DIR/i686-linux-android${ANDROID_API_LEVEL}-clang++"
-
-export AR_aarch64_linux_android="$NDK_BIN_DIR/llvm-ar"
-export AR_armv7_linux_androideabi="$NDK_BIN_DIR/llvm-ar"
-export AR_x86_64_linux_android="$NDK_BIN_DIR/llvm-ar"
-export AR_i686_linux_android="$NDK_BIN_DIR/llvm-ar"
-
-# Configure linkers (Rust uses these for final linking)
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_BIN_DIR/aarch64-linux-android${ANDROID_API_LEVEL}-clang"
-export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$NDK_BIN_DIR/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang"
-export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$NDK_BIN_DIR/x86_64-linux-android${ANDROID_API_LEVEL}-clang"
-export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="$NDK_BIN_DIR/i686-linux-android${ANDROID_API_LEVEL}-clang"
+for target in aarch64 armv7a x86_64 i686; do
+    compiler_prefix=$(get_compiler_prefix "$target")
+    rust_target=$(get_rust_target "$target")
+    
+    # Set CC, CXX, and AR variables
+    export "CC_${rust_target//-/_}"="$NDK_BIN_DIR/${compiler_prefix}${ANDROID_API_LEVEL}-clang"
+    export "CXX_${rust_target//-/_}"="$NDK_BIN_DIR/${compiler_prefix}${ANDROID_API_LEVEL}-clang++"
+    export "AR_${rust_target//-/_}"="$NDK_BIN_DIR/llvm-ar"
+    
+    # Set Cargo linker variables
+    rust_target_upper=$(echo "$rust_target" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+    export "CARGO_TARGET_${rust_target_upper}_LINKER"="$NDK_BIN_DIR/${compiler_prefix}${ANDROID_API_LEVEL}-clang"
+done
 
 # Verify compilers exist
 for target in aarch64 armv7a x86_64 i686; do
-    case "$target" in
-        "aarch64")
-            compiler="$NDK_BIN_DIR/aarch64-linux-android${ANDROID_API_LEVEL}-clang"
-            ;;
-        "armv7a")
-            compiler="$NDK_BIN_DIR/armv7a-linux-androideabi${ANDROID_API_LEVEL}-clang"
-            ;;
-        "x86_64")
-            compiler="$NDK_BIN_DIR/x86_64-linux-android${ANDROID_API_LEVEL}-clang"
-            ;;
-        "i686")
-            compiler="$NDK_BIN_DIR/i686-linux-android${ANDROID_API_LEVEL}-clang"
-            ;;
-    esac
+    compiler_prefix=$(get_compiler_prefix "$target")
+    compiler="$NDK_BIN_DIR/${compiler_prefix}${ANDROID_API_LEVEL}-clang"
     
     if [[ ! -f "$compiler" ]]; then
         echo -e "${RED}Error: Compiler not found: $compiler${NC}"
@@ -117,18 +167,14 @@ done
 echo -e "${GREEN}✓ All required NDK compilers found${NC}"
 
 # Android targets to build for
-TARGETS=(
-    "aarch64-linux-android"
-    "armv7-linux-androideabi" 
-    "x86_64-linux-android"
-    "i686-linux-android"
-)
+TARGET_NAMES=(aarch64 armv7a x86_64 i686)
 
 # Create output directory
 mkdir -p target/android
 
 # Build for each target
-for target in "${TARGETS[@]}"; do
+for target_name in "${TARGET_NAMES[@]}"; do
+    target=$(get_rust_target "$target_name")
     echo -e "${BLUE}Building for ${target}...${NC}"
     
     # Check if target is installed
@@ -142,24 +188,9 @@ for target in "${TARGETS[@]}"; do
         echo -e "${GREEN}✓ Successfully built for ${target}${NC}"
         
         # Copy library to organized output directory
-        case "$target" in
-            "aarch64-linux-android")
-                mkdir -p target/android/arm64-v8a
-                cp "target/${target}/release/libia_get.so" target/android/arm64-v8a/
-                ;;
-            "armv7-linux-androideabi")
-                mkdir -p target/android/armeabi-v7a
-                cp "target/${target}/release/libia_get.so" target/android/armeabi-v7a/
-                ;;
-            "x86_64-linux-android")
-                mkdir -p target/android/x86_64
-                cp "target/${target}/release/libia_get.so" target/android/x86_64/
-                ;;
-            "i686-linux-android")
-                mkdir -p target/android/x86
-                cp "target/${target}/release/libia_get.so" target/android/x86/
-                ;;
-        esac
+        android_abi=$(get_android_abi "$target_name")
+        mkdir -p "target/android/$android_abi"
+        cp "target/${target}/release/libia_get.so" "target/android/$android_abi/"
     else
         echo -e "${RED}✗ Failed to build for ${target}${NC}"
         exit 1
