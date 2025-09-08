@@ -74,29 +74,33 @@ else
     echo -e "${YELLOW}⚠ cbindgen not found. Install with: cargo install cbindgen${NC}"
 fi
 
-echo -e "${YELLOW}Step 4: Building mobile FFI wrapper...${NC}"
+echo -e "${YELLOW}Step 4: Building mobile FFI wrapper (if needed)...${NC}"
 
-# Build the mobile wrapper library
-cd "$RUST_FFI_DIR"
-for target_name in "${TARGET_NAMES[@]}"; do
-    rust_target=$(get_rust_target "$target_name")
-    android_arch=$(get_android_abi "$target_name")
-    
-    echo -e "${BLUE}Building mobile wrapper for ${rust_target}...${NC}"
-    
-    if cargo build --target "$rust_target" --release; then
-        # Copy wrapper library
-        mkdir -p "../../$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch"
-        cp "target/${rust_target}/release/libia_get_mobile.so" \
-           "../../$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch/"
-        echo -e "${GREEN}✓ Mobile wrapper built for ${android_arch}${NC}"
-    else
-        echo -e "${RED}✗ Failed to build mobile wrapper for ${rust_target}${NC}"
-        exit 1
-    fi
-done
-
-cd "../.."
+# Check if mobile FFI wrapper exists and build it if needed
+if [ -d "$RUST_FFI_DIR" ] && [ -f "$RUST_FFI_DIR/Cargo.toml" ]; then
+    echo -e "${BLUE}Building additional mobile wrapper library...${NC}"
+    cd "$RUST_FFI_DIR"
+    for target_name in "${TARGET_NAMES[@]}"; do
+        rust_target=$(get_rust_target "$target_name")
+        android_arch=$(get_android_abi "$target_name")
+        
+        echo -e "${BLUE}Building mobile wrapper for ${rust_target}...${NC}"
+        
+        if cargo build --target "$rust_target" --release; then
+            # Copy wrapper library
+            mkdir -p "../../$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch"
+            cp "target/${rust_target}/release/libia_get_mobile.so" \
+               "../../$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch/"
+            echo -e "${GREEN}✓ Mobile wrapper built for ${android_arch}${NC}"
+        else
+            echo -e "${RED}✗ Failed to build mobile wrapper for ${rust_target}${NC}"
+            exit 1
+        fi
+    done
+    cd "../.."
+else
+    echo -e "${BLUE}No additional mobile wrapper needed, using main FFI libraries${NC}"
+fi
 
 echo -e "${YELLOW}Step 5: Preparing Flutter project...${NC}"
 
