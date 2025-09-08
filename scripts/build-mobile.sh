@@ -3,11 +3,76 @@
 
 set -e
 
+# Parse command line arguments FIRST
+BUILD_TYPE="apk"
+STORE_READY=false
+ENVIRONMENT="production"
+FLAVOR="production"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --appbundle)
+            BUILD_TYPE="appbundle"
+            shift
+            ;;
+        --store-ready)
+            STORE_READY=true
+            shift
+            ;;
+        --environment=*)
+            ENVIRONMENT="${1#*=}"
+            FLAVOR="$ENVIRONMENT"
+            shift
+            ;;
+        --dev|--development)
+            ENVIRONMENT="development"
+            FLAVOR="development"
+            shift
+            ;;
+        --staging)
+            ENVIRONMENT="staging" 
+            FLAVOR="staging"
+            shift
+            ;;
+        --production|--prod)
+            ENVIRONMENT="production"
+            FLAVOR="production"
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "OPTIONS:"
+            echo "  --appbundle              Build App Bundle instead of APK"
+            echo "  --store-ready            Build with store-ready optimizations"
+            echo "  --dev, --development     Build development variant"
+            echo "  --staging                Build staging variant"
+            echo "  --production, --prod     Build production variant (default)"
+            echo "  --environment=ENV        Set environment (development|staging|production)"
+            echo "  --help                   Show this help message"
+            echo ""
+            echo "EXAMPLES:"
+            echo "  $0 --dev                         # Development APK"
+            echo "  $0 --staging --appbundle         # Staging App Bundle"
+            echo "  $0 --production --store-ready    # Production APK with optimizations"
+            echo "  $0 --appbundle --store-ready     # Production App Bundle for Play Store"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 info "Building IA Get Mobile App..."
+info "Environment: ${ENVIRONMENT}"
+info "Build Type: ${BUILD_TYPE}"
+info "Store Ready: ${STORE_READY}"
 
 # Check if we're in the right directory
 check_project_root
@@ -124,64 +189,58 @@ else
 fi
 
 echo -e "${YELLOW}Step 6: Building Flutter APK and App Bundle...${NC}"
+echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
+echo -e "${BLUE}Flavor: ${FLAVOR}${NC}"
+echo -e "${BLUE}Build Type: ${BUILD_TYPE}${NC}"
 
-# Parse command line arguments for build type
-BUILD_TYPE="apk"
-STORE_READY=false
+# Set up environment-specific configurations
+if [[ "$ENVIRONMENT" == "development" ]]; then
+    export FLUTTER_MODE="debug"
+    BUILD_MODE="debug"
+elif [[ "$ENVIRONMENT" == "staging" ]]; then
+    export FLUTTER_MODE="profile"
+    BUILD_MODE="profile"
+else
+    export FLUTTER_MODE="release"
+    BUILD_MODE="release"
+fi
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --appbundle)
-            BUILD_TYPE="appbundle"
-            shift
-            ;;
-        --store-ready)
-            STORE_READY=true
-            shift
-            ;;
-        --help)
-            echo "Usage: $0 [--appbundle] [--store-ready] [--help]"
-            echo "  --appbundle    Build App Bundle instead of APK"
-            echo "  --store-ready  Build with store-ready optimizations"
-            echo "  --help         Show this help message"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option $1"
-            exit 1
-            ;;
-    esac
-done
-
-# Build for different targets
+# Build for different targets with flavor support
 if [[ "$BUILD_TYPE" == "appbundle" ]]; then
     echo -e "${BLUE}Building Android App Bundle for Google Play Store...${NC}"
+    echo -e "${BLUE}Flavor: ${FLAVOR}${ENVIRONMENT^}${NC}"
     
-    if flutter build appbundle --release; then
+    if flutter build appbundle --${BUILD_MODE} --flavor ${FLAVOR}; then
         echo -e "${GREEN}✓ Flutter App Bundle built successfully${NC}"
         
-        # Copy App Bundle to output directory
+        # Copy App Bundle to output directory with environment suffix
         mkdir -p "../../../$OUTPUT_DIR"
+        AAB_NAME="ia-get-mobile-${ENVIRONMENT}.aab"
+        cp "build/app/outputs/bundle/${FLAVOR}${ENVIRONMENT^}/${BUILD_MODE}/app-${FLAVOR}-${BUILD_MODE}.aab" \
+           "../../../$OUTPUT_DIR/${AAB_NAME}" 2>/dev/null || \
+        cp "build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab" \
+           "../../../$OUTPUT_DIR/${AAB_NAME}" 2>/dev/null || \
         cp "build/app/outputs/bundle/release/app-release.aab" \
-           "../../../$OUTPUT_DIR/ia-get-mobile.aab"
-        echo -e "${GREEN}✓ App Bundle copied to $OUTPUT_DIR/ia-get-mobile.aab${NC}"
+           "../../../$OUTPUT_DIR/${AAB_NAME}"
+        echo -e "${GREEN}✓ App Bundle copied to $OUTPUT_DIR/${AAB_NAME}${NC}"
     else
         echo -e "${RED}✗ Failed to build Flutter App Bundle${NC}"
         exit 1
     fi
 else
     echo -e "${BLUE}Building Android APK...${NC}"
+    echo -e "${BLUE}Flavor: ${FLAVOR}${ENVIRONMENT^}${NC}"
     
     # Build different APK variants
-    if [[ "$STORE_READY" == true ]]; then
+    if [[ "$STORE_READY" == true && "$ENVIRONMENT" == "production" ]]; then
         # Build split APKs for better optimization
-        if flutter build apk --release --split-per-abi; then
+        if flutter build apk --${BUILD_MODE} --flavor ${FLAVOR} --split-per-abi; then
             echo -e "${GREEN}✓ Split APKs built successfully${NC}"
             
             # Copy all APK variants
-            mkdir -p "../../../$OUTPUT_DIR/apk-variants"
-            cp build/app/outputs/flutter-apk/*.apk "../../../$OUTPUT_DIR/apk-variants/"
-            echo -e "${GREEN}✓ APK variants copied to $OUTPUT_DIR/apk-variants/${NC}"
+            mkdir -p "../../../$OUTPUT_DIR/apk-variants-${ENVIRONMENT}"
+            cp build/app/outputs/flutter-apk/*.apk "../../../$OUTPUT_DIR/apk-variants-${ENVIRONMENT}/"
+            echo -e "${GREEN}✓ APK variants copied to $OUTPUT_DIR/apk-variants-${ENVIRONMENT}/${NC}"
         else
             echo -e "${RED}✗ Failed to build split APKs${NC}"
             exit 1
@@ -189,14 +248,19 @@ else
     fi
     
     # Build universal APK
-    if flutter build apk --release; then
+    if flutter build apk --${BUILD_MODE} --flavor ${FLAVOR}; then
         echo -e "${GREEN}✓ Universal APK built successfully${NC}"
         
-        # Copy APK to output directory
+        # Copy APK to output directory with environment suffix
         mkdir -p "../../../$OUTPUT_DIR"
+        APK_NAME="ia-get-mobile-${ENVIRONMENT}.apk"
+        cp "build/app/outputs/flutter-apk/app-${FLAVOR}-${BUILD_MODE}.apk" \
+           "../../../$OUTPUT_DIR/${APK_NAME}" 2>/dev/null || \
+        cp "build/app/outputs/flutter-apk/app-${BUILD_MODE}.apk" \
+           "../../../$OUTPUT_DIR/${APK_NAME}" 2>/dev/null || \
         cp "build/app/outputs/flutter-apk/app-release.apk" \
-           "../../../$OUTPUT_DIR/ia-get-mobile.apk"
-        echo -e "${GREEN}✓ APK copied to $OUTPUT_DIR/ia-get-mobile.apk${NC}"
+           "../../../$OUTPUT_DIR/${APK_NAME}"
+        echo -e "${GREEN}✓ APK copied to $OUTPUT_DIR/${APK_NAME}${NC}"
     else
         echo -e "${RED}✗ Failed to build Flutter APK${NC}"
         exit 1
@@ -206,17 +270,20 @@ fi
 cd "../.."
 
 # Build validation and testing
-echo -e "${YELLOW}Step 6: Build Validation...${NC}"
+echo -e "${YELLOW}Step 7: Build Validation...${NC}"
 
-# Calculate build sizes
-if [[ -f "$OUTPUT_DIR/ia-get-mobile.apk" ]]; then
-    APK_SIZE=$(du -h "$OUTPUT_DIR/ia-get-mobile.apk" | cut -f1)
-    echo -e "${BLUE}📦 Universal APK size: $APK_SIZE${NC}"
+# Calculate build sizes for environment-specific files
+APK_NAME="ia-get-mobile-${ENVIRONMENT}.apk"
+AAB_NAME="ia-get-mobile-${ENVIRONMENT}.aab"
+
+if [[ -f "$OUTPUT_DIR/${APK_NAME}" ]]; then
+    APK_SIZE=$(du -h "$OUTPUT_DIR/${APK_NAME}" | cut -f1)
+    echo -e "${BLUE}📦 ${ENVIRONMENT^} APK size: $APK_SIZE${NC}"
 fi
 
-if [[ -f "$OUTPUT_DIR/ia-get-mobile.aab" ]]; then
-    AAB_SIZE=$(du -h "$OUTPUT_DIR/ia-get-mobile.aab" | cut -f1)
-    echo -e "${BLUE}📦 App Bundle size: $AAB_SIZE${NC}"
+if [[ -f "$OUTPUT_DIR/${AAB_NAME}" ]]; then
+    AAB_SIZE=$(du -h "$OUTPUT_DIR/${AAB_NAME}" | cut -f1)
+    echo -e "${BLUE}📦 ${ENVIRONMENT^} App Bundle size: $AAB_SIZE${NC}"
 fi
 
 # Validate native libraries
@@ -243,33 +310,58 @@ fi
 echo -e "${GREEN}✅ Mobile app build completed successfully!${NC}"
 
 # Output summary
-echo -e "${BLUE}📱 Build Artifacts:${NC}"
-if [[ -f "$OUTPUT_DIR/ia-get-mobile.apk" ]]; then
-    echo -e "   APK: $OUTPUT_DIR/ia-get-mobile.apk ($APK_SIZE)"
+echo -e "${BLUE}📱 Build Artifacts (${ENVIRONMENT^} Environment):${NC}"
+if [[ -f "$OUTPUT_DIR/${APK_NAME}" ]]; then
+    echo -e "   APK: $OUTPUT_DIR/${APK_NAME} ($APK_SIZE)"
 fi
-if [[ -f "$OUTPUT_DIR/ia-get-mobile.aab" ]]; then
-    echo -e "   App Bundle: $OUTPUT_DIR/ia-get-mobile.aab ($AAB_SIZE)"
+if [[ -f "$OUTPUT_DIR/${AAB_NAME}" ]]; then
+    echo -e "   App Bundle: $OUTPUT_DIR/${AAB_NAME} ($AAB_SIZE)"
 fi
-if [[ -d "$OUTPUT_DIR/apk-variants" ]]; then
-    echo -e "   Split APKs: $OUTPUT_DIR/apk-variants/"
+if [[ -d "$OUTPUT_DIR/apk-variants-${ENVIRONMENT}" ]]; then
+    echo -e "   Split APKs: $OUTPUT_DIR/apk-variants-${ENVIRONMENT}/"
 fi
 echo -e "   Native libs: $OUTPUT_DIR/android/"
 
 echo ""
-echo -e "${YELLOW}📋 Next Steps:${NC}"
+echo -e "${YELLOW}📋 Next Steps for ${ENVIRONMENT^} Environment:${NC}"
 if [[ "$BUILD_TYPE" == "appbundle" ]]; then
-    echo -e "1. 🚀 Upload App Bundle to Google Play Console"
-    echo -e "2. 📋 Complete store listing metadata"
-    echo -e "3. 🧪 Run internal testing track"
-    echo -e "4. 📢 Submit for review and publication"
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        echo -e "1. 🚀 Upload App Bundle to Google Play Console Production Track"
+        echo -e "2. 📋 Complete store listing metadata and compliance checklist"
+        echo -e "3. 🧪 Run internal testing with production signing"
+        echo -e "4. 📢 Submit for review and publication"
+    elif [[ "$ENVIRONMENT" == "staging" ]]; then
+        echo -e "1. 🧪 Upload to Google Play Console Internal Testing Track"
+        echo -e "2. 🔍 Verify staging environment integrations"
+        echo -e "3. 📊 Run performance and compatibility tests"
+        echo -e "4. ✅ Promote to production when ready"
+    else
+        echo -e "1. 🔧 Test App Bundle in development environment"
+        echo -e "2. 🐛 Debug and iterate on development features"
+        echo -e "3. 🧪 Move to staging when ready"
+    fi
 else
-    echo -e "1. 📱 Install APK: adb install $OUTPUT_DIR/ia-get-mobile.apk"
-    echo -e "2. 🧪 Test on physical device or emulator"
-    echo -e "3. 🔄 Run: $0 --appbundle --store-ready (for store submission)"
+    if [[ "$ENVIRONMENT" == "production" ]]; then
+        echo -e "1. 📱 Install APK: adb install $OUTPUT_DIR/${APK_NAME}"
+        echo -e "2. 🧪 Test on physical device or emulator"
+        echo -e "3. 🚀 Run: $0 --appbundle --store-ready (for Play Store submission)"
+    elif [[ "$ENVIRONMENT" == "staging" ]]; then
+        echo -e "1. 📱 Install APK: adb install $OUTPUT_DIR/${APK_NAME}"
+        echo -e "2. 🔍 Test staging environment features and APIs"
+        echo -e "3. 📊 Verify performance and compatibility"
+    else
+        echo -e "1. 📱 Install APK: adb install $OUTPUT_DIR/${APK_NAME}"
+        echo -e "2. 🔧 Hot reload development: cd $FLUTTER_DIR && flutter run --flavor development"
+        echo -e "3. 🐛 Debug and iterate on features"
+    fi
 fi
 
 echo ""
 echo -e "${BLUE}🔧 Development Commands:${NC}"
-echo -e "   Flutter hot reload: cd $FLUTTER_DIR && flutter run"
+echo -e "   Hot reload (${ENVIRONMENT}): cd $FLUTTER_DIR && flutter run --flavor ${FLAVOR}"
 echo -e "   Run tests: cd $FLUTTER_DIR && flutter test"
 echo -e "   Analyze code: cd $FLUTTER_DIR && flutter analyze"
+echo -e "   Build other variants:"
+echo -e "     Development: $0 --dev"
+echo -e "     Staging: $0 --staging --appbundle"
+echo -e "     Production: $0 --production --store-ready"
