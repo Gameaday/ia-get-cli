@@ -55,9 +55,12 @@ check_rust_target() {
 setup_android_ndk() {
     # Check for Android NDK
     if [[ -z "$ANDROID_NDK_HOME" ]]; then
-        error_exit "ANDROID_NDK_HOME environment variable is not set
+        error_exit "$(cat <<'EOF'
+ANDROID_NDK_HOME environment variable is not set
 Please install Android NDK and set ANDROID_NDK_HOME
-Example: export ANDROID_NDK_HOME=\$ANDROID_HOME/ndk/27.3.13750724"
+Example: export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724
+EOF
+)"
     fi
 
     if [[ ! -d "$ANDROID_NDK_HOME" ]]; then
