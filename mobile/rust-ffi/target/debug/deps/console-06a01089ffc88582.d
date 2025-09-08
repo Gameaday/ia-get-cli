@@ -1,0 +1,11 @@
+/home/runner/work/ia-get-cli/ia-get-cli/mobile/rust-ffi/target/debug/deps/console-06a01089ffc88582.d: /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/lib.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/common_term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/kb.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/unix_term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/utils.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/ansi.rs
+
+/home/runner/work/ia-get-cli/ia-get-cli/mobile/rust-ffi/target/debug/deps/libconsole-06a01089ffc88582.rmeta: /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/lib.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/common_term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/kb.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/unix_term.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/utils.rs /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/ansi.rs
+
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/lib.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/common_term.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/kb.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/term.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/unix_term.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/utils.rs:
+/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.16.1/src/ansi.rs:
