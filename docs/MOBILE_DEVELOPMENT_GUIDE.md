@@ -2,6 +2,15 @@
 
 This guide provides detailed instructions for setting up and developing the ia-get mobile application using Flutter and Rust FFI.
 
+## Quick Start
+
+For a complete build, run:
+```bash
+./scripts/build-mobile.sh
+```
+
+This will build the Rust FFI libraries, Flutter app, and create a ready-to-install APK.
+
 ## Prerequisites
 
 ### Development Environment
@@ -16,6 +25,9 @@ This guide provides detailed instructions for setting up and developing the ia-g
    rustup target add armv7-linux-androideabi
    rustup target add x86_64-linux-android
    rustup target add i686-linux-android
+   
+   # Install cbindgen for C header generation
+   cargo install cbindgen
    ```
 
 2. **Android Development**
@@ -40,64 +52,229 @@ This guide provides detailed instructions for setting up and developing the ia-g
    flutter doctor
    ```
 
-4. **Cargo NDK**
-   ```bash
-   # Install cargo-ndk for cross-compilation
-   cargo install cargo-ndk
-   ```
-
 ## Project Structure
 
 ```
-ia-get-mobile/
-├── rust/                     # Rust FFI library
-│   ├── Cargo.toml
-│   ├── src/
-│   │   ├── lib.rs           # FFI exports
-│   │   └── mobile.rs        # Mobile-specific adaptations
-│   └── build.rs             # Build configuration
+mobile/
+├── rust-ffi/                 # Mobile FFI wrapper library
+│   ├── Cargo.toml           # Mobile-specific dependencies
+│   ├── src/lib.rs           # Re-exports main FFI with mobile optimizations
+│   └── README.md            # Mobile FFI documentation
 ├── flutter/                 # Flutter application  
-│   ├── pubspec.yaml
-│   ├── android/
-│   ├── lib/
-│   │   ├── main.dart
+│   ├── pubspec.yaml         # Flutter dependencies
+│   ├── android/             # Android-specific configuration
+│   │   └── app/src/main/
+│   │       ├── AndroidManifest.xml  # Permissions and app configuration
+│   │       ├── jniLibs/     # Native libraries (auto-populated)
+│   │       └── res/xml/     # Android resources
+│   ├── lib/                 # Dart source code
+│   │   ├── main.dart        # App entry point
 │   │   ├── models/          # Data models
 │   │   ├── services/        # FFI service layer
 │   │   ├── widgets/         # UI components
-│   │   └── screens/         # App screens
-│   └── test/
+│   │   ├── screens/         # App screens
+│   │   └── utils/           # Utilities and themes
+│   └── test/                # Flutter tests
 └── scripts/                 # Build and deployment scripts
-    ├── build-rust.sh
-    ├── build-android.sh
-    └── deploy.sh
+    ├── build-rust.sh        # Rust library builds
+    ├── build-mobile.sh      # Complete mobile build
+    └── deploy.sh            # Deployment automation
 ```
 
-## Step-by-Step Setup
+## Development Workflow
 
-### 1. Create Rust FFI Library
+### 1. Rust FFI Development
 
 ```bash
-# Create new Rust library for mobile
-mkdir ia-get-mobile && cd ia-get-mobile
-cargo new --lib rust
-cd rust
+# Build and test FFI interface
+cargo build --features ffi
+cargo test --features ffi
+
+# Build for Android (individual targets)
+cargo build --target aarch64-linux-android --release --features ffi
 ```
 
-**rust/Cargo.toml:**
-```toml
-[package]
-name = "ia_get_mobile"
-version = "0.1.0"
-edition = "2021"
+### 2. Flutter Development
 
-[lib]
-crate-type = ["cdylib", "staticlib"]
+```bash
+cd mobile/flutter
 
-[dependencies]
-ia-get = { path = "../../", features = ["ffi"] }
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# Get dependencies
+flutter pub get
+
+# Run on Android device/emulator
+flutter run
+
+# Build APK
+flutter build apk --release
+```
+
+### 3. Full Mobile Build
+
+```bash
+# Complete build including native libraries
+./scripts/build-mobile.sh
+```
+
+## Features Implemented
+
+### Core FFI Interface ✅
+- Metadata fetching with progress callbacks
+- File filtering with mobile-optimized parameters  
+- Session management with pause/resume/cancel
+- Progress tracking with real-time updates
+- Error handling with detailed error messages
+
+### Flutter Application ✅
+- **Search & Discovery**: Internet Archive search with auto-complete
+- **Archive Browsing**: Rich metadata display with file listings
+- **Smart Filtering**: Format-based filtering with size constraints
+- **File Selection**: Multi-select with batch operations
+- **Download Management**: Progress tracking with session control
+- **Settings**: Configurable download location and concurrent downloads
+- **Material Design**: Responsive UI with light/dark theme support
+
+### Mobile-Specific Features ✅
+- **Storage Management**: Intelligent file size filtering for mobile constraints
+- **Background Downloads**: Service-based downloading with notifications
+- **Network Awareness**: Automatic pause/resume based on connectivity
+- **Permissions**: Proper Android storage and network permissions
+- **File Sharing**: Integration with Android file providers
+
+## Architecture Details
+
+### FFI Integration
+The mobile app uses a two-layer FFI approach:
+
+1. **Core FFI** (`src/interface/ffi.rs`): Main library interface
+2. **Mobile Wrapper** (`mobile/rust-ffi/src/lib.rs`): Mobile-optimized wrapper
+
+This ensures clean separation and mobile-specific optimizations without modifying the core library.
+
+### State Management
+- **Provider Pattern**: Reactive state management with ChangeNotifier
+- **Service Layer**: Clean separation between FFI and UI
+- **Error Handling**: Comprehensive error states with user-friendly messages
+
+### Platform Integration
+- **Android Manifest**: Proper permissions and intent filters
+- **File Providers**: Secure file sharing with other apps
+- **Background Services**: Download continuation when app is backgrounded
+
+## Building and Deployment
+
+### Development Build
+```bash
+# Quick development build
+cd mobile/flutter
+flutter run --debug
+```
+
+### Production Build
+```bash
+# Full production build
+./scripts/build-mobile.sh
+
+# Install on device
+adb install target/mobile/ia-get-mobile.apk
+```
+
+### App Store Preparation
+```bash
+# Build app bundle for Google Play
+cd mobile/flutter
+flutter build appbundle --release
+
+# Sign for release (configure signing in android/app/build.gradle)
+```
+
+## Testing
+
+### Unit Tests
+```bash
+# Test Rust FFI
+cargo test --features ffi
+
+# Test Flutter
+cd mobile/flutter
+flutter test
+```
+
+### Integration Tests
+```bash
+# End-to-end testing
+cd mobile/flutter
+flutter drive --target=test_driver/app.dart
+```
+
+### Performance Testing
+```bash
+# Profile app performance
+flutter run --profile
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Library not found:**
+   ```
+   Solution: Ensure libraries are in correct jniLibs directories
+   Check: android/app/src/main/jniLibs/{arch}/lib*.so
+   Run: ./scripts/build-mobile.sh
+   ```
+
+2. **FFI function not found:**
+   ```
+   Solution: Verify function names match exactly
+   Check: Use nm -D library.so to list exported symbols
+   Rebuild: cargo clean && ./scripts/build-mobile.sh
+   ```
+
+3. **Build failures:**
+   ```
+   Solution: Clean and rebuild everything
+   Commands: cargo clean && flutter clean && ./scripts/build-mobile.sh
+   ```
+
+4. **Permission errors:**
+   ```
+   Solution: Add required permissions to AndroidManifest.xml
+   Check: Storage and network permissions are correctly configured
+   ```
+
+### Performance Optimization
+
+1. **Reduce FFI overhead:**
+   - Batch multiple operations
+   - Use shared memory for large data transfers
+   - Implement object handles instead of serializing data
+
+2. **Memory usage:**
+   - Profile memory usage with Android Studio
+   - Implement lazy loading for large archives
+   - Use pagination for file lists
+
+3. **Battery optimization:**
+   - Implement proper background task handling
+   - Use WorkManager for downloads
+   - Respect Android battery optimization settings
+
+## Next Steps
+
+### Phase 3 Implementation
+- [ ] Comprehensive testing suite with automated CI/CD
+- [ ] Performance optimization and memory profiling
+- [ ] App store preparation with proper metadata
+- [ ] User documentation and help system
+
+### Future Enhancements
+- [ ] iOS support using the same FFI interface
+- [ ] Cloud synchronization of download history
+- [ ] Advanced filtering with regex support
+- [ ] Batch archive processing
+
+This guide provides a complete foundation for developing and deploying the ia-get mobile application. The modular architecture ensures maintainability while maximizing code reuse from the existing Rust codebase.
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.20"
