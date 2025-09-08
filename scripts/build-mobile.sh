@@ -19,22 +19,23 @@ FLUTTER_DIR="$MOBILE_DIR/flutter"
 OUTPUT_DIR="target/mobile"
 
 # Android targets
-ANDROID_TARGETS=(
-    "aarch64-linux-android:arm64-v8a"
-    "armv7-linux-androideabi:armeabi-v7a"
-    "x86_64-linux-android:x86_64"
-    "i686-linux-android:x86"
-)
+TARGET_NAMES=(aarch64 armv7a x86_64 i686)
 
-    echo -e "${YELLOW}Step 1: Building Rust FFI library for Android...${NC}"
+echo -e "${YELLOW}Step 1: Setting up Android NDK environment...${NC}"
+
+# Configure Android cross-compilation environment
+configure_android_environment
+
+echo -e "${YELLOW}Step 2: Building Rust FFI library for Android...${NC}"
 
 # Create output directories
 mkdir -p "$OUTPUT_DIR/android"
 mkdir -p "$FLUTTER_DIR/android/app/src/main/jniLibs"
 
 # Build Rust library for each Android target
-for target_pair in "${ANDROID_TARGETS[@]}"; do
-    IFS=':' read -r rust_target android_arch <<< "$target_pair"
+for target_name in "${TARGET_NAMES[@]}"; do
+    rust_target=$(get_rust_target "$target_name")
+    android_arch=$(get_android_abi "$target_name")
     
     info "Building for $rust_target ($android_arch)..."
     
@@ -61,23 +62,25 @@ for target_pair in "${ANDROID_TARGETS[@]}"; do
     fi
 done
 
-echo -e "${YELLOW}Step 2: Generating C header file...${NC}"
+echo -e "${YELLOW}Step 3: Generating C header file...${NC}"
 
 # Generate header file if cbindgen is available
 if command -v cbindgen &> /dev/null; then
     cbindgen --config cbindgen.toml --crate ia-get --output "$OUTPUT_DIR/ia_get.h"
+    mkdir -p "$FLUTTER_DIR/android/app/src/main/cpp/"
     cp "$OUTPUT_DIR/ia_get.h" "$FLUTTER_DIR/android/app/src/main/cpp/"
     echo -e "${GREEN}✓ Header file generated${NC}"
 else
     echo -e "${YELLOW}⚠ cbindgen not found. Install with: cargo install cbindgen${NC}"
 fi
 
-echo -e "${YELLOW}Step 3: Building mobile FFI wrapper...${NC}"
+echo -e "${YELLOW}Step 4: Building mobile FFI wrapper...${NC}"
 
 # Build the mobile wrapper library
 cd "$RUST_FFI_DIR"
-for target_pair in "${ANDROID_TARGETS[@]}"; do
-    IFS=':' read -r rust_target android_arch <<< "$target_pair"
+for target_name in "${TARGET_NAMES[@]}"; do
+    rust_target=$(get_rust_target "$target_name")
+    android_arch=$(get_android_abi "$target_name")
     
     echo -e "${BLUE}Building mobile wrapper for ${rust_target}...${NC}"
     
@@ -95,7 +98,7 @@ done
 
 cd "../.."
 
-echo -e "${YELLOW}Step 4: Preparing Flutter project...${NC}"
+echo -e "${YELLOW}Step 5: Preparing Flutter project...${NC}"
 
 # Ensure Flutter directory exists and is set up
 cd "$FLUTTER_DIR"
@@ -116,7 +119,7 @@ else
     exit 1
 fi
 
-echo -e "${YELLOW}Step 5: Building Flutter APK and App Bundle...${NC}"
+echo -e "${YELLOW}Step 6: Building Flutter APK and App Bundle...${NC}"
 
 # Parse command line arguments for build type
 BUILD_TYPE="apk"
