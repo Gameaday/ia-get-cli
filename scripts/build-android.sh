@@ -3,26 +3,21 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
-echo -e "${BLUE}Building ia-get for Android targets...${NC}"
+info "Building ia-get for Android targets..."
 
 # Check for Android NDK
 if [[ -z "$ANDROID_NDK_HOME" ]]; then
-    echo -e "${RED}Error: ANDROID_NDK_HOME environment variable is not set${NC}"
-    echo -e "${YELLOW}Please install Android NDK and set ANDROID_NDK_HOME${NC}"
-    echo -e "${YELLOW}Example: export ANDROID_NDK_HOME=\$ANDROID_HOME/ndk/27.3.13750724${NC}"
-    exit 1
+    error_exit "ANDROID_NDK_HOME environment variable is not set
+Please install Android NDK and set ANDROID_NDK_HOME
+Example: export ANDROID_NDK_HOME=\$ANDROID_HOME/ndk/27.3.13750724"
 fi
 
 if [[ ! -d "$ANDROID_NDK_HOME" ]]; then
-    echo -e "${RED}Error: Android NDK directory not found: $ANDROID_NDK_HOME${NC}"
-    exit 1
+    error_exit "Android NDK directory not found: $ANDROID_NDK_HOME"
 fi
 
 # Set Android API level (minimum supported version)
@@ -38,8 +33,7 @@ case "$HOST_OS" in
         elif [[ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]]; then
             NDK_HOST="linux-arm64"
         else
-            echo -e "${RED}Error: Unsupported Linux architecture: $HOST_ARCH${NC}"
-            exit 1
+            error_exit "Unsupported Linux architecture: $HOST_ARCH"
         fi
         ;;
     Darwin)
@@ -48,24 +42,21 @@ case "$HOST_OS" in
         elif [[ "$HOST_ARCH" == "arm64" ]]; then
             NDK_HOST="darwin-arm64"
         else
-            echo -e "${RED}Error: Unsupported macOS architecture: $HOST_ARCH${NC}"
-            exit 1
+            error_exit "Unsupported macOS architecture: $HOST_ARCH"
         fi
         ;;
     *)
-        echo -e "${RED}Error: Unsupported host OS: $HOST_OS${NC}"
-        exit 1
+        error_exit "Unsupported host OS: $HOST_OS"
         ;;
 esac
 NDK_BIN_DIR="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin"
 
 if [[ ! -d "$NDK_BIN_DIR" ]]; then
-    echo -e "${RED}Error: NDK toolchain directory not found: $NDK_BIN_DIR${NC}"
-    exit 1
+    error_exit "NDK toolchain directory not found: $NDK_BIN_DIR"
 fi
 
-echo -e "${GREEN}✓ Using Android NDK: $ANDROID_NDK_HOME${NC}"
-echo -e "${GREEN}✓ Android API level: $ANDROID_API_LEVEL${NC}"
+success "Using Android NDK: $ANDROID_NDK_HOME"
+success "Android API level: $ANDROID_API_LEVEL"
 
 # Function to get compiler prefix for each target
 get_compiler_prefix() {
@@ -164,7 +155,7 @@ for target in aarch64 armv7a x86_64 i686; do
     fi
 done
 
-echo -e "${GREEN}✓ All required NDK compilers found${NC}"
+success "All required NDK compilers found"
 
 # Android targets to build for
 TARGET_NAMES=(aarch64 armv7a x86_64 i686)
@@ -175,38 +166,34 @@ mkdir -p target/android
 # Build for each target
 for target_name in "${TARGET_NAMES[@]}"; do
     target=$(get_rust_target "$target_name")
-    echo -e "${BLUE}Building for ${target}...${NC}"
+    info "Building for $target..."
     
     # Check if target is installed
-    if ! rustup target list --installed | grep -q "$target"; then
-        echo -e "${BLUE}Installing target ${target}...${NC}"
-        rustup target add "$target"
-    fi
+    check_rust_target "$target"
     
     # Build the library
     if cargo build --target "$target" --release --features ffi; then
-        echo -e "${GREEN}✓ Successfully built for ${target}${NC}"
+        success "Successfully built for $target"
         
         # Copy library to organized output directory
         android_abi=$(get_android_abi "$target_name")
         mkdir -p "target/android/$android_abi"
         cp "target/${target}/release/libia_get.so" "target/android/$android_abi/"
     else
-        echo -e "${RED}✗ Failed to build for ${target}${NC}"
-        exit 1
+        error_exit "Failed to build for $target"
     fi
 done
 
-echo -e "${GREEN}✓ All Android targets built successfully!${NC}"
-echo -e "${BLUE}Libraries available in target/android/${NC}"
+success "All Android targets built successfully!"
+info "Libraries available in target/android/"
 
 # Generate header file for FFI
-echo -e "${BLUE}Generating C header file...${NC}"
-if command -v cbindgen &> /dev/null; then
+info "Generating C header file..."
+if command_exists cbindgen; then
     cbindgen --config cbindgen.toml --crate ia-get --output target/android/ia_get.h
-    echo -e "${GREEN}✓ Header file generated: target/android/ia_get.h${NC}"
+    success "Header file generated: target/android/ia_get.h"
 else
-    echo -e "${RED}⚠ cbindgen not found. Install with: cargo install cbindgen${NC}"
+    warning "cbindgen not found. Install with: cargo install cbindgen"
 fi
 
-echo -e "${GREEN}Build complete!${NC}"
+success "Build complete!"
