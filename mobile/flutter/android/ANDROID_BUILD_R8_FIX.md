@@ -78,13 +78,35 @@ Enhanced `proguard-rules.pro` with specific rules to handle the missing classes:
 
 ## Validation
 
-The fix can be validated by running:
+To validate the fix works, create a `local.properties` file with your environment settings:
+
+```properties
+# Create mobile/flutter/android/local.properties with:
+flutter.sdk=/path/to/flutter/sdk
+sdk.dir=/path/to/android/sdk
+
+# Or use environment variables:
+flutter.sdk=${FLUTTER_ROOT}
+sdk.dir=${ANDROID_SDK_ROOT}
+```
+
+Then run the Android build:
 ```bash
 cd mobile/flutter/android
 ./gradlew assembleRelease
 ```
 
 This should complete without R8 missing class errors.
+
+## Files Modified
+
+1. **mobile/flutter/android/app/build.gradle** - Updated androidx.security-crypto version
+2. **mobile/flutter/android/app/proguard-rules.pro** - Added comprehensive Tink ProGuard rules
+3. **mobile/flutter/android/gradlew** - Added Gradle wrapper script (Unix)
+4. **mobile/flutter/android/gradlew.bat** - Added Gradle wrapper script (Windows)
+5. **mobile/flutter/android/gradle/wrapper/gradle-wrapper.jar** - Added Gradle wrapper JAR
+6. **mobile/flutter/android/.gitignore** - Added Android-specific ignore rules
+7. **.gitignore** - Updated to allow gradle wrapper files to be committed
 
 ## Technical Details
 
