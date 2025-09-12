@@ -8,7 +8,7 @@ fn main() {
         if target.contains("android") {
             println!("cargo:warning=Building for Android target: {}", target);
             println!(
-                "cargo:warning=For complete Android APK/AAB builds, use: ./scripts/build-mobile.sh"
+                "cargo:warning=For complete Android APK/AAB builds: ./scripts/build-mobile.sh [--development|--production] [--appbundle]"
             );
             println!("cargo:warning=For native libraries only, use: ./scripts/build-android-libs-only.sh");
         }
@@ -16,7 +16,7 @@ fn main() {
 
     // Note: Full artifact packaging is handled by CI/CD workflow after build completion
     // The build script runs before the binary is created, so we can't package it here
-    // For development builds, only native libraries are created - full APK requires Flutter build
+    // Both development and production builds create complete APK/AAB files via Flutter build
     println!("cargo:warning=Build script completed - complete artifacts created by CI/CD workflow");
 }
 
