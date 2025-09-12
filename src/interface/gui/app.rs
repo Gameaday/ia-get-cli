@@ -323,14 +323,19 @@ impl IaGetApp {
 
             ui.separator();
 
-            match self.current_tab {
-                AppTab::Download => self.render_download_tab(ui, ctx),
-                AppTab::FileBrowser => self.render_file_browser_tab(ui),
-                AppTab::Filters => self.render_filters_tab(ui),
-                AppTab::Config => self.render_config_tab(ui),
-                AppTab::History => self.render_history_tab(ui),
-                AppTab::ArchiveHealth => self.render_archive_health_tab(ui),
-            }
+            // Add scrollable area for all tab content to prevent UI elements from being hidden
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    match self.current_tab {
+                        AppTab::Download => self.render_download_tab(ui, ctx),
+                        AppTab::FileBrowser => self.render_file_browser_tab(ui),
+                        AppTab::Filters => self.render_filters_tab(ui),
+                        AppTab::Config => self.render_config_tab(ui),
+                        AppTab::History => self.render_history_tab(ui),
+                        AppTab::ArchiveHealth => self.render_archive_health_tab(ui),
+                    }
+                });
         });
 
         // Error/Success messages
@@ -566,12 +571,14 @@ impl IaGetApp {
                         ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
                         ui.add_space(10.0);
                         ui.label("High-performance file downloader for Internet Archive");
+                        ui.add_space(5.0);
+                        ui.label("Maintained by Gameaday");
                         ui.add_space(10.0);
                         ui.hyperlink_to(
                             "GitHub Repository",
                             "https://github.com/Gameaday/ia-get-cli",
                         );
-                        ui.add_space(10.0);
+                        ui.add_space(5.0);
                         ui.label("Built with Rust and egui");
                         ui.add_space(20.0);
 
