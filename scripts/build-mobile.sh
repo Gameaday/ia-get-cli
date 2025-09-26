@@ -124,7 +124,7 @@ for target_name in "${TARGET_NAMES[@]}"; do
            "$OUTPUT_DIR/android/$android_arch/"
            
         echo -e "${GREEN}✓ Copied to $android_arch directory${NC}"
-        ((SUCCESSFUL_BUILDS++))
+        SUCCESSFUL_BUILDS=$((SUCCESSFUL_BUILDS + 1))
         
         # Track if arm64-v8a (primary architecture) was built
         if [[ "$android_arch" == "arm64-v8a" ]]; then
@@ -185,7 +185,7 @@ if [ -d "$RUST_FFI_DIR" ] && [ -f "$RUST_FFI_DIR/Cargo.toml" ]; then
             cp "target/${rust_target}/release/libia_get_mobile.so" \
                "../../$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch/"
             echo -e "${GREEN}✓ Mobile wrapper built for ${android_arch}${NC}"
-            ((WRAPPER_SUCCESSFUL_BUILDS++))
+            WRAPPER_SUCCESSFUL_BUILDS=$((WRAPPER_SUCCESSFUL_BUILDS + 1))
             
             if [[ "$android_arch" == "arm64-v8a" ]]; then
                 WRAPPER_ARM64_BUILT=true
@@ -375,7 +375,7 @@ for target_name in "${TARGET_NAMES[@]}"; do
     if [[ -f "$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch/libia_get.so" ]]; then
         LIB_SIZE=$(du -h "$FLUTTER_DIR/android/app/src/main/jniLibs/$android_arch/libia_get.so" | cut -f1)
         echo -e "${GREEN}✓ $android_arch: $LIB_SIZE${NC}"
-        ((ARCHS_FOUND++))
+        ARCHS_FOUND=$((ARCHS_FOUND + 1))
         
         # Track if arm64-v8a library is present
         if [[ "$android_arch" == "arm64-v8a" ]]; then
