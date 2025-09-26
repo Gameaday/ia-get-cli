@@ -59,10 +59,16 @@ uploadKeyPassword=your-secure-password
   See template below
 
 ### Privacy Policy
-Required for apps that handle user data. Create and host a privacy policy covering:
-- Data collection (download history, preferences)
-- Storage permissions usage
-- Network usage for Internet Archive access
+**Privacy policy is available at**: `PRIVACY_POLICY.md`
+
+Internet Archive Helper follows privacy-by-design principles:
+- **No data collection**: Zero personal data or analytics collection
+- **Local-only storage**: All data stays on user's device  
+- **Minimal permissions**: Only essential permissions for core functionality
+- **Open source**: Full transparency through public source code
+- **Internet Archive only**: Only communicates with Internet Archive public APIs
+
+The privacy policy must be hosted publicly (e.g., GitHub Pages) and linked in the Play Store listing.
 
 ## Submission Process
 
@@ -75,7 +81,7 @@ Required for apps that handle user data. Create and host a privacy policy coveri
 ### 2. Upload App Bundle
 1. Go to "Release" → "Production"
 2. Click "Create new release"
-3. Upload `target/mobile/ia-get-mobile-production.aab`
+3. Upload `target/mobile/internet-archive-helper-production.aab`
 4. Fill in release notes
 
 ### 3. Complete Store Listing
