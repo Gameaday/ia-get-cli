@@ -1,5 +1,5 @@
-name: ia_get_mobile
-description: Mobile app for downloading files from the Internet Archive
+name: internet_archive_helper
+description: Internet Archive Helper - Mobile app for downloading files from the Internet Archive
 version: 1.6.0+1
 
 environment:

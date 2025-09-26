@@ -37,8 +37,8 @@ uploadKeyPassword=your-secure-password
 ## Store Listing Requirements
 
 ### App Information
-- **App Name**: IA Get
-- **Package Name**: `com.gameaday.ia_get_mobile`
+- **App Name**: Internet Archive Helper
+- **Package Name**: `com.gameaday.internet_archive_helper`
 - **Category**: Tools
 - **Content Rating**: Everyone (pending content review)
 
@@ -53,7 +53,7 @@ uploadKeyPassword=your-secure-password
 
 #### Descriptions
 - **Short Description** (80 chars max):
-  "Download files from Internet Archive - books, movies, music & more"
+  "Internet Archive Helper - Download books, movies, music & more"
 
 - **Full Description** (4000 chars max):
   See template below
@@ -99,7 +99,7 @@ Required for apps that handle user data. Create and host a privacy policy coveri
 
 ### Short Description
 ```
-Download files from Internet Archive - books, movies, music & more
+Internet Archive Helper - Download books, movies, music & more
 ```
 
 ### Full Description

@@ -43,7 +43,7 @@ class IAGetMobileApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'IA Get Mobile',
+        title: 'Internet Archive Helper',
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
