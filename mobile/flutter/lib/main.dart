@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/ia_get_service.dart';
+import 'services/background_download_service.dart';
 import 'screens/home_screen.dart';
 import 'widgets/onboarding_widget.dart';
 import 'utils/theme.dart';
@@ -42,6 +43,10 @@ class IAGetMobileApp extends StatelessWidget {
           create: (_) => IaGetService(),
           lazy: false, // Initialize immediately for better startup performance
         ),
+        ChangeNotifierProvider<BackgroundDownloadService>(
+          create: (_) => BackgroundDownloadService(),
+          lazy: false, // Initialize immediately for background downloads
+        ),
       ],
       child: MaterialApp(
         title: 'Internet Archive Helper',
@@ -53,6 +58,9 @@ class IAGetMobileApp extends StatelessWidget {
         
         // Performance optimizations
         builder: (context, child) {
+          // Initialize background download service
+          context.read<BackgroundDownloadService>().initialize();
+          
           // Disable text scaling for consistent UI
           return MediaQuery(
             data: MediaQuery.of(context).copyWith(
