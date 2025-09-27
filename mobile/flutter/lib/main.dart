@@ -58,9 +58,6 @@ class IAGetMobileApp extends StatelessWidget {
         
         // Performance optimizations
         builder: (context, child) {
-          // Initialize background download service
-          context.read<BackgroundDownloadService>().initialize();
-          
           // Disable text scaling for consistent UI
           return MediaQuery(
             data: MediaQuery.of(context).copyWith(
@@ -112,6 +109,11 @@ class _AppInitializerState extends State<AppInitializer> {
   void initState() {
     super.initState();
     _checkOnboardingStatus();
+    
+    // Initialize background download service
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BackgroundDownloadService>().initialize();
+    });
   }
 
   Future<void> _checkOnboardingStatus() async {
