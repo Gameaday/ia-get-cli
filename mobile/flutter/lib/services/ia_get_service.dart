@@ -599,6 +599,12 @@ class IaGetService extends ChangeNotifier {
     }
   }
   
+  /// Notify that file selection has changed
+  /// This should be called when files are selected/deselected
+  void notifyFileSelectionChanged() {
+    notifyListeners();
+  }
+  
   // Callback functions (static methods for FFI)
   // 
   // ⚠️ CRITICAL ANDROID SAFETY NOTE ⚠️
