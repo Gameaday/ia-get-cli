@@ -190,7 +190,7 @@ mod tests {
         // We can't assert a specific value, but we can assert it returns Some
         // on most systems
         assert!(space.is_some() || space.is_none()); // Always true, but demonstrates the function works
-        
+
         // If we got a value, it should be a reasonable amount (more than 0)
         if let Some(bytes) = space {
             assert!(bytes > 0, "Available space should be greater than 0");
@@ -206,4 +206,3 @@ mod tests {
         assert_eq!(format_size(1024 * 1024 * 1024), "1.00GB");
     }
 }
-
