@@ -55,6 +55,34 @@ class IaGetFFI {
       Uint64 Function(Pointer<Utf8>),
       int Function(Pointer<Utf8>)>('ia_get_calculate_total_size');
   
+  static final _iaGetIsRequestInProgress = dylib.lookupFunction<
+      Bool Function(Pointer<Utf8>),
+      bool Function(Pointer<Utf8>)>('ia_get_is_request_in_progress');
+  
+  static final _iaGetGetPerformanceMetrics = dylib.lookupFunction<
+      Pointer<Utf8> Function(),
+      Pointer<Utf8> Function()>('ia_get_get_performance_metrics');
+  
+  static final _iaGetResetPerformanceMetrics = dylib.lookupFunction<
+      Int32 Function(),
+      int Function()>('ia_get_reset_performance_metrics');
+  
+  static final _iaGetHealthCheck = dylib.lookupFunction<
+      Int32 Function(),
+      int Function()>('ia_get_health_check');
+  
+  static final _iaGetClearStaleCache = dylib.lookupFunction<
+      Int32 Function(),
+      int Function()>('ia_get_clear_stale_cache');
+  
+  static final _iaGetGetCircuitBreakerStatus = dylib.lookupFunction<
+      Int32 Function(),
+      int Function()>('ia_get_get_circuit_breaker_status');
+  
+  static final _iaGetResetCircuitBreaker = dylib.lookupFunction<
+      Int32 Function(),
+      int Function()>('ia_get_reset_circuit_breaker');
+  
   /// Initialize the FFI library
   static int init() {
     return _iaGetInit();
@@ -182,6 +210,65 @@ class IaGetFFI {
       malloc.free(filesPtr);
     }
   }
+  
+  /// Check if a request is already in progress
+  static bool isRequestInProgress(String identifier) {
+    if (identifier.isEmpty) return false;
+    
+    final identifierPtr = identifier.toNativeUtf8();
+    try {
+      return _iaGetIsRequestInProgress(identifierPtr);
+    } finally {
+      malloc.free(identifierPtr);
+    }
+  }
+  
+  /// Get performance metrics as JSON
+  static String? getPerformanceMetrics() {
+    try {
+      final resultPtr = _iaGetGetPerformanceMetrics();
+      if (resultPtr == nullptr) return null;
+      
+      try {
+        final result = resultPtr.toDartString();
+        _iaGetFreeString(resultPtr);
+        return result;
+      } catch (e) {
+        try { _iaGetFreeString(resultPtr); } catch (_) {}
+        return null;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('getPerformanceMetrics: exception: $e');
+      }
+      return null;
+    }
+  }
+  
+  /// Reset performance metrics
+  static int resetPerformanceMetrics() {
+    return _iaGetResetPerformanceMetrics();
+  }
+  
+  /// Perform health check (returns 0 for healthy, higher values indicate issues)
+  static int healthCheck() {
+    return _iaGetHealthCheck();
+  }
+  
+  /// Clear stale cache entries
+  static int clearStaleCache() {
+    return _iaGetClearStaleCache();
+  }
+  
+  /// Get circuit breaker status (0=Closed, 1=HalfOpen, 2=Open, -1=Error)
+  static int getCircuitBreakerStatus() {
+    return _iaGetGetCircuitBreakerStatus();
+  }
+  
+  /// Reset circuit breaker
+  static int resetCircuitBreaker() {
+    return _iaGetResetCircuitBreaker();
+  }
 }
 
 /// Service class for managing ia-get operations
@@ -241,6 +328,42 @@ class IaGetService extends ChangeNotifier {
     // Additional validation - check for invalid characters
     if (trimmedIdentifier.contains(RegExp(r'[^\w\-\.]'))) {
       _error = 'Invalid identifier: contains invalid characters';
+      notifyListeners();
+      return;
+    }
+    
+    // Check if request is already in progress
+    if (IaGetFFI.isRequestInProgress(trimmedIdentifier)) {
+      _error = 'Request already in progress for this identifier';
+      if (kDebugMode) {
+        print('Duplicate request detected for: $trimmedIdentifier');
+      }
+      notifyListeners();
+      return;
+    }
+    
+    // Check circuit breaker status
+    final circuitBreakerStatus = IaGetFFI.getCircuitBreakerStatus();
+    if (circuitBreakerStatus == 2) { // Open state
+      _error = 'Service temporarily unavailable (circuit breaker open). Please try again later.';
+      if (kDebugMode) {
+        print('Circuit breaker is open, rejecting request');
+      }
+      notifyListeners();
+      return;
+    } else if (circuitBreakerStatus == 1) { // HalfOpen state
+      if (kDebugMode) {
+        print('Circuit breaker is in half-open state, proceeding cautiously');
+      }
+    }
+    
+    // Check health before proceeding
+    final health = IaGetFFI.healthCheck();
+    if (health > 30) {
+      _error = 'System health degraded. Please try again later.';
+      if (kDebugMode) {
+        print('Health check failed with score: $health');
+      }
       notifyListeners();
       return;
     }
@@ -485,5 +608,81 @@ class IaGetService extends ChangeNotifier {
     }
     
     throw Exception('Metadata fetch timeout after ${timeout.inSeconds} seconds (${attempts} attempts)');
+  }
+  
+  /// Get performance metrics
+  Future<Map<String, dynamic>?> getPerformanceMetrics() async {
+    try {
+      final metricsJson = IaGetFFI.getPerformanceMetrics();
+      if (metricsJson == null) return null;
+      
+      return jsonDecode(metricsJson) as Map<String, dynamic>;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to get performance metrics: $e');
+      }
+      return null;
+    }
+  }
+  
+  /// Reset performance metrics
+  void resetPerformanceMetrics() {
+    IaGetFFI.resetPerformanceMetrics();
+  }
+  
+  /// Check system health
+  /// Returns health score (0 = healthy, higher = more issues)
+  int checkHealth() {
+    return IaGetFFI.healthCheck();
+  }
+  
+  /// Clear stale cache entries
+  void clearStaleCache() {
+    IaGetFFI.clearStaleCache();
+  }
+  
+  /// Get circuit breaker status
+  /// Returns: 0=Closed (healthy), 1=HalfOpen (recovering), 2=Open (failing), -1=Error
+  int getCircuitBreakerStatus() {
+    return IaGetFFI.getCircuitBreakerStatus();
+  }
+  
+  /// Reset circuit breaker (use with caution)
+  void resetCircuitBreaker() {
+    IaGetFFI.resetCircuitBreaker();
+    if (kDebugMode) {
+      print('Circuit breaker has been reset');
+    }
+  }
+  
+  /// Perform routine maintenance
+  Future<void> performMaintenance() async {
+    if (kDebugMode) {
+      print('Performing routine maintenance...');
+    }
+    
+    // Clear stale cache
+    clearStaleCache();
+    
+    // Check health
+    final health = checkHealth();
+    if (kDebugMode) {
+      print('Health check score: $health');
+    }
+    
+    // Get metrics for monitoring
+    final metrics = await getPerformanceMetrics();
+    if (kDebugMode && metrics != null) {
+      print('Performance metrics: $metrics');
+    }
+    
+    // Reset circuit breaker if it's been open too long and health is good
+    final circuitBreakerStatus = getCircuitBreakerStatus();
+    if (circuitBreakerStatus == 2 && health < 20) {
+      if (kDebugMode) {
+        print('Circuit breaker open but health is good, resetting');
+      }
+      resetCircuitBreaker();
+    }
   }
 }
