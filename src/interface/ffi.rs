@@ -154,10 +154,23 @@ pub struct FfiDownloadProgress {
 
 /// Generate next session ID
 fn next_session_id() -> i32 {
-    let mut next_id = NEXT_SESSION_ID.lock().unwrap();
-    let id = *next_id;
-    *next_id += 1;
-    id
+    match NEXT_SESSION_ID.lock() {
+        Ok(mut next_id) => {
+            let id = *next_id;
+            *next_id += 1;
+            id
+        }
+        Err(e) => {
+            eprintln!("Failed to acquire session ID lock: {}", e);
+            // Return a fallback ID based on timestamp to avoid crashes
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i32;
+            timestamp.wrapping_rem(1000000) // Use timestamp as fallback
+        }
+    }
 }
 
 /// Initialize the FFI interface
@@ -225,12 +238,16 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
     // Spawn async operation in background thread
     std::thread::spawn(move || {
         runtime.block_on(async move {
-            // Create HTTP client
+            // Create HTTP client with retry capability
             let enhanced_client = match HttpClientFactory::for_metadata_requests() {
                 Ok(c) => c,
                 Err(e) => {
+                    eprintln!("Failed to create HTTP client: {}", e);
                     let error_msg = CString::new(format!("HTTP client error: {}", e))
-                        .unwrap_or_else(|_| CString::new("HTTP client error").unwrap());
+                        .unwrap_or_else(|_| {
+                            CString::new("HTTP client error")
+                                .expect("Failed to create fallback error message")
+                        });
                     let error_ptr = error_msg.as_ptr();
                     completion_callback(false, error_ptr, user_data);
                     // error_msg is dropped here but callback has already executed
@@ -241,8 +258,11 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
 
             // Progress update: Starting metadata fetch
             {
-                let progress_msg = CString::new("Fetching archive metadata...")
-                    .unwrap_or_else(|_| CString::new("Starting...").unwrap());
+                let progress_msg =
+                    CString::new("Fetching archive metadata...").unwrap_or_else(|_| {
+                        CString::new("Starting...")
+                            .expect("Failed to create fallback progress message")
+                    });
                 let msg_ptr = progress_msg.as_ptr();
                 progress_callback(0.1, msg_ptr, user_data);
                 // progress_msg dropped after callback completes synchronously
@@ -251,12 +271,15 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
             // Create a progress bar for the metadata fetch
             let progress_bar = ProgressBar::new_spinner();
 
-            // Fetch metadata
+            // Fetch metadata with timeout and retry
             match fetch_json_metadata(&identifier_str, client, &progress_bar).await {
                 Ok((metadata, _url)) => {
                     {
-                        let progress_msg = CString::new("Parsing metadata...")
-                            .unwrap_or_else(|_| CString::new("Processing...").unwrap());
+                        let progress_msg =
+                            CString::new("Parsing metadata...").unwrap_or_else(|_| {
+                                CString::new("Processing...")
+                                    .expect("Failed to create fallback progress message")
+                            });
                         let msg_ptr = progress_msg.as_ptr();
                         progress_callback(0.8, msg_ptr, user_data);
                         // progress_msg dropped after callback completes synchronously
@@ -272,7 +295,10 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
                         Err(e) => {
                             eprintln!("Failed to acquire metadata cache lock: {}", e);
                             let error_msg = CString::new("Failed to cache metadata")
-                                .unwrap_or_else(|_| CString::new("Cache error").unwrap());
+                                .unwrap_or_else(|_| {
+                                    CString::new("Cache error")
+                                        .expect("Failed to create fallback error message")
+                                });
                             let error_ptr = error_msg.as_ptr();
                             completion_callback(false, error_ptr, user_data);
                             return;
@@ -280,8 +306,11 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
                     }
 
                     {
-                        let progress_msg = CString::new("Metadata fetch complete")
-                            .unwrap_or_else(|_| CString::new("Complete").unwrap());
+                        let progress_msg =
+                            CString::new("Metadata fetch complete").unwrap_or_else(|_| {
+                                CString::new("Complete")
+                                    .expect("Failed to create fallback progress message")
+                            });
                         let msg_ptr = progress_msg.as_ptr();
                         progress_callback(1.0, msg_ptr, user_data);
                         // progress_msg dropped after callback completes synchronously
@@ -291,7 +320,10 @@ pub unsafe extern "C" fn ia_get_fetch_metadata(
                 Err(e) => {
                     eprintln!("Metadata fetch error for '{}': {}", identifier_str, e);
                     let error_msg = CString::new(format!("Metadata fetch failed: {}", e))
-                        .unwrap_or_else(|_| CString::new("Metadata fetch failed").unwrap());
+                        .unwrap_or_else(|_| {
+                            CString::new("Metadata fetch failed")
+                                .expect("Failed to create fallback error message")
+                        });
                     let error_ptr = error_msg.as_ptr();
                     completion_callback(false, error_ptr, user_data);
                     // error_msg dropped after callback completes synchronously
@@ -409,12 +441,19 @@ pub unsafe extern "C" fn ia_get_create_session(
     );
 
     // Store session
-    {
-        let mut sessions = SESSIONS.lock().unwrap();
-        sessions.insert(session_id, session);
+    match SESSIONS.lock() {
+        Ok(mut sessions) => {
+            sessions.insert(session_id, session);
+            session_id
+        }
+        Err(e) => {
+            eprintln!(
+                "ia_get_create_session: failed to acquire sessions lock: {}",
+                e
+            );
+            -1
+        }
     }
-
-    session_id
 }
 
 /// Filter files based on criteria
@@ -511,11 +550,17 @@ pub unsafe extern "C" fn ia_get_filter_files(
 
     // Serialize filtered results
     match serde_json::to_string(&filtered_files) {
-        Ok(json) => {
-            let c_string = CString::new(json).unwrap();
-            c_string.into_raw()
+        Ok(json) => match CString::new(json) {
+            Ok(c_string) => c_string.into_raw(),
+            Err(e) => {
+                eprintln!("ia_get_filter_files: failed to create CString: {}", e);
+                ptr::null_mut()
+            }
+        },
+        Err(e) => {
+            eprintln!("ia_get_filter_files: JSON serialization failed: {}", e);
+            ptr::null_mut()
         }
-        Err(_) => ptr::null_mut(),
     }
 }
 
@@ -550,16 +595,22 @@ pub unsafe extern "C" fn ia_get_start_download(
     };
 
     // Get session information to use in download
-    let session_info = {
-        let sessions = SESSIONS.lock().unwrap();
-        sessions.get(&session_id).map(|session| {
+    let session_info = match SESSIONS.lock() {
+        Ok(sessions) => sessions.get(&session_id).map(|session| {
             (
                 session.get_identifier().to_string(),
                 session.get_output_dir().to_string(),
                 session.get_concurrent_downloads(),
                 session.is_auto_decompress_enabled(),
             )
-        })
+        }),
+        Err(e) => {
+            eprintln!(
+                "ia_get_start_download: failed to acquire sessions lock: {}",
+                e
+            );
+            return IaGetErrorCode::UnknownError;
+        }
     };
 
     let Some((identifier, output_dir, concurrent_downloads, auto_decompress)) = session_info else {
@@ -572,11 +623,23 @@ pub unsafe extern "C" fn ia_get_start_download(
     std::thread::spawn(move || {
         runtime.block_on(async move {
             // Progress update: Starting download with session info
-            let progress_msg = CString::new(format!(
+            let progress_msg = match CString::new(format!(
                 "Initializing download for '{}' to '{}' (concurrency: {}, decompress: {})",
                 identifier, output_dir, concurrent_downloads, auto_decompress
-            ))
-            .unwrap();
+            )) {
+                Ok(msg) => msg,
+                Err(e) => {
+                    eprintln!("Failed to create progress message: {}", e);
+                    match CString::new("Initializing download...") {
+                        Ok(fallback) => fallback,
+                        Err(_) => {
+                            eprintln!("Failed to create fallback progress message");
+                            completion_callback(false, ptr::null(), user_data);
+                            return;
+                        }
+                    }
+                }
+            };
             progress_callback(0.0, progress_msg.as_ptr(), user_data);
 
             // In a real implementation, this would:
@@ -590,14 +653,30 @@ pub unsafe extern "C" fn ia_get_start_download(
             for i in 1..=10 {
                 let progress = i as f64 / 10.0;
                 let progress_msg =
-                    CString::new(format!("Downloading... {}%", (progress * 100.0) as i32)).unwrap();
+                    match CString::new(format!("Downloading... {}%", (progress * 100.0) as i32)) {
+                        Ok(msg) => msg,
+                        Err(_) => {
+                            eprintln!(
+                                "Failed to create progress message at {}%",
+                                (progress * 100.0) as i32
+                            );
+                            continue; // Skip this update but continue download
+                        }
+                    };
                 progress_callback(progress, progress_msg.as_ptr(), user_data);
 
                 // Simulate work
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
 
-            let progress_msg = CString::new("Download completed").unwrap();
+            let progress_msg = match CString::new("Download completed") {
+                Ok(msg) => msg,
+                Err(_) => {
+                    eprintln!("Failed to create completion message");
+                    completion_callback(true, ptr::null(), user_data);
+                    return;
+                }
+            };
             progress_callback(1.0, progress_msg.as_ptr(), user_data);
             completion_callback(true, ptr::null(), user_data);
         });
@@ -629,7 +708,13 @@ pub unsafe extern "C" fn ia_get_get_download_progress(
     let mock_progress = FfiDownloadProgress {
         session_id,
         overall_progress: 0.5,
-        current_file: CString::new("test.pdf").unwrap().into_raw(),
+        current_file: match CString::new("test.pdf") {
+            Ok(cstr) => cstr.into_raw(),
+            Err(e) => {
+                eprintln!("Failed to create mock filename: {}", e);
+                ptr::null_mut() // Use null pointer on failure
+            }
+        },
         current_file_progress: 0.7,
         download_speed: 1024 * 1024, // 1 MB/s
         eta_seconds: 30,
@@ -648,12 +733,22 @@ pub unsafe extern "C" fn ia_get_get_download_progress(
 #[no_mangle]
 pub extern "C" fn ia_get_pause_download(session_id: c_int) -> IaGetErrorCode {
     // In a real implementation, this would pause the download session
-    let sessions = SESSIONS.lock().unwrap();
-    if sessions.contains_key(&session_id) {
-        // Session exists, would pause it here
-        IaGetErrorCode::Success
-    } else {
-        IaGetErrorCode::InvalidInput
+    match SESSIONS.lock() {
+        Ok(sessions) => {
+            if sessions.contains_key(&session_id) {
+                // Session exists, would pause it here
+                IaGetErrorCode::Success
+            } else {
+                IaGetErrorCode::InvalidInput
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "ia_get_pause_download: failed to acquire sessions lock: {}",
+                e
+            );
+            IaGetErrorCode::UnknownError
+        }
     }
 }
 
@@ -661,12 +756,22 @@ pub extern "C" fn ia_get_pause_download(session_id: c_int) -> IaGetErrorCode {
 #[no_mangle]
 pub extern "C" fn ia_get_resume_download(session_id: c_int) -> IaGetErrorCode {
     // In a real implementation, this would resume the download session
-    let sessions = SESSIONS.lock().unwrap();
-    if sessions.contains_key(&session_id) {
-        // Session exists, would resume it here
-        IaGetErrorCode::Success
-    } else {
-        IaGetErrorCode::InvalidInput
+    match SESSIONS.lock() {
+        Ok(sessions) => {
+            if sessions.contains_key(&session_id) {
+                // Session exists, would resume it here
+                IaGetErrorCode::Success
+            } else {
+                IaGetErrorCode::InvalidInput
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "ia_get_resume_download: failed to acquire sessions lock: {}",
+                e
+            );
+            IaGetErrorCode::UnknownError
+        }
     }
 }
 
@@ -674,11 +779,21 @@ pub extern "C" fn ia_get_resume_download(session_id: c_int) -> IaGetErrorCode {
 #[no_mangle]
 pub extern "C" fn ia_get_cancel_download(session_id: c_int) -> IaGetErrorCode {
     // Cancel the download and remove session
-    let mut sessions = SESSIONS.lock().unwrap();
-    if sessions.remove(&session_id).is_some() {
-        IaGetErrorCode::Success
-    } else {
-        IaGetErrorCode::InvalidInput
+    match SESSIONS.lock() {
+        Ok(mut sessions) => {
+            if sessions.remove(&session_id).is_some() {
+                IaGetErrorCode::Success
+            } else {
+                IaGetErrorCode::InvalidInput
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "ia_get_cancel_download: failed to acquire sessions lock: {}",
+                e
+            );
+            IaGetErrorCode::UnknownError
+        }
     }
 }
 
@@ -688,9 +803,19 @@ pub extern "C" fn ia_get_cancel_operation(operation_id: c_int) -> IaGetErrorCode
     // This can cancel either metadata fetch or download operations
     if operation_id > 0 {
         // In a real implementation, this would cancel the operation with the given ID
-        let mut sessions = SESSIONS.lock().unwrap();
-        sessions.remove(&operation_id);
-        IaGetErrorCode::Success
+        match SESSIONS.lock() {
+            Ok(mut sessions) => {
+                sessions.remove(&operation_id);
+                IaGetErrorCode::Success
+            }
+            Err(e) => {
+                eprintln!(
+                    "ia_get_cancel_operation: failed to acquire sessions lock: {}",
+                    e
+                );
+                IaGetErrorCode::UnknownError
+            }
+        }
     } else {
         IaGetErrorCode::InvalidInput
     }
@@ -699,28 +824,44 @@ pub extern "C" fn ia_get_cancel_operation(operation_id: c_int) -> IaGetErrorCode
 /// Get session information as JSON
 #[no_mangle]
 pub extern "C" fn ia_get_get_session_info(session_id: c_int) -> *mut c_char {
-    let sessions = SESSIONS.lock().unwrap();
-    if let Some(session) = sessions.get(&session_id) {
-        // Use the actual session data
-        let session_info = serde_json::json!({
-            "session_id": session_id,
-            "identifier": session.get_identifier(),
-            "output_dir": session.get_output_dir(),
-            "concurrent_downloads": session.get_concurrent_downloads(),
-            "auto_decompress": session.is_auto_decompress_enabled(),
-            "status": "active",
-            "created_at": session.get_created_at().to_rfc3339()
-        });
+    match SESSIONS.lock() {
+        Ok(sessions) => {
+            if let Some(session) = sessions.get(&session_id) {
+                // Use the actual session data
+                let session_info = serde_json::json!({
+                    "session_id": session_id,
+                    "identifier": session.get_identifier(),
+                    "output_dir": session.get_output_dir(),
+                    "concurrent_downloads": session.get_concurrent_downloads(),
+                    "auto_decompress": session.is_auto_decompress_enabled(),
+                    "status": "active",
+                    "created_at": session.get_created_at().to_rfc3339()
+                });
 
-        match serde_json::to_string(&session_info) {
-            Ok(json) => {
-                let c_string = CString::new(json).unwrap();
-                c_string.into_raw()
+                match serde_json::to_string(&session_info) {
+                    Ok(json) => match CString::new(json) {
+                        Ok(c_string) => c_string.into_raw(),
+                        Err(e) => {
+                            eprintln!("ia_get_get_session_info: failed to create CString: {}", e);
+                            ptr::null_mut()
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("ia_get_get_session_info: JSON serialization failed: {}", e);
+                        ptr::null_mut()
+                    }
+                }
+            } else {
+                ptr::null_mut()
             }
-            Err(_) => ptr::null_mut(),
         }
-    } else {
-        ptr::null_mut()
+        Err(e) => {
+            eprintln!(
+                "ia_get_get_session_info: failed to acquire sessions lock: {}",
+                e
+            );
+            ptr::null_mut()
+        }
     }
 }
 
@@ -740,7 +881,17 @@ pub unsafe extern "C" fn ia_get_get_available_formats(identifier: *const c_char)
         Err(_) => return ptr::null_mut(),
     };
 
-    let cache = METADATA_CACHE.lock().unwrap();
+    let cache = match METADATA_CACHE.lock() {
+        Ok(cache) => cache,
+        Err(e) => {
+            eprintln!(
+                "ia_get_get_available_formats: failed to acquire cache lock: {}",
+                e
+            );
+            return ptr::null_mut();
+        }
+    };
+
     if let Some(metadata) = cache.get(identifier_str) {
         // Extract unique formats from files
         let mut formats: Vec<String> = metadata
@@ -754,10 +905,16 @@ pub unsafe extern "C" fn ia_get_get_available_formats(identifier: *const c_char)
         formats.dedup();
 
         match serde_json::to_string(&formats) {
-            Ok(json) => {
-                let c_string = CString::new(json).unwrap();
-                c_string.into_raw()
-            }
+            Ok(json) => match CString::new(json) {
+                Ok(c_string) => c_string.into_raw(),
+                Err(e) => {
+                    eprintln!(
+                        "ia_get_get_available_formats: failed to create CString: {}",
+                        e
+                    );
+                    ptr::null_mut()
+                }
+            },
             Err(_) => ptr::null_mut(),
         }
     } else {

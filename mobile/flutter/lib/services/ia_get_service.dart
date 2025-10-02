@@ -230,9 +230,17 @@ class IaGetService extends ChangeNotifier {
       return;
     }
     
-    // Validate identifier
-    if (identifier.trim().isEmpty) {
+    // Validate identifier - trim and check for empty/whitespace
+    final trimmedIdentifier = identifier.trim();
+    if (trimmedIdentifier.isEmpty) {
       _error = 'Invalid identifier: cannot be empty';
+      notifyListeners();
+      return;
+    }
+    
+    // Additional validation - check for invalid characters
+    if (trimmedIdentifier.contains(RegExp(r'[^\w\-\.]'))) {
+      _error = 'Invalid identifier: contains invalid characters';
       notifyListeners();
       return;
     }
@@ -243,67 +251,86 @@ class IaGetService extends ChangeNotifier {
     _filteredFiles = [];
     notifyListeners();
     
-    try {
-      // Create progress and completion callbacks
-      final progressCallback = Pointer.fromFunction<ProgressCallbackNative>(_progressCallback);
-      final completionCallback = Pointer.fromFunction<CompletionCallbackNative>(_completionCallback);
-      
-      if (kDebugMode) {
-        print('Starting metadata fetch for: $identifier');
-      }
-      
-      // Start metadata fetch
-      final requestId = IaGetFFI.fetchMetadata(
-        identifier,
-        progressCallback,
-        completionCallback,
-        identifier.hashCode, // Use identifier hash as user data
-      );
-      
-      if (requestId <= 0) {
-        throw Exception('Failed to start metadata fetch (request ID: $requestId)');
-      }
-      
-      if (kDebugMode) {
-        print('Metadata fetch started with request ID: $requestId');
-      }
-      
-      // Wait for completion using proper async handling with timeout
-      await _waitForMetadataCompletion(identifier, timeout: const Duration(seconds: 30));
-      
-      // Get the cached metadata
-      final metadataJson = IaGetFFI.getMetadataJson(identifier);
-      if (metadataJson == null || metadataJson.isEmpty) {
-        throw Exception('No metadata available for identifier: $identifier');
-      }
-      
-      if (kDebugMode) {
-        print('Retrieved metadata JSON (${metadataJson.length} bytes)');
-      }
-      
-      // Parse JSON with error handling
+    int maxRetries = 3;
+    int retryCount = 0;
+    
+    while (retryCount < maxRetries) {
       try {
-        final metadataMap = jsonDecode(metadataJson) as Map<String, dynamic>;
-        _currentMetadata = ArchiveMetadata.fromJson(metadataMap);
-        _filteredFiles = _currentMetadata!.files;
+        // Create progress and completion callbacks
+        final progressCallback = Pointer.fromFunction<ProgressCallbackNative>(_progressCallback);
+        final completionCallback = Pointer.fromFunction<CompletionCallbackNative>(_completionCallback);
         
         if (kDebugMode) {
-          print('Successfully parsed metadata: ${_currentMetadata!.identifier}');
-          print('Files found: ${_filteredFiles.length}');
+          print('Starting metadata fetch for: $trimmedIdentifier (attempt ${retryCount + 1}/$maxRetries)');
         }
-      } catch (e) {
-        throw Exception('Failed to parse metadata JSON: $e');
+        
+        // Start metadata fetch
+        final requestId = IaGetFFI.fetchMetadata(
+          trimmedIdentifier,
+          progressCallback,
+          completionCallback,
+          trimmedIdentifier.hashCode, // Use identifier hash as user data
+        );
+        
+        if (requestId <= 0) {
+          throw Exception('Failed to start metadata fetch (request ID: $requestId)');
+        }
+        
+        if (kDebugMode) {
+          print('Metadata fetch started with request ID: $requestId');
+        }
+        
+        // Wait for completion using proper async handling with timeout
+        await _waitForMetadataCompletion(trimmedIdentifier, timeout: const Duration(seconds: 30));
+        
+        // Get the cached metadata
+        final metadataJson = IaGetFFI.getMetadataJson(trimmedIdentifier);
+        if (metadataJson == null || metadataJson.isEmpty) {
+          throw Exception('No metadata available for identifier: $trimmedIdentifier');
+        }
+        
+        if (kDebugMode) {
+          print('Retrieved metadata JSON (${metadataJson.length} bytes)');
+        }
+        
+        // Parse JSON with error handling
+        try {
+          final metadataMap = jsonDecode(metadataJson) as Map<String, dynamic>;
+          _currentMetadata = ArchiveMetadata.fromJson(metadataMap);
+          _filteredFiles = _currentMetadata!.files;
+          
+          if (kDebugMode) {
+            print('Successfully parsed metadata: ${_currentMetadata!.identifier}');
+            print('Files found: ${_filteredFiles.length}');
+          }
+          
+          // Success - break out of retry loop
+          break;
+        } catch (e) {
+          throw Exception('Failed to parse metadata JSON: $e');
+        }
+        
+      } catch (e, stackTrace) {
+        retryCount++;
+        
+        if (retryCount >= maxRetries) {
+          _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
+          if (kDebugMode) {
+            print('Metadata fetch error: $e\n$stackTrace');
+          }
+          break;
+        } else {
+          if (kDebugMode) {
+            print('Metadata fetch attempt ${retryCount} failed: $e. Retrying...');
+          }
+          // Exponential backoff: wait before retrying
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
       }
-      
-    } catch (e, stackTrace) {
-      _error = 'Failed to fetch metadata: $e';
-      if (kDebugMode) {
-        print('Metadata fetch error: $e\n$stackTrace');
-      }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+    
+    _isLoading = false;
+    notifyListeners();
   }
   
   /// Filter files based on criteria
@@ -312,12 +339,20 @@ class IaGetService extends ChangeNotifier {
     List<String>? excludeFormats,
     String? maxSize,
   }) {
-    if (_currentMetadata == null) return;
+    if (_currentMetadata == null) {
+      _error = 'No metadata available to filter';
+      notifyListeners();
+      return;
+    }
     
     try {
       final metadataJson = jsonEncode(_currentMetadata!.toJson());
       final includeFormatsStr = includeFormats?.join(',');
       final excludeFormatsStr = excludeFormats?.join(',');
+      
+      if (kDebugMode) {
+        print('Filtering files - include: $includeFormatsStr, exclude: $excludeFormatsStr, maxSize: $maxSize');
+      }
       
       final filteredJson = IaGetFFI.filterFiles(
         metadataJson,
@@ -326,14 +361,35 @@ class IaGetService extends ChangeNotifier {
         maxSize,
       );
       
-      if (filteredJson != null) {
-        final filteredList = jsonDecode(filteredJson) as List<dynamic>;
-        _filteredFiles = filteredList
-            .map((json) => ArchiveFile.fromJson(json as Map<String, dynamic>))
-            .toList();
+      if (filteredJson != null && filteredJson.isNotEmpty) {
+        try {
+          final filteredList = jsonDecode(filteredJson) as List<dynamic>;
+          _filteredFiles = filteredList
+              .map((json) => ArchiveFile.fromJson(json as Map<String, dynamic>))
+              .toList();
+          _error = null; // Clear any previous errors
+          
+          if (kDebugMode) {
+            print('Filtered to ${_filteredFiles.length} files');
+          }
+        } catch (e) {
+          _error = 'Failed to parse filtered results: $e';
+          if (kDebugMode) {
+            print('Filter parsing error: $e');
+          }
+        }
+      } else {
+        // No results or null - treat as no matches
+        _filteredFiles = [];
+        if (kDebugMode) {
+          print('No files matched the filter criteria');
+        }
       }
     } catch (e) {
       _error = 'Failed to filter files: $e';
+      if (kDebugMode) {
+        print('Filter error: $e');
+      }
     }
     
     notifyListeners();
@@ -341,10 +397,23 @@ class IaGetService extends ChangeNotifier {
   
   /// Calculate total size of selected files
   int calculateTotalSize(List<ArchiveFile> selectedFiles) {
+    if (selectedFiles.isEmpty) {
+      return 0;
+    }
+    
     try {
       final filesJson = jsonEncode(selectedFiles.map((f) => f.toJson()).toList());
-      return IaGetFFI.calculateTotalSize(filesJson);
+      final size = IaGetFFI.calculateTotalSize(filesJson);
+      
+      if (kDebugMode) {
+        print('Calculated total size: $size bytes for ${selectedFiles.length} files');
+      }
+      
+      return size;
     } catch (e) {
+      if (kDebugMode) {
+        print('Failed to calculate total size: $e');
+      }
       return 0;
     }
   }
@@ -383,29 +452,38 @@ class IaGetService extends ChangeNotifier {
     
     while (DateTime.now().isBefore(endTime)) {
       attempts++;
-      await Future.delayed(checkInterval);
+      
+      // Add a delay before checking (not after) for better timing
+      if (attempts > 1) {
+        await Future.delayed(checkInterval);
+      }
       
       // Check if metadata is available
       try {
         final metadataJson = IaGetFFI.getMetadataJson(identifier);
         if (metadataJson != null && metadataJson.isNotEmpty) {
           if (kDebugMode) {
-            print('Metadata available after $attempts attempts');
+            print('Metadata available after $attempts attempts (${attempts * checkInterval.inMilliseconds}ms)');
           }
           return; // Metadata is ready
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Error checking metadata availability: $e');
+          print('Error checking metadata availability (attempt $attempts): $e');
         }
-        // Continue waiting
+        // Continue waiting but log the error
       }
       
       if (kDebugMode && attempts % 4 == 0) {
         print('Still waiting... ($attempts/${maxAttempts} attempts)');
       }
+      
+      // Add small initial delay to give the fetch operation time to start
+      if (attempts == 1) {
+        await Future.delayed(checkInterval);
+      }
     }
     
-    throw Exception('Metadata fetch timeout after ${timeout.inSeconds} seconds');
+    throw Exception('Metadata fetch timeout after ${timeout.inSeconds} seconds (${attempts} attempts)');
   }
 }
