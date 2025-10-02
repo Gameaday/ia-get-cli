@@ -40,9 +40,16 @@ environment:
 
 ## Resolution
 
-Since the repository configuration is already correct, the issue is purely a **local environment problem**. We've added comprehensive tools and documentation to help users resolve it:
+Since the repository configuration was already updated with the correct SDK constraints, the issue manifested in two ways:
 
-### 1. Automated Quick-Fix Script
+1. **Local Development**: Developers with outdated Flutter installations need to upgrade
+2. **CI/CD Pipeline**: Cached Flutter dependencies from before the SDK update were incompatible
+
+We've added comprehensive tools and documentation to help users resolve both scenarios:
+
+### 1. For Local Development Issues
+
+**Automated Quick-Fix Script**
 
 **scripts/fix-flutter-deps.sh**
 - Automatically checks Flutter/Dart versions
@@ -55,36 +62,40 @@ Since the repository configuration is already correct, the issue is purely a **l
 ./scripts/fix-flutter-deps.sh
 ```
 
-### 2. Comprehensive Troubleshooting Guide
+### 2. For CI/CD Pipeline Issues
+
+**Updated GitHub Actions Workflows**
+
+Modified both `.github/workflows/ci.yml` and `.github/workflows/release.yml` to:
+- **Add cache version identifiers**: Cache keys now include `dart3.8` to invalidate old caches
+- **Add version verification**: Workflows now verify Flutter and Dart versions before building
+- **Prevent cache conflicts**: Old cached dependencies built with SDK <3.8.0 won't be used
+
+**Changes Made:**
+```yaml
+# Old cache key pattern (could restore incompatible caches):
+key: ${{ runner.os }}-android-apk-${{ hashFiles(...) }}
+
+# New cache key pattern (ensures SDK 3.8.0+ compatibility):
+key: ${{ runner.os }}-android-apk-dart3.8-${{ hashFiles(...) }}
+```
+
+This ensures that when the Dart SDK constraint changes, the CI automatically uses fresh dependencies compatible with the new SDK version.
+
+### 3. Comprehensive Documentation
 
 **TROUBLESHOOTING.md**
 - Complete guide for all common build issues
 - Step-by-step resolution instructions
 - Environment setup verification
-- Quick reference commands
-
-### 3. Enhanced Documentation
-
-**README.md**
-- Added prominent troubleshooting section
-- Clear version requirements
-- Quick links to help resources
-
-**CONTRIBUTING.md**
-- Added version prerequisites
-- Troubleshooting references
-- Setup guidance
-
-**FLUTTER_DEPENDENCY_FIX.md**
-- Updated with quick-fix script reference
-- Added troubleshooting guide link
-
-### 4. Issue Tracking
 
 **issues/README.md**
-- Index of known issues and solutions
+- Issue tracking index with solutions
 - Status tracking
-- Quick links to resolutions
+
+**RESOLUTION_SUMMARY.md**
+- Complete technical analysis
+- Resolution approach explanation
 
 ## For Users Experiencing This Issue
 
@@ -116,18 +127,21 @@ Your environment needs:
 
 ## Why This Approach
 
-1. **Repository is already correct** - No configuration changes needed
-2. **User-centric solution** - Tools to fix local environment issues
-3. **Comprehensive documentation** - Multiple resources for different user needs
-4. **Automated when possible** - Script handles most cases automatically
-5. **Manual fallback** - Clear instructions for users who prefer manual steps
+1. **Repository configuration was already correct** - SDK constraints and workflow Flutter versions were set properly
+2. **Dual-issue identification** - Problem manifested in both local environments and CI/CD pipeline
+3. **Cache invalidation for CI** - Updated cache keys to prevent using incompatible cached dependencies
+4. **User-centric local solution** - Tools to fix local environment issues
+5. **Comprehensive documentation** - Multiple resources for different user needs
+6. **Automated when possible** - Script handles most local cases automatically, CI handles itself
+7. **Manual fallback** - Clear instructions for users who prefer manual steps
 
 ## Testing
 
 ### CI/CD Pipelines
-✅ All GitHub Actions workflows use Flutter 3.27.1
-✅ Dependencies resolve correctly in CI environment
-✅ Builds succeed on all platforms
+✅ GitHub Actions workflows updated with cache invalidation
+✅ Cache keys now include Dart SDK version requirement (dart3.8)
+✅ Version verification steps added before building
+✅ All workflows use Flutter 3.27.1 with Dart 3.8.0+
 
 ### Local Development
 ✅ Script validates successfully
@@ -136,7 +150,8 @@ Your environment needs:
 
 ## Impact
 
-- **Zero breaking changes** - Repository configuration was already correct
+- **CI/CD fixes** - Cache invalidation prevents incompatible dependency issues
+- **Zero breaking changes** - Repository configuration remains correct
 - **Improved user experience** - Clear guidance and automated tools
 - **Reduced support burden** - Self-service troubleshooting resources
 - **Better documentation** - Multiple entry points to help
@@ -149,14 +164,16 @@ Your environment needs:
 - `issues/README.md` - Issue tracking index
 
 ### Files Updated
+- `.github/workflows/ci.yml` - Updated cache keys and added version verification
+- `.github/workflows/release.yml` - Updated cache keys and added version verification
 - `README.md` - Added troubleshooting section
 - `CONTRIBUTING.md` - Added version requirements
 - `FLUTTER_DEPENDENCY_FIX.md` - Added script reference
+- `TROUBLESHOOTING.md` - Enhanced CI/CD troubleshooting section
+- `RESOLUTION_SUMMARY.md` - Updated with CI/CD fix details
 
 ### No Changes Needed
 - `mobile/flutter/pubspec.yaml` - Already correct
-- `.github/workflows/ci.yml` - Already correct
-- `.github/workflows/release.yml` - Already correct
 
 ## Conclusion
 

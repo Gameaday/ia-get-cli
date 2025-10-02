@@ -129,32 +129,39 @@ flutter pub upgrade
 
 ### Problem: "GitHub Actions workflow fails"
 
-**Note**: The repository's CI/CD configuration is already correct. If workflows are failing, it's likely due to:
-- Cached dependencies from before the fix
-- External service issues
-- Unrelated build problems
+**Note**: The repository's CI/CD configuration has been updated to handle Dart SDK version requirements correctly.
+
+**Recent Fix Applied**: The CI/CD workflows now use cache keys that include the Dart SDK version requirement (`dart3.8`) to prevent incompatible cached dependencies from being used. This ensures that when the Dart SDK constraint is updated, the CI will use fresh dependencies compatible with the new SDK version.
 
 **Check These Items**:
 
-1. **Verify Flutter version in workflows** (should already be correct):
-   - `.github/workflows/ci.yml` should have `flutter-version: '3.27.1'` ✓
-   - `.github/workflows/release.yml` should have `flutter-version: '3.27.1'` ✓
+1. **Verify Flutter version in workflows** (already updated and correct):
+   - ✅ `.github/workflows/ci.yml` has `flutter-version: '3.27.1'`
+   - ✅ `.github/workflows/release.yml` has `flutter-version: '3.27.1'`
 
-2. **Verify Dart SDK constraint in pubspec.yaml** (should already be correct):
+2. **Verify Dart SDK constraint in pubspec.yaml** (already updated and correct):
    ```yaml
    environment:
      sdk: '>=3.8.0 <4.0.0'  ✓
    ```
 
-3. **Clear GitHub Actions cache**:
+3. **Cache invalidation** (automatically handled):
+   - The cache keys now include `dart3.8` to prevent using old cached dependencies
+   - When SDK constraints change, the cache will be automatically invalidated
+
+4. **Clear GitHub Actions cache** (if still experiencing issues):
    - Go to your repository's Actions tab
    - Click on "Caches" in the left sidebar
-   - Delete old caches if they exist
+   - Delete old caches if they exist (caches with keys not containing `dart3.8`)
 
-4. **Re-run the workflow**:
-   - Sometimes a simple re-run after cache cleanup resolves issues
+5. **Re-run the workflow**:
+   - After cache updates, workflows should succeed automatically
+   - The workflows now verify Flutter and Dart versions before building
 
-**Important**: The configuration files in this repository are already set to use the correct versions. If you're still seeing errors, they're likely due to cached dependencies or local environment issues, not the repository configuration.
+**Important**: The configuration files in this repository are correct and include cache-busting mechanisms. If workflows fail, check:
+- Are you using a forked repository with outdated caches?
+- Are there network issues preventing Flutter/package downloads?
+- Check the workflow logs for the specific error message
 
 ## Environment Setup
 
