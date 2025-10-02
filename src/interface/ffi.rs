@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 
 use crate::core::archive::fetch_json_metadata;
 use crate::core::session::ArchiveMetadata;
-use crate::infrastructure::http::HttpClientFactory;
+use crate::infrastructure::http::{EnhancedHttpClient, HttpClientFactory};
 use crate::utilities::filters::parse_size_string;
 
 /// Circuit breaker state for resilience
@@ -1592,37 +1592,24 @@ pub unsafe extern "C" fn ia_get_search_archives(
         }
     };
 
-    // Use the global runtime or create a new one
-    let rt = match RUNTIME.lock() {
-        Ok(rt_guard) => {
-            if let Some(rt) = rt_guard.as_ref() {
-                rt.handle().clone()
-            } else {
-                // Create a new runtime if one doesn't exist
-                match Runtime::new() {
-                    Ok(rt) => rt.handle().clone(),
-                    Err(e) => {
-                        eprintln!("ia_get_search_archives: failed to create runtime: {}", e);
-                        return ptr::null_mut();
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!(
-                "ia_get_search_archives: failed to acquire runtime lock: {}",
-                e
-            );
-            return ptr::null_mut();
-        }
-    };
+    // Use the global runtime
+    let rt_handle = RUNTIME.handle();
 
     // Execute search
-    let search_result = rt.block_on(async {
-        let client_factory = HttpClientFactory::default();
-        let base_client = client_factory.create_client();
+    let search_result = rt_handle.block_on(async {
+        let client = match EnhancedHttpClient::default() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "ia_get_search_archives: failed to create HTTP client: {}",
+                    e
+                );
+                return None;
+            }
+        };
+
         let mut api_client =
-            crate::infrastructure::api::archive_api::EnhancedArchiveApiClient::new(base_client);
+            crate::infrastructure::api::archive_api::EnhancedArchiveApiClient::new(client);
 
         let rows = if max_results > 0 && max_results <= 100 {
             Some(max_results as u32)
