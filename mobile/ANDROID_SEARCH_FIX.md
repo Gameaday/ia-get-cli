@@ -186,6 +186,8 @@ This is the **correct and safe approach** for the current architecture where:
 3. Dart polls cache from Dart thread (safe)
 4. Callbacks are no-ops (safe)
 
+See `ANDROID_CRASH_ROOT_CAUSE.md` for complete analysis.
+
 ### Enhanced Error Resilience
 All critical unwrap() calls that could cause panics have been replaced with proper error handling:
 

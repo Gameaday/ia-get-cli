@@ -551,7 +551,7 @@ class IaGetService extends ChangeNotifier {
   // which safely checks for results from the Dart thread. These callbacks are kept
   // as no-ops to satisfy the FFI interface but should NOT execute any Dart code.
   //
-  // See mobile/ANDROID_SEARCH_FIX.md for detailed explanation.
+  // See ANDROID_CRASH_ROOT_CAUSE.md for detailed explanation.
   static void _progressCallback(double progress, Pointer<Utf8> message, int userData) {
     // NO-OP: Do not execute Dart code from native thread callbacks
     // Progress monitoring is handled by polling in _waitForMetadataCompletion
