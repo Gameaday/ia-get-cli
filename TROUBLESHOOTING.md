@@ -199,7 +199,6 @@ If you're still experiencing issues after following this guide:
 
 1. **Check the documentation**:
    - [Mobile Development Guide](docs/MOBILE_DEVELOPMENT_GUIDE.md)
-   - [Flutter Dependency Fix](FLUTTER_DEPENDENCY_FIX.md)
    - [Contributing Guide](CONTRIBUTING.md)
 
 2. **Search existing issues**:
