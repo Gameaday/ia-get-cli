@@ -1567,3 +1567,103 @@ pub extern "C" fn ia_get_reset_circuit_breaker() -> IaGetErrorCode {
         }
     }
 }
+
+/// Search for archives using a query string
+///
+/// # Safety
+/// The `query` parameter must be a valid null-terminated C string pointer.
+/// The returned pointer must be freed using `ia_get_free_string`.
+/// Returns JSON array of search results or null on error.
+#[no_mangle]
+pub unsafe extern "C" fn ia_get_search_archives(
+    query: *const c_char,
+    max_results: c_int,
+) -> *mut c_char {
+    if query.is_null() {
+        eprintln!("ia_get_search_archives: null query");
+        return ptr::null_mut();
+    }
+
+    let query_str = match CStr::from_ptr(query).to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("ia_get_search_archives: invalid UTF-8 in query: {}", e);
+            return ptr::null_mut();
+        }
+    };
+
+    // Use the global runtime or create a new one
+    let rt = match RUNTIME.lock() {
+        Ok(rt_guard) => {
+            if let Some(rt) = rt_guard.as_ref() {
+                rt.handle().clone()
+            } else {
+                // Create a new runtime if one doesn't exist
+                match Runtime::new() {
+                    Ok(rt) => rt.handle().clone(),
+                    Err(e) => {
+                        eprintln!("ia_get_search_archives: failed to create runtime: {}", e);
+                        return ptr::null_mut();
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "ia_get_search_archives: failed to acquire runtime lock: {}",
+                e
+            );
+            return ptr::null_mut();
+        }
+    };
+
+    // Execute search
+    let search_result = rt.block_on(async {
+        let client_factory = HttpClientFactory::default();
+        let base_client = client_factory.create_client();
+        let mut api_client =
+            crate::infrastructure::api::archive_api::EnhancedArchiveApiClient::new(base_client);
+
+        let rows = if max_results > 0 && max_results <= 100 {
+            Some(max_results as u32)
+        } else {
+            Some(10)
+        };
+
+        match api_client
+            .search_items(
+                query_str,
+                Some("identifier,title,description,mediatype,downloads"),
+                rows,
+                None,
+            )
+            .await
+        {
+            Ok(response) => match response.text().await {
+                Ok(text) => Some(text),
+                Err(e) => {
+                    eprintln!("ia_get_search_archives: failed to read response: {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                eprintln!("ia_get_search_archives: search failed: {}", e);
+                None
+            }
+        }
+    });
+
+    match search_result {
+        Some(json) => match CString::new(json) {
+            Ok(c_string) => c_string.into_raw(),
+            Err(e) => {
+                eprintln!(
+                    "ia_get_search_archives: failed to create CString from result: {}",
+                    e
+                );
+                ptr::null_mut()
+            }
+        },
+        None => ptr::null_mut(),
+    }
+}

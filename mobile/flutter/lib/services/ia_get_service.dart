@@ -87,6 +87,10 @@ class IaGetFFI {
       Int32 Function(Int32),
       int Function(int)>('ia_get_cancel_operation');
   
+  static final _iaGetSearchArchives = dylib.lookupFunction<
+      Pointer<Utf8> Function(Pointer<Utf8>, Int32),
+      Pointer<Utf8> Function(Pointer<Utf8>, int)>('ia_get_search_archives');
+  
   /// Initialize the FFI library
   static int init() {
     return _iaGetInit();
@@ -278,6 +282,35 @@ class IaGetFFI {
   static int cancelOperation(int operationId) {
     return _iaGetCancelOperation(operationId);
   }
+  
+  /// Search for archives
+  static String? searchArchives(String query, {int maxResults = 10}) {
+    if (query.isEmpty) {
+      if (kDebugMode) print('searchArchives: empty query');
+      return null;
+    }
+    
+    final queryPtr = query.toNativeUtf8();
+    try {
+      final resultPtr = _iaGetSearchArchives(queryPtr, maxResults);
+      if (resultPtr == nullptr) return null;
+      
+      try {
+        final result = resultPtr.toDartString();
+        _iaGetFreeString(resultPtr);
+        return result;
+      } catch (e) {
+        try { _iaGetFreeString(resultPtr); } catch (_) {}
+        if (kDebugMode) print('searchArchives: failed to convert result: $e');
+        return null;
+      }
+    } catch (e) {
+      if (kDebugMode) print('searchArchives: exception: $e');
+      return null;
+    } finally {
+      malloc.free(queryPtr);
+    }
+  }
 }
 
 /// Service class for managing ia-get operations
@@ -452,7 +485,40 @@ class IaGetService extends ChangeNotifier {
         retryCount++;
         
         if (retryCount >= maxRetries) {
-          _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
+          // After all retries failed, try searching for similar archives
+          if (kDebugMode) {
+            print('Metadata fetch failed after $maxRetries attempts. Searching for similar archives...');
+          }
+          
+          // Attempt to search for similar archives
+          try {
+            final searchResults = IaGetFFI.searchArchives(trimmedIdentifier, maxResults: 5);
+            if (searchResults != null && searchResults.isNotEmpty) {
+              final searchData = jsonDecode(searchResults) as Map<String, dynamic>;
+              final docs = searchData['response']?['docs'] as List<dynamic>?;
+              
+              if (docs != null && docs.isNotEmpty) {
+                // Show error with suggestions
+                final suggestions = docs.take(5).map((doc) {
+                  final id = doc['identifier'] ?? 'unknown';
+                  final title = doc['title'] ?? id;
+                  return '$id${title != id ? " ($title)" : ""}';
+                }).join('\n• ');
+                
+                _error = 'Archive "$trimmedIdentifier" not found.\n\nDid you mean:\n• $suggestions';
+              } else {
+                _error = 'Archive "$trimmedIdentifier" not found. No similar archives found.';
+              }
+            } else {
+              _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
+            }
+          } catch (searchError) {
+            if (kDebugMode) {
+              print('Search for similar archives failed: $searchError');
+            }
+            _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
+          }
+          
           if (kDebugMode) {
             print('Metadata fetch error: $e\n$stackTrace');
           }
