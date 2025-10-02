@@ -189,3 +189,25 @@ The fixes ensure:
 - Properly displayed app icon following Android design guidelines
 - Material You theming support for modern Android devices
 - Maintainable code with updated documentation and scripts
+
+---
+
+## Documentation Cleanup (Latest Update)
+
+As part of project maintenance, redundant documentation files have been consolidated:
+
+**Removed Files** (content was duplicative or already integrated):
+- `ANDROID_CRASH_ROOT_CAUSE.md` - Root cause analysis integrated into `mobile/ANDROID_SEARCH_FIX.md`
+- `ANDROID_RESILIENCE_IMPROVEMENTS.md` - Improvements documented in this file
+- `ANDROID_IMPLEMENTATION_COMPLETE.md` - Historical completion summary
+- `RESOLUTION_SUMMARY.md` - Flutter dependency information in `TROUBLESHOOTING.md`
+- `FLUTTER_DEPENDENCY_FIX.md` - Content integrated into `TROUBLESHOOTING.md`
+
+**Retained Essential Documentation**:
+- This file (`ANDROID_ISSUES_RESOLUTION.md`) - Main Android issues summary
+- `mobile/ANDROID_SEARCH_FIX.md` - Detailed technical documentation and debugging guide
+- `ANDROID_DEPLOYMENT_GUIDE.md` - Complete deployment and Play Store submission guide
+- `SMART_ANDROID_RUST_INTERFACE.md` - Advanced FFI architecture documentation
+- `TROUBLESHOOTING.md` - General troubleshooting for all build and dependency issues
+
+This cleanup reduces documentation redundancy while maintaining all essential information for developers and users.
