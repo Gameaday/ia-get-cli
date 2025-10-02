@@ -83,6 +83,10 @@ class IaGetFFI {
       Int32 Function(),
       int Function()>('ia_get_reset_circuit_breaker');
   
+  static final _iaGetCancelOperation = dylib.lookupFunction<
+      Int32 Function(Int32),
+      int Function(int)>('ia_get_cancel_operation');
+  
   /// Initialize the FFI library
   static int init() {
     return _iaGetInit();
@@ -269,6 +273,11 @@ class IaGetFFI {
   static int resetCircuitBreaker() {
     return _iaGetResetCircuitBreaker();
   }
+  
+  /// Cancel an ongoing operation
+  static int cancelOperation(int operationId) {
+    return _iaGetCancelOperation(operationId);
+  }
 }
 
 /// Service class for managing ia-get operations
@@ -278,12 +287,14 @@ class IaGetService extends ChangeNotifier {
   String? _error;
   ArchiveMetadata? _currentMetadata;
   List<ArchiveFile> _filteredFiles = [];
+  int? _currentRequestId;
   
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
   String? get error => _error;
   ArchiveMetadata? get currentMetadata => _currentMetadata;
   List<ArchiveFile> get filteredFiles => _filteredFiles;
+  bool get canCancel => _isLoading && _currentRequestId != null;
   
   /// Initialize the service
   Future<void> initialize() async {
@@ -395,6 +406,10 @@ class IaGetService extends ChangeNotifier {
           trimmedIdentifier.hashCode, // Use identifier hash as user data
         );
         
+        // Store request ID for cancellation
+        _currentRequestId = requestId;
+        notifyListeners();
+        
         if (requestId <= 0) {
           throw Exception('Failed to start metadata fetch (request ID: $requestId)');
         }
@@ -453,7 +468,35 @@ class IaGetService extends ChangeNotifier {
     }
     
     _isLoading = false;
+    _currentRequestId = null;
     notifyListeners();
+  }
+  
+  /// Cancel the current metadata fetch operation
+  void cancelOperation() {
+    if (_currentRequestId != null) {
+      if (kDebugMode) {
+        print('Cancelling operation with request ID: $_currentRequestId');
+      }
+      
+      final result = IaGetFFI.cancelOperation(_currentRequestId!);
+      
+      if (result == 0) {
+        _isLoading = false;
+        _currentRequestId = null;
+        _error = 'Operation cancelled by user';
+        
+        if (kDebugMode) {
+          print('Operation cancelled successfully');
+        }
+      } else {
+        if (kDebugMode) {
+          print('Failed to cancel operation (error code: $result)');
+        }
+      }
+      
+      notifyListeners();
+    }
   }
   
   /// Filter files based on criteria
@@ -464,6 +507,21 @@ class IaGetService extends ChangeNotifier {
   }) {
     if (_currentMetadata == null) {
       _error = 'No metadata available to filter';
+      notifyListeners();
+      return;
+    }
+    
+    // If no filters are active, show all files (default behavior)
+    if ((includeFormats == null || includeFormats.isEmpty) &&
+        (excludeFormats == null || excludeFormats.isEmpty) &&
+        (maxSize == null || maxSize.isEmpty)) {
+      _filteredFiles = _currentMetadata!.files;
+      _error = null;
+      
+      if (kDebugMode) {
+        print('No filters active - showing all ${_filteredFiles.length} files');
+      }
+      
       notifyListeners();
       return;
     }
