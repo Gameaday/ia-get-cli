@@ -30,15 +30,6 @@ class ArchiveDetailScreen extends StatelessWidget {
               );
             },
           ),
-          // Explicitly handle the back button press
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              final service = context.read<IaGetService>();
-              service.clearMetadata();
-              Navigator.of(context).pop();
-            },
-          ),
         ),
         body: Consumer<IaGetService>(
           builder: (context, service, child) {
