@@ -14,65 +14,6 @@ class HelpScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // About section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'About This App',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Internet Archive Helper is your comprehensive companion for accessing the vast digital collection of the Internet Archive. Download books, movies, music, software, and historical documents with ease.',
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info, size: 20, color: Colors.blue[700]),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'This is an unofficial, community-developed application and is not affiliated with or endorsed by the Internet Archive.',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Version: 1.6.0'),
-                  const SizedBox(height: 8),
-                  const Text('Built with ❤️ for the Internet Archive community'),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
           // How to use section
           Card(
             child: Padding(

@@ -488,13 +488,13 @@ class IaGetService extends ChangeNotifier {
       } catch (e, stackTrace) {
         retryCount++;
         
-        if (retryCount >= maxRetries) {
-          // After all retries failed, try searching for similar archives
+        // Show suggestions after first or second failure (not after all retries)
+        if (retryCount >= 2 && _suggestions.isEmpty) {
           if (kDebugMode) {
-            print('Metadata fetch failed after $maxRetries attempts. Searching for similar archives...');
+            print('Metadata fetch failed after $retryCount attempts. Searching for similar archives...');
           }
           
-          // Attempt to search for similar archives
+          // Attempt to search for similar archives in background
           try {
             final searchResults = IaGetFFI.searchArchives(trimmedIdentifier, maxResults: 5);
             if (searchResults != null && searchResults.isNotEmpty) {
@@ -502,7 +502,7 @@ class IaGetService extends ChangeNotifier {
               final docs = searchData['response']?['docs'] as List<dynamic>?;
               
               if (docs != null && docs.isNotEmpty) {
-                // Store suggestions for display
+                // Store suggestions for display (but keep trying to fetch)
                 _suggestions = docs.take(5).map((doc) {
                   final id = (doc['identifier'] ?? 'unknown').toString();
                   final title = (doc['title'] ?? id).toString();
@@ -512,18 +512,33 @@ class IaGetService extends ChangeNotifier {
                   };
                 }).toList();
                 
-                _error = 'Archive "$trimmedIdentifier" not found. See suggestions below.';
-              } else {
-                _error = 'Archive "$trimmedIdentifier" not found. No similar archives found.';
+                // Show suggestions while continuing to try
+                if (retryCount < maxRetries) {
+                  _error = 'Still searching... See suggestions below while we continue.';
+                }
+                
+                // Notify to show suggestions immediately
+                notifyListeners();
               }
-            } else {
-              _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
             }
           } catch (searchError) {
             if (kDebugMode) {
               print('Search for similar archives failed: $searchError');
             }
-            _error = 'Failed to fetch metadata after $maxRetries attempts: $e';
+          }
+        }
+        
+        if (retryCount >= maxRetries) {
+          // After all retries failed
+          if (kDebugMode) {
+            print('Metadata fetch failed after $maxRetries attempts.');
+          }
+          
+          // Set final error message
+          if (_suggestions.isNotEmpty) {
+            _error = 'Archive "$trimmedIdentifier" not found. See suggestions below.';
+          } else {
+            _error = 'Archive "$trimmedIdentifier" not found. No similar archives found.';
           }
           
           if (kDebugMode) {
@@ -709,6 +724,15 @@ class IaGetService extends ChangeNotifier {
   
   /// Clear search suggestions
   void clearSuggestions() {
+    _suggestions = [];
+    notifyListeners();
+  }
+  
+  /// Clear current metadata and return to search state
+  void clearMetadata() {
+    _currentMetadata = null;
+    _filteredFiles = [];
+    _error = null;
     _suggestions = [];
     notifyListeners();
   }
