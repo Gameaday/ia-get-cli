@@ -118,6 +118,16 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
+          // Safety check: if we're on home screen, metadata should be cleared
+          // This prevents black screen if we somehow navigate back without clearing metadata
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && service.currentMetadata != null && !_hasNavigated) {
+              // We have metadata but haven't navigated - this shouldn't happen normally
+              // Clear it to ensure consistent state
+              service.clearMetadata();
+            }
+          });
+
           return Column(
             children: [
               // Search bar
