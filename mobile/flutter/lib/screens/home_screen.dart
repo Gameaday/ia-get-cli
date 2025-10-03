@@ -16,6 +16,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _hasNavigated = false;
+  
   @override
   void initState() {
     super.initState();
@@ -36,13 +38,21 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onServiceChanged() {
     final service = context.read<IaGetService>();
     
-    // Navigate to detail screen when metadata is loaded
-    if (service.currentMetadata != null && mounted) {
+    // Navigate to detail screen when metadata is loaded (only once)
+    if (service.currentMetadata != null && mounted && !_hasNavigated) {
+      _hasNavigated = true;
+      
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => const ArchiveDetailScreen(),
         ),
-      );
+      ).then((_) {
+        // Reset flag when returning from detail screen
+        _hasNavigated = false;
+      });
+    } else if (service.currentMetadata == null) {
+      // Reset flag when metadata is cleared
+      _hasNavigated = false;
     }
   }
 
