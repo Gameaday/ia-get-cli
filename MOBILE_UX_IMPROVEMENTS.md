@@ -112,24 +112,42 @@ ArchiveDetailScreen:
 5. **Proper Back Navigation:** Back button returns to search instead of closing the app
 6. **Reduced Redundancy:** App information consolidated in settings only
 
-## Remaining Issues from Original Report
+## Additional Improvements (Follow-up)
 
-The following issues were noted but not addressed in this PR as they require deeper investigation:
+### 6. Enhanced Metadata Filter Organization ✅
+**Problem:** File type filters and content source filters were mixed together.
 
-1. **Download/Preview Errors:**
-   - "Unknown space remaining" errors
-   - "No download URL available for this file" when using preview
-   - These may be backend API issues or require changes to download service
+**Solution:**
+- Added source type filtering as a separate section
+- Source types: Original (uploaded by users), Derivative (generated versions), Metadata (archive files)
+- File type filters remain separate for combined filtering
+- Implemented source type filtering on Dart side for efficiency
 
-2. **Metadata Filter Organization:**
-   - Request to separate content type filters (original, derivatives, metadata) from file type filters
-   - This would require changes to the filters screen UI
+**Files Changed:**
+- `mobile/flutter/lib/models/archive_metadata.dart` (added source field)
+- `mobile/flutter/lib/screens/filters_screen.dart` (added source type UI)
+- `mobile/flutter/lib/services/ia_get_service.dart` (added source filtering logic)
 
-3. **Timeout Behavior:**
-   - Request to show alternative options immediately after timeout
-   - Currently handled by showing suggestions after 2nd retry
+### 7. Fixed Download/Preview Errors ✅
+**Problem 1:** "No download URL available for this file" error when using preview.
 
-These issues can be addressed in future PRs as they require more substantial changes to download handling and filter organization.
+**Solution:**
+- Generate download URLs from server and directory information in metadata
+- URLs constructed as `https://{server}{dir}/{filename}`
+- Applied automatically when parsing metadata from FFI
+
+**Problem 2:** "Unknown space remaining" error during downloads.
+
+**Solution:**
+- Added disk_space package dependency
+- Implemented proper disk space checking using DiskSpace.getFreeDiskSpace
+- Shows accurate disk space information before starting downloads
+- Displays detailed error messages when insufficient space
+
+**Files Changed:**
+- `mobile/flutter/lib/models/archive_metadata.dart` (URL generation)
+- `mobile/flutter/lib/utils/file_utils.dart` (disk space implementation)
+- `mobile/flutter/pubspec.yaml` (added disk_space package)
 
 ## Testing Recommendations
 
