@@ -75,6 +75,7 @@ pub fn create_spinner(message: &str) -> ProgressBar {
 }
 
 /// Format a duration into a human-readable string
+#[inline]
 pub fn format_duration(duration: std::time::Duration) -> String {
     let total_secs = duration.as_secs();
     if total_secs < 60 {
@@ -93,6 +94,7 @@ pub fn format_duration(duration: std::time::Duration) -> String {
 }
 
 /// Format a size in bytes to a human-readable string
+#[inline]
 pub fn format_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
@@ -110,6 +112,7 @@ pub fn format_size(size: u64) -> String {
 }
 
 /// Format transfer rate to appropriate units
+#[inline]
 pub fn format_transfer_rate(bytes_per_sec: f64) -> (f64, &'static str) {
     const KB: f64 = 1024.0;
     const MB: f64 = KB * 1024.0;

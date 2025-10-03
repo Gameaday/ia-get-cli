@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Performance Improvements
+- **🎯 Memory Optimization**: Removed redundant `identifier` field from `RequestTracker` struct, reducing memory overhead in FFI operations
+- **✨ Code Quality**: Fixed clippy warning about unused field, achieving zero warnings
+- **📝 Documentation**: Added comprehensive `PERFORMANCE_GUIDE.md` with optimization tips, benchmarking instructions, and troubleshooting guidance
+
+### Technical Details
+- Optimized `RequestTracker` to use HashMap key instead of storing duplicate identifier
+- All 70 unit tests passing
+- Zero clippy warnings
+- All benchmarks operational
+
 ## [1.6.0] - 2025-09-02
 
 ### 🚀 Windows Long Path Support & CI/CD Optimization

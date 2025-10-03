@@ -49,6 +49,7 @@ pub trait FilterOptions {
     fn source_types(&self) -> Vec<SourceType>;
 
     /// Get resolved extensions to include (combining manual extensions and format categories)
+    #[inline]
     fn get_resolved_include_extensions(&self) -> Vec<String> {
         self.include_ext()
             .as_ref()
@@ -57,6 +58,7 @@ pub trait FilterOptions {
     }
 
     /// Get resolved extensions to exclude (combining manual extensions and format categories)
+    #[inline]
     fn get_resolved_exclude_extensions(&self) -> Vec<String> {
         self.exclude_ext()
             .as_ref()
@@ -214,6 +216,7 @@ pub fn filter_files<T: FilterOptions, F: FileEntry>(files: Vec<F>, options: &T) 
 }
 
 /// Format a byte size for human-readable display
+#[inline]
 pub fn format_size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     const THRESHOLD: f64 = 1024.0;

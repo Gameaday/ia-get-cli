@@ -75,6 +75,7 @@ ia-get --help
 
 ### Core Functionality
 - 🔽 **Fast Concurrent Downloads**: Parallel downloading with configurable concurrency limits
+- ⚡ **High Performance**: Connection pooling, adaptive buffers, and optimized hot paths (see [Performance Guide](docs/PERFORMANCE_GUIDE.md))
 - 🌳 **Directory Structure**: Preserves the original archive directory structure  
 - 🔄 **Smart Resume**: Automatically resumes partial or failed downloads
 - 🎯 **Advanced Filtering**: Filter by file type, size, and custom patterns

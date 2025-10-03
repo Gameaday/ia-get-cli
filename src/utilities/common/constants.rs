@@ -3,23 +3,33 @@
 //! Contains user agent strings, timeout values, and other configuration constants
 //! optimized for Internet Archive API compliance.
 
-/// Generate a compliant user agent string following Internet Archive recommendations
-///
-/// Format follows Mozilla/RFC standards while being descriptive enough for IA server logs:
-/// - Tool name and version
-/// - Contact information (GitHub repo)
-/// - Brief description of purpose
-/// - Platform information for compatibility tracking
-pub fn get_user_agent() -> String {
-    let version = env!("CARGO_PKG_VERSION");
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-    let repo_url = env!("CARGO_PKG_REPOSITORY");
+use lazy_static::lazy_static;
 
-    format!(
-        "ia-get-cli/{} (+{}; {}-{}) - Internet Archive batch downloader for research and archival purposes",
-        version, repo_url, os, arch
-    )
+lazy_static! {
+    /// Cached user agent string computed once at startup
+    ///
+    /// Format follows Mozilla/RFC standards while being descriptive enough for IA server logs:
+    /// - Tool name and version
+    /// - Contact information (GitHub repo)
+    /// - Brief description of purpose
+    /// - Platform information for compatibility tracking
+    static ref USER_AGENT_STRING: String = {
+        let version = env!("CARGO_PKG_VERSION");
+        let os = std::env::consts::OS;
+        let arch = std::env::consts::ARCH;
+        let repo_url = env!("CARGO_PKG_REPOSITORY");
+
+        format!(
+            "ia-get-cli/{} (+{}; {}-{}) - Internet Archive batch downloader for research and archival purposes",
+            version, repo_url, os, arch
+        )
+    };
+}
+
+/// Get a compliant user agent string following Internet Archive recommendations
+#[inline]
+pub fn get_user_agent() -> String {
+    USER_AGENT_STRING.clone()
 }
 
 /// Static user agent string for HTTP requests (fallback)
