@@ -592,6 +592,9 @@ class IaGetService extends ChangeNotifier {
     List<String>? includeFormats,
     List<String>? excludeFormats,
     String? maxSize,
+    bool includeOriginal = true,
+    bool includeDerivative = true,
+    bool includeMetadata = true,
   }) {
     if (_currentMetadata == null) {
       _error = 'No metadata available to filter';
@@ -599,10 +602,13 @@ class IaGetService extends ChangeNotifier {
       return;
     }
     
+    final hasSourceFilter = !includeOriginal || !includeDerivative || !includeMetadata;
+    
     // If no filters are active, show all files (default behavior)
     if ((includeFormats == null || includeFormats.isEmpty) &&
         (excludeFormats == null || excludeFormats.isEmpty) &&
-        (maxSize == null || maxSize.isEmpty)) {
+        (maxSize == null || maxSize.isEmpty) &&
+        !hasSourceFilter) {
       _filteredFiles = _currentMetadata!.files;
       _error = null;
       
@@ -621,6 +627,7 @@ class IaGetService extends ChangeNotifier {
       
       if (kDebugMode) {
         print('Filtering files - include: $includeFormatsStr, exclude: $excludeFormatsStr, maxSize: $maxSize');
+        print('Source filters - original: $includeOriginal, derivative: $includeDerivative, metadata: $includeMetadata');
       }
       
       final filteredJson = IaGetFFI.filterFiles(
@@ -633,9 +640,22 @@ class IaGetService extends ChangeNotifier {
       if (filteredJson != null && filteredJson.isNotEmpty) {
         try {
           final filteredList = jsonDecode(filteredJson) as List<dynamic>;
-          _filteredFiles = filteredList
+          var files = filteredList
               .map((json) => ArchiveFile.fromJson(json as Map<String, dynamic>))
               .toList();
+          
+          // Apply source type filtering on the Dart side
+          if (hasSourceFilter) {
+            files = files.where((file) {
+              final source = file.source?.toLowerCase() ?? '';
+              if (source == 'original' || source == '') return includeOriginal;
+              if (source == 'derivative') return includeDerivative;
+              if (source == 'metadata') return includeMetadata;
+              return true; // Include unknown source types by default
+            }).toList();
+          }
+          
+          _filteredFiles = files;
           _error = null; // Clear any previous errors
           
           if (kDebugMode) {
