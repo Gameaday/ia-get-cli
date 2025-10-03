@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -134,16 +135,6 @@ class PermissionUtils {
       return true;
     } catch (e) {
       debugPrint('Error checking notification permissions: $e');
-      return false;
-    }
-  }
-  
-  /// Open app settings for manual permission configuration
-  static Future<bool> openAppSettings() async {
-    try {
-      return await openAppSettings();
-    } catch (e) {
-      debugPrint('Error opening app settings: $e');
       return false;
     }
   }
