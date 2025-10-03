@@ -13,20 +13,40 @@ typedef CompletionCallbackNative = Void Function(Bool, Pointer<Utf8>, IntPtr);
 /// FFI bindings for ia-get native library
 class IaGetFFI {
   static DynamicLibrary? _dylib;
+  static String? _loadError;
 
   static DynamicLibrary get dylib {
     if (_dylib != null) return _dylib!;
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      _dylib = DynamicLibrary.open('libia_get_mobile.so');
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      _dylib = DynamicLibrary.process();
-    } else {
-      throw UnsupportedError('Platform not supported');
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        // On Android, the library is already loaded by MainActivity via System.loadLibrary()
+        // We access it via DynamicLibrary.process() to use the already-loaded symbols
+        if (kDebugMode) {
+          print('FFI: Attempting to access native library via DynamicLibrary.process() on Android...');
+        }
+        _dylib = DynamicLibrary.process();
+        if (kDebugMode) {
+          print('FFI: Successfully accessed process library on Android');
+        }
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        _dylib = DynamicLibrary.process();
+      } else {
+        throw UnsupportedError('Platform not supported: $defaultTargetPlatform');
+      }
+    } catch (e, stackTrace) {
+      _loadError = e.toString();
+      if (kDebugMode) {
+        print('FFI: Failed to load dynamic library: $e');
+        print('FFI: Stack trace: $stackTrace');
+      }
+      rethrow;
     }
 
     return _dylib!;
   }
+
+  static String? get loadError => _loadError;
 
   // FFI function signatures
   static final _iaGetInit = dylib
@@ -389,11 +409,21 @@ class IaGetService extends ChangeNotifier {
 
   /// Initialize the service
   Future<void> initialize() async {
+    if (kDebugMode) {
+      print('IaGetService: Starting initialization...');
+    }
+    
     try {
+      // Try to initialize the FFI library
+      if (kDebugMode) {
+        print('IaGetService: Calling IaGetFFI.init()...');
+      }
+      
       final result = IaGetFFI.init();
       _isInitialized = result == 0;
+      
       if (!_isInitialized) {
-        _error = 'Failed to initialize FFI library';
+        _error = 'Failed to initialize FFI library (error code: $result)';
         if (kDebugMode) {
           print('FFI initialization failed with code: $result');
         }
@@ -403,9 +433,11 @@ class IaGetService extends ChangeNotifier {
         }
       }
     } catch (e, stackTrace) {
-      _error = 'FFI initialization error: $e';
+      _error = 'FFI initialization error: ${e.toString()}';
+      _isInitialized = false;
       if (kDebugMode) {
-        print('FFI initialization exception: $e\n$stackTrace');
+        print('FFI initialization exception: $e');
+        print('Stack trace: $stackTrace');
       }
     }
     notifyListeners();
