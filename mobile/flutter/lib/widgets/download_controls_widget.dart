@@ -6,6 +6,7 @@ import '../models/archive_metadata.dart';
 import '../screens/download_screen.dart';
 import '../screens/settings_screen.dart';
 import '../utils/file_utils.dart';
+import '../utils/permission_utils.dart';
 
 class DownloadControlsWidget extends StatefulWidget {
   const DownloadControlsWidget({super.key});
@@ -385,6 +386,45 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
       return;
     }
     
+    // Check and request storage permissions first
+    final hasPermission = await PermissionUtils.hasStoragePermissions();
+    
+    if (!hasPermission) {
+      // Show rationale before requesting permission
+      final shouldRequest = await PermissionUtils.showPermissionRationaleDialog(
+        context: context,
+        title: 'Storage Permission Required',
+        message: 'This app needs storage permission to download and save files from the Internet Archive. '
+                 'Your files will be saved to the Download folder.',
+      );
+      
+      if (!shouldRequest) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Storage permission is required to download files'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      
+      // Request storage permissions
+      final granted = await PermissionUtils.requestStoragePermissions();
+      
+      if (!granted) {
+        if (!mounted) return;
+        
+        // Show settings dialog if permission was denied
+        await PermissionUtils.showSettingsDialog(
+          context: context,
+          message: 'Storage permission is required to download files. '
+                   'Please enable it in app settings to continue.',
+        );
+        return;
+      }
+    }
+    
     // Calculate total download size
     final totalSize = files.fold<int>(
       0, 
@@ -545,7 +585,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
     } catch (e) {
       if (!mounted) return;
       
-      // Show more helpful error message
+      // Show more helpful error message with actionable steps
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -567,12 +607,39 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
               const SizedBox(height: 12),
               Text(
                 '• Background download service not available\n'
-                '• Missing storage permissions\n'
+                '• Missing storage permissions (check Settings)\n'
                 '• Network connectivity issues\n'
                 '• Invalid download path',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, 
+                      size: 20, 
+                      color: Colors.orange.shade700
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tip: Make sure storage permissions are enabled in app settings',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -589,7 +656,24 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Retry after checking permissions again
+                final hasPermission = await PermissionUtils.hasStoragePermissions();
+                if (!hasPermission) {
+                  await PermissionUtils.showSettingsDialog(
+                    context: context,
+                    message: 'Storage permission is required. Please enable it in Settings.',
+                  );
+                } else {
+                  _performDownload(files);
+                }
+              },
+              icon: const Icon(Icons.refresh),
+              child: const Text('Retry'),
             ),
           ],
         ),

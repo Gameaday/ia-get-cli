@@ -30,13 +30,24 @@ class ArchiveDetailScreen extends StatelessWidget {
               );
             },
           ),
+          // Explicitly handle the back button press
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              final service = context.read<IaGetService>();
+              service.clearMetadata();
+              Navigator.of(context).pop();
+            },
+          ),
         ),
         body: Consumer<IaGetService>(
           builder: (context, service, child) {
             if (service.currentMetadata == null) {
               // If no metadata, go back to search
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pop();
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
               });
               return const Center(child: CircularProgressIndicator());
             }
