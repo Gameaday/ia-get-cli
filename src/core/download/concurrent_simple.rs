@@ -70,6 +70,7 @@ impl DownloadStats {
         }
     }
 
+    #[inline]
     pub fn update_progress(&mut self, additional_bytes: u64) {
         self.downloaded_bytes += additional_bytes;
         let elapsed = self.start_time.elapsed().as_secs_f64();
@@ -78,6 +79,7 @@ impl DownloadStats {
         }
     }
 
+    #[inline]
     pub fn completion_percentage(&self) -> f64 {
         if self.total_files == 0 {
             0.0
@@ -86,6 +88,7 @@ impl DownloadStats {
         }
     }
 
+    #[inline]
     pub fn eta_seconds(&self) -> Option<u64> {
         if self.current_speed <= 0.0 || self.downloaded_bytes >= self.total_bytes {
             return None;
@@ -94,6 +97,7 @@ impl DownloadStats {
         Some((remaining_bytes as f64 / self.current_speed) as u64)
     }
 
+    #[inline]
     pub fn format_speed(&self) -> String {
         crate::utilities::filters::format_size(self.current_speed as u64) + "/s"
     }
