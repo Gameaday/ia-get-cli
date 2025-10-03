@@ -192,47 +192,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildSectionHeader('About'),
                 
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('About This App'),
-                  subtitle: const Text('Internet Archive Helper'),
-                ),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Internet Archive Helper is your comprehensive companion for accessing the vast digital collection of the Internet Archive. Download books, movies, music, software, and historical documents with ease.',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.info, size: 20, color: Colors.blue[700]),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'This is an unofficial, community-developed application and is not affiliated with or endorsed by the Internet Archive.',
-                                style: TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                ListTile(
                   leading: const Icon(Icons.info),
                   title: const Text('App Version'),
                   subtitle: const Text('1.6.0'),
