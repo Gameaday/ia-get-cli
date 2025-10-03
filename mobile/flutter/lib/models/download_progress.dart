@@ -18,6 +18,7 @@ class DownloadProgress {
   final DownloadStatus status;
   final String? errorMessage;
   final DateTime startTime;
+  final int retryCount; // Track number of retry attempts
 
   DownloadProgress({
     required this.downloadId,
@@ -35,6 +36,7 @@ class DownloadProgress {
     required this.status,
     this.errorMessage,
     DateTime? startTime,
+    this.retryCount = 0,
   }) : startTime = startTime ?? DateTime.now();
 
   /// Create a copy with updated fields
@@ -54,6 +56,7 @@ class DownloadProgress {
     DownloadStatus? status,
     String? errorMessage,
     DateTime? startTime,
+    int? retryCount,
   }) {
     return DownloadProgress(
       downloadId: downloadId ?? this.downloadId,
@@ -71,6 +74,7 @@ class DownloadProgress {
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
       startTime: startTime ?? this.startTime,
+      retryCount: retryCount ?? this.retryCount,
     );
   }
 

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/download_progress.dart';
+import '../models/archive_metadata.dart';
+import 'ia_get_service.dart';
 import 'notification_service.dart';
 
 /// Service for managing background downloads with Android WorkManager integration
@@ -16,7 +19,8 @@ class BackgroundDownloadService extends ChangeNotifier {
   Timer? _statusUpdateTimer;
   Timer? _retryTimer;
   bool _isInitialized = false;
-  final int _maxConcurrentDownloads = 3;
+  int _maxConcurrentDownloads = 3;
+  int _maxRetries = 3;
 
   Map<String, DownloadProgress> get activeDownloads =>
       Map.unmodifiable(_activeDownloads);
@@ -29,6 +33,26 @@ class BackgroundDownloadService extends ChangeNotifier {
   int get queuedDownloadCount => _downloadQueue.length;
   int get totalDownloadCount =>
       activeDownloadCount + completedDownloadCount + queuedDownloadCount;
+  int get maxRetries => _maxRetries;
+  int get maxConcurrentDownloads => _maxConcurrentDownloads;
+
+  /// Set maximum retry attempts for failed downloads
+  set maxRetries(int value) {
+    if (value >= 0 && value <= 10) {
+      _maxRetries = value;
+      notifyListeners();
+    }
+  }
+
+  /// Set maximum concurrent downloads
+  set maxConcurrentDownloads(int value) {
+    if (value >= 1 && value <= 10) {
+      _maxConcurrentDownloads = value;
+      notifyListeners();
+      // Process queue in case we can now handle more downloads
+      _processQueue();
+    }
+  }
 
   // Statistics
   int _totalBytesDownloaded = 0;
@@ -81,6 +105,54 @@ class BackgroundDownloadService extends ChangeNotifier {
     _statusUpdateTimer?.cancel();
     _retryTimer?.cancel();
     super.dispose();
+  }
+
+  /// Validate archive metadata before downloading
+  /// Checks if the archive exists and has downloadable files
+  Future<bool> validateArchiveForDownload(String identifier) async {
+    try {
+      // Use IaGetService to fetch and validate archive metadata
+      final service = IaGetService();
+      await service.initialize();
+      await service.fetchMetadata(identifier);
+
+      if (service.currentMetadata == null) {
+        debugPrint(
+          'Archive validation failed: metadata not found for $identifier',
+        );
+        return false;
+      }
+
+      // Check if archive has files available for download
+      if (service.currentMetadata!.files.isEmpty) {
+        debugPrint(
+          'Archive validation failed: no files available in $identifier',
+        );
+        return false;
+      }
+
+      debugPrint(
+        'Archive $identifier validated successfully (${service.currentMetadata!.files.length} files)',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Archive validation error for $identifier: $e');
+      return false;
+    }
+  }
+
+  /// Get archive metadata for a download
+  /// Useful for displaying file information before starting download
+  Future<ArchiveMetadata?> getArchiveMetadata(String identifier) async {
+    try {
+      final service = IaGetService();
+      await service.initialize();
+      await service.fetchMetadata(identifier);
+      return service.currentMetadata;
+    } catch (e) {
+      debugPrint('Failed to fetch archive metadata for $identifier: $e');
+      return null;
+    }
   }
 
   /// Handle method calls from Android native code
@@ -325,14 +397,41 @@ class BackgroundDownloadService extends ChangeNotifier {
     for (final entry in failedDownloads) {
       final download = entry.value;
 
-      // Check if we should retry (implement retry count logic)
-      // For now, auto-retry once after 10 seconds
-      if (download.errorMessage != null &&
-          !download.errorMessage!.contains('Insufficient space')) {
-        debugPrint('Auto-retrying failed download: ${download.identifier}');
+      // Check if we should retry based on retry count and max retries
+      if (download.retryCount < _maxRetries) {
+        // Skip retrying for certain unrecoverable errors
+        if (download.errorMessage != null &&
+            (download.errorMessage!.contains('Insufficient space') ||
+                download.errorMessage!.contains('Permission denied') ||
+                download.errorMessage!.contains('Not found'))) {
+          debugPrint(
+            'Skipping retry for unrecoverable error: ${download.errorMessage}',
+          );
+          continue;
+        }
+
+        // Increment retry count
+        final updatedDownload = download.copyWith(
+          retryCount: download.retryCount + 1,
+          status: DownloadStatus.queued,
+        );
+        _activeDownloads[entry.key] = updatedDownload;
+
+        debugPrint(
+          'Auto-retrying failed download: ${download.identifier} (attempt ${download.retryCount + 1}/$_maxRetries)',
+        );
         await resumeDownload(entry.key);
+      } else {
+        debugPrint('Max retries reached for ${download.identifier}, giving up');
+        // Mark as permanently failed
+        final updatedDownload = download.copyWith(
+          errorMessage: '${download.errorMessage} (Max retries: $_maxRetries)',
+        );
+        _activeDownloads[entry.key] = updatedDownload;
       }
     }
+
+    notifyListeners();
   }
 
   /// Process the download queue
@@ -461,6 +560,76 @@ class BackgroundDownloadService extends ChangeNotifier {
       'activeBytesDownloaded': activeBytes,
       'averageSpeed': averageSpeed,
       'sessionDuration': sessionDuration?.inSeconds ?? 0,
+    };
+  }
+
+  /// Compute download statistics in a background isolate
+  /// This is useful for processing large download histories without blocking the UI
+  static Future<Map<String, dynamic>> computeDetailedStatistics(
+    List<DownloadProgress> downloads,
+  ) async {
+    return await Isolate.run(() => _computeStatisticsIsolate(downloads));
+  }
+
+  /// Isolate function to compute detailed statistics
+  static Map<String, dynamic> _computeStatisticsIsolate(
+    List<DownloadProgress> downloads,
+  ) {
+    // Compute various statistics without blocking the main thread
+    final totalDownloads = downloads.length;
+    final completedDownloads = downloads
+        .where((d) => d.status == DownloadStatus.completed)
+        .length;
+    final failedDownloads = downloads
+        .where((d) => d.status == DownloadStatus.error)
+        .length;
+
+    // Calculate success rate
+    final successRate = totalDownloads > 0
+        ? (completedDownloads / totalDownloads * 100)
+        : 0.0;
+
+    // Calculate total data transferred
+    final totalBytes = downloads
+        .where((d) => d.downloadedBytes != null)
+        .fold<int>(0, (sum, d) => sum + (d.downloadedBytes ?? 0));
+
+    // Calculate average speed from completed downloads
+    final downloadsWithSpeed = downloads
+        .where((d) => d.transferSpeed != null && d.transferSpeed! > 0)
+        .toList();
+    final avgSpeed = downloadsWithSpeed.isNotEmpty
+        ? downloadsWithSpeed.fold<double>(
+                0,
+                (sum, d) => sum + d.transferSpeed!,
+              ) /
+              downloadsWithSpeed.length
+        : 0.0;
+
+    // Calculate average file count per download
+    final avgFilesPerDownload = downloads.isNotEmpty
+        ? downloads.fold<int>(0, (sum, d) => sum + d.totalFiles) /
+              downloads.length
+        : 0.0;
+
+    // Count downloads that needed retries
+    final downloadsWithRetries = downloads
+        .where((d) => d.retryCount > 0)
+        .length;
+    final retryRate = totalDownloads > 0
+        ? (downloadsWithRetries / totalDownloads * 100)
+        : 0.0;
+
+    return {
+      'totalDownloads': totalDownloads,
+      'completedDownloads': completedDownloads,
+      'failedDownloads': failedDownloads,
+      'successRate': successRate,
+      'totalBytes': totalBytes,
+      'averageSpeed': avgSpeed,
+      'averageFilesPerDownload': avgFilesPerDownload,
+      'downloadsWithRetries': downloadsWithRetries,
+      'retryRate': retryRate,
     };
   }
 }

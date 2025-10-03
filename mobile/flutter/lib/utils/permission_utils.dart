@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Utility class for handling runtime permissions
@@ -146,7 +147,7 @@ class PermissionUtils {
     // This is a simplified check - in production you'd check Build.VERSION.SDK_INT
     // For now, we'll assume newer Android versions based on permission availability
     try {
-      await Permission.photos.status;
+      final status = await Permission.photos.status;
       return true; // If photos permission exists, we're on Android 13+
     } catch (e) {
       return false;
@@ -157,7 +158,7 @@ class PermissionUtils {
   static Future<bool> _isAndroid10OrHigher() async {
     // This is a simplified check
     try {
-      await Permission.manageExternalStorage.status;
+      final status = await Permission.manageExternalStorage.status;
       return true; // If this permission exists, we're on Android 10+
     } catch (e) {
       return false;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/ia_get_service.dart';
 import '../services/background_download_service.dart';
+import '../models/archive_metadata.dart';
 import '../screens/download_screen.dart';
 import '../screens/settings_screen.dart';
 import '../utils/file_utils.dart';

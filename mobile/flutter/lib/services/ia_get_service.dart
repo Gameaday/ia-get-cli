@@ -1,8 +1,10 @@
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:convert';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import '../models/archive_metadata.dart';
+import '../models/download_progress.dart';
 
 // Callback function types
 typedef ProgressCallbackNative = Void Function(Double, Pointer<Utf8>, IntPtr);
@@ -1070,5 +1072,67 @@ class IaGetService extends ChangeNotifier {
       }
       resetCircuitBreaker();
     }
+  }
+
+  /// Process download progress updates in a background isolate
+  /// This prevents UI blocking when processing large numbers of file updates
+  static Future<DownloadProgress> processProgressUpdateInIsolate(
+    Map<String, dynamic> progressData,
+    DownloadProgress? existingProgress,
+  ) async {
+    return await Isolate.run(
+      () => _processProgressIsolate(progressData, existingProgress),
+    );
+  }
+
+  /// Isolate function to process progress updates
+  static DownloadProgress _processProgressIsolate(
+    Map<String, dynamic> data,
+    DownloadProgress? existing,
+  ) {
+    // Process progress data without blocking main thread
+    final progress = (data['progress'] as num?)?.toDouble();
+    final completedFiles = data['completedFiles'] as int?;
+    final totalFiles = data['totalFiles'] as int? ?? existing?.totalFiles ?? 0;
+    final downloadedBytes = data['downloadedBytes'] as int?;
+    final totalBytes = data['totalBytes'] as int?;
+    final transferSpeed = (data['transferSpeed'] as num?)?.toDouble();
+
+    // Calculate ETA if we have speed and remaining bytes
+    int? etaSeconds;
+    if (transferSpeed != null &&
+        transferSpeed > 0 &&
+        downloadedBytes != null &&
+        totalBytes != null) {
+      final remainingBytes = totalBytes - downloadedBytes;
+      etaSeconds = (remainingBytes / transferSpeed).ceil();
+    }
+
+    if (existing != null) {
+      return existing.copyWith(
+        progress: progress,
+        completedFiles: completedFiles,
+        totalFiles: totalFiles,
+        downloadedBytes: downloadedBytes,
+        totalBytes: totalBytes,
+        transferSpeed: transferSpeed,
+        etaSeconds: etaSeconds,
+        currentFile: data['currentFile'] as String?,
+      );
+    }
+
+    return DownloadProgress(
+      downloadId: data['downloadId'] as String? ?? '',
+      identifier: data['identifier'] as String? ?? '',
+      progress: progress,
+      completedFiles: completedFiles,
+      totalFiles: totalFiles,
+      downloadedBytes: downloadedBytes,
+      totalBytes: totalBytes,
+      transferSpeed: transferSpeed,
+      etaSeconds: etaSeconds,
+      currentFile: data['currentFile'] as String?,
+      status: DownloadStatus.downloading,
+    );
   }
 }
