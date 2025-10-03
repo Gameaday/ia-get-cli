@@ -159,8 +159,8 @@ To test these changes:
    - Verify badge shows number of active filters
 
 5. **App Information:**
-   - Open Help screen - should NOT show version or about section
-   - Open Settings screen - should show complete app information
+   - Open Help screen - should show version and about section
+   - Open Settings screen - should NOT show version or IA info (settings only)
 
 ## Conclusion
 
