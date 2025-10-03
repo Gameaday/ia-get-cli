@@ -488,8 +488,8 @@ class IaGetService extends ChangeNotifier {
       } catch (e, stackTrace) {
         retryCount++;
         
-        // Show suggestions after first or second failure (not after all retries)
-        if (retryCount >= 2 && _suggestions.isEmpty) {
+        // Show suggestions after first failure (immediately)
+        if (retryCount >= 1 && _suggestions.isEmpty) {
           if (kDebugMode) {
             print('Metadata fetch failed after $retryCount attempts. Searching for similar archives...');
           }
