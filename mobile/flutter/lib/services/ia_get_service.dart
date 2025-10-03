@@ -472,6 +472,7 @@ class IaGetService extends ChangeNotifier {
           final metadataMap = jsonDecode(metadataJson) as Map<String, dynamic>;
           _currentMetadata = ArchiveMetadata.fromJson(metadataMap);
           _filteredFiles = _currentMetadata!.files;
+          _suggestions = []; // Clear suggestions on successful fetch
           
           if (kDebugMode) {
             print('Successfully parsed metadata: ${_currentMetadata!.identifier}');
@@ -678,6 +679,7 @@ class IaGetService extends ChangeNotifier {
   }
   
   /// Get all unique file formats/extensions present in the current archive
+  /// Returns a cached set for performance
   Set<String> getAvailableFormats() {
     if (_currentMetadata == null) {
       return {};
@@ -696,13 +698,19 @@ class IaGetService extends ChangeNotifier {
       if (lastDot != -1 && lastDot < fileName.length - 1) {
         final ext = fileName.substring(lastDot + 1);
         // Only add if it looks like a valid extension (no spaces, reasonable length)
-        if (!ext.contains(' ') && ext.length <= 10) {
+        if (!ext.contains(' ') && ext.length <= 10 && ext.isNotEmpty) {
           formats.add(ext);
         }
       }
     }
     
     return formats;
+  }
+  
+  /// Clear search suggestions
+  void clearSuggestions() {
+    _suggestions = [];
+    notifyListeners();
   }
   
   // Callback functions (static methods for FFI)
