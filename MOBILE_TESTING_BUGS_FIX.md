@@ -4,6 +4,26 @@ This document details the fixes applied to address all issues reported during us
 
 ## Latest Fixes (Current PR)
 
+### 14. Download Settings Modal Covers Entire Screen ✅
+
+**Problem**: The download settings page that appears from the bottom when clicking the gear icon next to file selection covered too much of the screen (70-90%), making it unclear how to close it and reducing elegance.
+
+**Root Cause**: The modal used `DraggableScrollableSheet` with fixed percentage sizes (`initialChildSize: 0.7`, `maxChildSize: 0.9`), which forced the modal to take a large portion of the screen regardless of content.
+
+**Solution**:
+- Replaced `DraggableScrollableSheet` with a `Column` using `mainAxisSize: MainAxisSize.min`
+- Modal now only takes up as much space as needed for its content
+- Added rounded top corners for better visual appearance
+- Added proper keyboard padding support with `MediaQuery.viewInsets.bottom`
+- Added `contentPadding: EdgeInsets.zero` to `SwitchListTile` widgets to prevent extra spacing
+- Kept the drag handle at the top to clearly indicate the modal can be dismissed
+- Modal is more elegant and makes it clear how to close it by showing more of the underlying screen
+
+**Files Modified**:
+- `mobile/flutter/lib/widgets/download_controls_widget.dart`
+
+---
+
 ### 9. Back Button Navigation from Archive Page Not Working ✅
 
 **Problem**: The back button from the archive detail page was broken and would navigate to nothing, requiring app restart or causing navigation issues.
@@ -247,14 +267,23 @@ This document details the fixes applied to address all issues reported during us
 
 ### For Each Fix (Latest):
 
-1. **Back Navigation from Archive Page**: 
+1. **Download Settings Modal Size**:
+   - Navigate to an archive detail screen and select files
+   - Click the gear icon next to the file selection summary
+   - Verify the settings modal only covers as much screen as needed (not 70%+)
+   - Verify you can see the underlying screen content
+   - Verify the drag handle at the top makes it clear how to dismiss
+   - Verify the modal has rounded corners at the top
+   - Test dismissing by dragging down or tapping outside
+
+2. **Back Navigation from Archive Page**: 
    - Navigate to an archive detail screen
    - Press the back button in the AppBar
    - Verify smooth return to home screen without black screen
    - Try using gesture navigation (swipe from left edge)
    - Confirm both methods work correctly
 
-2. **Storage Permissions**:
+3. **Storage Permissions**:
    - Fresh install the app or clear app data
    - Navigate to an archive and select files
    - Attempt to start a download
@@ -262,20 +291,20 @@ This document details the fixes applied to address all issues reported during us
    - Grant or deny permissions and verify appropriate behavior
    - If denied, verify settings dialog appears with option to open settings
 
-3. **Download Error Handling**:
+4. **Download Error Handling**:
    - Trigger a download failure (e.g., by denying permissions)
    - Verify enhanced error dialog shows with helpful tips
    - Click "Retry" button
    - Verify it checks permissions and retries appropriately
 
-4. **Source Type Filtering with No Results**:
+5. **Source Type Filtering with No Results**:
    - Select an archive with multiple file types
    - Apply source type filter that results in no matches (e.g., only ORIGINAL when none exist)
    - Verify clear message: "No files match the current filters"
    - Verify "Clear All Filters" button appears
    - Click the button and verify all files reappear
 
-5. **Notification Permissions**:
+6. **Notification Permissions**:
    - Fresh install on Android 13+
    - Launch app and check that notification permission is requested
    - Verify it doesn't block onboarding or app usage if denied
@@ -329,12 +358,13 @@ This document details the fixes applied to address all issues reported during us
 
 ## Summary
 
-All thirteen issues reported during user testing have been addressed with targeted, minimal changes:
+All fourteen issues reported during user testing have been addressed with targeted, minimal changes:
 
 - **Navigation Issues**: Fixed back button with explicit handler and proper canPop checks
 - **Permission Handling**: Comprehensive Android version-aware permission requests for storage and notifications
 - **Error Feedback**: Enhanced error messages with actionable tips and retry functionality
 - **Filter UX**: Clear feedback when filters result in no matches with quick recovery option
+- **Modal UX**: Download settings modal now sizes to content instead of covering most of screen
 - **Search UX**: Improved with immediate suggestions and scrolling (previously fixed)
 - **Circuit Breaker**: Proactive reset prevents failures (previously fixed)
 - **Filtering**: State persistence works correctly for all filter types (previously fixed)
