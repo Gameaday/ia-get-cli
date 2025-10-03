@@ -45,9 +45,7 @@ class ArchiveDetailScreen extends StatelessWidget {
             if (service.currentMetadata == null) {
               // If no metadata, go back to search
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                }
+                Navigator.of(context).pop();
               });
               return const Center(child: CircularProgressIndicator());
             }

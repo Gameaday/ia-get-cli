@@ -77,7 +77,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${selectedFiles.length} files selected',
+                              '${selectedFiles.length} file${selectedFiles.length == 1 ? '' : 's'} selected',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                               ),
@@ -89,6 +89,15 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                                 color: Colors.grey.shade600,
                               ),
                             ),
+                            Text(
+                              'Location: $_outputPath',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ),
@@ -96,6 +105,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                       IconButton(
                         icon: const Icon(Icons.settings),
                         onPressed: _showDownloadSettings,
+                        tooltip: 'Download settings',
                       ),
                     ],
                   ),
@@ -104,33 +114,18 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
               // Download controls
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Download button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: canDownload ? _startDownload : null,
-                        icon: const Icon(Icons.download),
-                        label: Text(canDownload 
-                            ? 'Download ${selectedFiles.length} Files'
-                            : 'Select Files to Download'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: canDownload ? _performDownload : null,
+                    icon: const Icon(Icons.download),
+                    label: Text(canDownload 
+                        ? 'Download ${selectedFiles.length} File${selectedFiles.length == 1 ? '' : 's'}'
+                        : 'Select Files to Download'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    
-                    if (canDownload) ...[
-                      const SizedBox(width: 8),
-                      
-                      // Preview button
-                      OutlinedButton.icon(
-                        onPressed: _previewDownload,
-                        icon: const Icon(Icons.preview),
-                        label: const Text('Preview'),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -266,122 +261,23 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
     );
   }
 
-  void _previewDownload() {
+  void _performDownload() async {
     final service = context.read<IaGetService>();
+    final downloadService = context.read<BackgroundDownloadService>();
     final selectedFiles = service.filteredFiles.where((f) => f.selected).toList();
-    final totalSize = service.calculateTotalSize(selectedFiles);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Download Preview'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Files to download: ${selectedFiles.length}'),
-              Text('Total size: ${_formatSize(totalSize)}'),
-              Text('Download location: $_outputPath'),
-              Text('Concurrent downloads: $_concurrentDownloads'),
-              if (_autoDecompress) const Text('• Auto-decompress enabled'),
-              if (_verifyChecksums) const Text('• Checksum verification enabled'),
-              
-              const SizedBox(height: 16),
-              const Text(
-                'Files:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              
-              Expanded(
-                child: ListView.builder(
-                  itemCount: selectedFiles.length,
-                  itemBuilder: (context, index) {
-                    final file = selectedFiles[index];
-                    return ListTile(
-                      dense: true,
-                      title: Text(
-                        file.displayName,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      trailing: Text(
-                        file.sizeFormatted,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _startDownload();
-            },
-            child: const Text('Start Download'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _startDownload() {
-    final service = context.read<IaGetService>();
-    final selectedFiles = service.filteredFiles.where((f) => f.selected).toList();
-
+    
+    if (service.currentMetadata == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No archive metadata available')),
+      );
+      return;
+    }
+    
     if (selectedFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select files to download'),
         ),
-      );
-      return;
-    }
-
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Start Download'),
-        content: Text(
-          'Download ${selectedFiles.length} files to $_outputPath?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performDownload(selectedFiles);
-            },
-            child: const Text('Start'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _performDownload(List<ArchiveFile> files) async {
-    final service = context.read<IaGetService>();
-    final downloadService = context.read<BackgroundDownloadService>();
-    
-    if (service.currentMetadata == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No archive metadata available')),
       );
       return;
     }
@@ -426,7 +322,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
     }
     
     // Calculate total download size
-    final totalSize = files.fold<int>(
+    final totalSize = selectedFiles.fold<int>(
       0, 
       (sum, file) => sum + (file.size ?? 0),
     );
@@ -500,61 +396,13 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
         ),
       );
       return;
-    } else if (hasSufficientSpace == null) {
-      // Unable to determine disk space - show confirmation with download size
-      if (!mounted) return;
-      final shouldContinue = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.download, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              const Text('Ready to Download'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Total download size: ${_formatSize(totalSize)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Make sure you have enough storage space available.',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Start Download'),
-            ),
-          ],
-        ),
-      );
-      
-      if (shouldContinue != true) return;
     }
     
     try {
       // Start background download
       final downloadId = await downloadService.startBackgroundDownload(
         identifier: service.currentMetadata!.identifier,
-        selectedFiles: files.map((f) => f.name).toList(),
+        selectedFiles: selectedFiles.map((f) => f.name).toList(),
         downloadPath: _outputPath,
         includeFormats: null, // Will be handled by file selection
         excludeFormats: null,
@@ -565,7 +413,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Download started: ${files.length} files'),
+            content: Text('Download started: ${selectedFiles.length} file${selectedFiles.length == 1 ? '' : 's'}'),
             action: SnackBarAction(
               label: 'View',
               onPressed: () {
@@ -669,7 +517,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                     message: 'Storage permission is required. Please enable it in Settings.',
                   );
                 } else {
-                  _performDownload(files);
+                  _performDownload();
                 }
               },
               icon: const Icon(Icons.refresh),
