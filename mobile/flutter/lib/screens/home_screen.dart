@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Initializing IA Get...'),
+                  Text('Initializing Internet Archive Helper...'),
                 ],
               ),
             );
