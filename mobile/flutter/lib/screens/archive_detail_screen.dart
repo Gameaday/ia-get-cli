@@ -10,6 +10,9 @@ import '../widgets/download_manager_widget.dart';
 class ArchiveDetailScreen extends StatelessWidget {
   const ArchiveDetailScreen({super.key});
 
+  /// Route name for navigation tracking and state restoration
+  static const routeName = '/archive-detail';
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -17,7 +20,8 @@ class ArchiveDetailScreen extends StatelessWidget {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           // Clear metadata when going back to search
-          final service = context.read<IaGetService>();
+          // Use Provider.of with listen: false for safer context access in callbacks
+          final service = Provider.of<IaGetService>(context, listen: false);
           service.clearMetadata();
         }
       },

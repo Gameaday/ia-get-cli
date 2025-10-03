@@ -5,6 +5,9 @@ import '../models/download_progress.dart';
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key});
 
+  /// Route name for navigation tracking
+  static const routeName = '/downloads';
+
   @override
   State<DownloadScreen> createState() => _DownloadScreenState();
 }
