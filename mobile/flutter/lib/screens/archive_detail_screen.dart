@@ -23,6 +23,14 @@ class ArchiveDetailScreen extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
           title: Consumer<IaGetService>(
             builder: (context, service, child) {
               return Text(

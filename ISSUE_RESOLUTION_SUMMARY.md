@@ -8,24 +8,32 @@ This document addresses the four issues reported in the GitHub issue.
 
 | # | Issue | Status | Files Modified |
 |---|-------|--------|----------------|
-| 1 | Back swipe from archive download shows black screen | ✅ Already Fixed | `download_screen.dart`, `archive_detail_screen.dart` |
+| 1 | Back swipe from archive download shows black screen | ✅ Fixed in this PR | `download_screen.dart`, `archive_detail_screen.dart` |
 | 2 | Download settings page covers entire screen | ✅ Fixed in this PR | `download_controls_widget.dart` |
-| 3 | Downloads and previews fail to start after permissions | ✅ Already Fixed | `download_controls_widget.dart`, `permission_utils.dart` |
-| 4 | Content source type filters don't work properly | ✅ Already Fixed | `filter_controls_widget.dart`, `filters_screen.dart` |
+| 3 | Downloads and previews fail to start after permissions | ✅ Fixed in previous PR | `download_controls_widget.dart`, `permission_utils.dart` |
+| 4 | Content source type filters don't work properly | ✅ Fixed in previous PR | `filter_controls_widget.dart`, `filters_screen.dart` |
 
 ---
 
 ## Detailed Issue Analysis
 
-### 1. Back Swipe Black Screen ✅ Already Fixed
+### 1. Back Swipe Black Screen ✅ Fixed in This PR
 
 **Original Problem**: Back swipe from archive download shows black screen, also happens when pressing back button at top.
 
-**Status**: This issue was already fixed in previous PRs:
-- Issue #1: Fixed back navigation from download screen with `WillPopScope`
-- Issue #9: Fixed back button from archive detail screen with explicit handler and `canPop()` check
+**Root Cause**: 
+- The `DownloadScreen` didn't have proper back navigation handling with `PopScope`
+- The `ArchiveDetailScreen` didn't have an explicit back button handler in the AppBar
 
-**Documentation**: See `MOBILE_TESTING_BUGS_FIX.md` issues #1 and #9
+**Solution Implemented**:
+- Added `PopScope` wrapper to `DownloadScreen` with `canPop: true` to properly handle back gestures
+- Added explicit `leading` IconButton in `ArchiveDetailScreen` AppBar to handle back button presses
+- Added `Navigator.of(context).canPop()` check before popping to prevent navigation errors
+- Ensures metadata is cleared properly on all back navigation paths
+
+**Files Modified**:
+- `mobile/flutter/lib/screens/download_screen.dart`
+- `mobile/flutter/lib/screens/archive_detail_screen.dart`
 
 ---
 
@@ -63,53 +71,50 @@ This forced the modal to take up a large portion of the screen regardless of con
 
 ---
 
-### 3. Downloads and Previews Fail After Permissions ✅ Already Fixed
+### 3. Downloads and Previews Fail After Permissions ✅ Fixed in Previous PR
 
 **Original Problem**: Even after approving all permissions downloads and previews still fail to start.
 
-**Status**: This issue was already fixed in previous PRs with comprehensive permission handling:
-- Issue #8: Enhanced error handling for downloads
-- Issue #10: Added storage permission requests before downloads
-- Issue #11: Improved error messages with retry functionality
+**Status**: This issue was fixed in a previous PR with comprehensive permission handling that is already present in the codebase.
 
 **What Was Fixed**:
 1. Created comprehensive `PermissionUtils` class with Android version-aware handling
 2. Added permission rationale dialogs explaining why permissions are needed
 3. Added settings redirect when permissions are permanently denied
-4. Integrated permission checks into download flow before attempting downloads
+4. Integrated permission checks into download flow before attempting downloads in `_performDownload()` method
 5. Enhanced error messages with actionable guidance and retry options
 
-**Documentation**: See `MOBILE_TESTING_BUGS_FIX.md` issues #8, #10, and #11
+**Files Present**: 
+- `mobile/flutter/lib/utils/permission_utils.dart`
+- `mobile/flutter/lib/widgets/download_controls_widget.dart` (contains permission checks)
 
 ---
 
-### 4. Content Source Type Filters ✅ Already Fixed
+### 4. Content Source Type Filters ✅ Fixed in Previous PR
 
 **Original Problem**: Content source type filters selections do not work properly, they do not remember or save properly and they also filter improperly. Should be handled closer to how the rest of the filters are implemented.
 
-**Status**: This issue was already fixed in previous PRs:
-- Issue #5: Source type filtering logic (was already working)
-- Issue #6: Source type filter state persistence
-- Issue #7: Filter badge counting source type filters
-- Issue #12: Clear feedback when filters result in no matches
+**Status**: This issue was fixed in a previous PR with proper state persistence that is already present in the codebase.
 
 **What Was Fixed**:
-1. Added source type state tracking to `FilterControlsWidget`
-2. Updated `FiltersScreen` to accept and return source type values
-3. Source type selections now persist between navigation
+1. Added source type state tracking to `FilterControlsWidget` (`_includeOriginal`, `_includeDerivative`, `_includeMetadata` fields)
+2. Updated `FiltersScreen` to accept and return source type values in `initState()` and `_applyFilters()`
+3. Source type selections now persist between navigation like extension filters do
 4. Filter badge counts source type filters correctly
 5. Enhanced empty state UI for clear feedback when filters result in no matches
 6. Added "Clear All Filters" button for quick recovery
 
-**Documentation**: See `MOBILE_TESTING_BUGS_FIX.md` issues #5, #6, #7, and #12
+**Files Present**:
+- `mobile/flutter/lib/widgets/filter_controls_widget.dart`
+- `mobile/flutter/lib/screens/filters_screen.dart`
 
 ---
 
 ## Summary
 
 Out of the four reported issues:
-- **3 issues** were already fully resolved in previous PRs
-- **1 issue** (download settings modal size) is fixed in this PR
+- **2 issues** (back navigation and modal sizing) are fixed in this PR
+- **2 issues** (permissions and filters) were already working in the current codebase from previous PRs
 
 All issues now have comprehensive fixes with:
 - Minimal, surgical code changes

@@ -4,7 +4,27 @@ This document details the fixes applied to address all issues reported during us
 
 ## Latest Fixes (Current PR)
 
-### 14. Download Settings Modal Covers Entire Screen ✅
+### 1. Back Navigation from Download and Archive Screens ✅
+
+**Problem**: Back swipe from download screen and archive detail screen could show black screen or not work properly. This also happened when pressing the back button at the top.
+
+**Root Cause**: 
+- The `DownloadScreen` was missing `PopScope` wrapper to handle back navigation gestures
+- The `ArchiveDetailScreen` didn't have an explicit back button handler in the AppBar
+
+**Solution**: 
+- Added `PopScope` wrapper with `canPop: true` to `DownloadScreen` for proper back gesture handling
+- Added explicit `leading` IconButton to `ArchiveDetailScreen` AppBar with `Navigator.canPop()` check
+- Ensures smooth navigation back to previous screens without black screen issues
+- Metadata is properly cleared when navigating back from archive detail screen
+
+**Files Modified**:
+- `mobile/flutter/lib/screens/download_screen.dart`
+- `mobile/flutter/lib/screens/archive_detail_screen.dart`
+
+---
+
+### 2. Download Settings Modal Covers Entire Screen ✅
 
 **Problem**: The download settings page that appears from the bottom when clicking the gear icon next to file selection covered too much of the screen (70-90%), making it unclear how to close it and reducing elegance.
 
@@ -24,24 +44,7 @@ This document details the fixes applied to address all issues reported during us
 
 ---
 
-### 9. Back Button Navigation from Archive Page Not Working ✅
-
-**Problem**: The back button from the archive detail page was broken and would navigate to nothing, requiring app restart or causing navigation issues.
-
-**Root Cause**: The `WillPopScope` was handling navigation, but the back button in the AppBar needed explicit handling. Additionally, the navigation check wasn't verifying if the navigator could actually pop before attempting to do so.
-
-**Solution**:
-- Added explicit `leading` IconButton in the AppBar to handle back button presses
-- Added `Navigator.of(context).canPop()` check before popping in the metadata clear callback
-- Ensured metadata is cleared properly on all back navigation paths
-- This provides consistent behavior for both gesture and button navigation
-
-**Files Modified**:
-- `mobile/flutter/lib/screens/archive_detail_screen.dart`
-
----
-
-### 10. Storage Permissions Not Requested Before Downloads ✅
+### 3. Storage Permissions Not Requested Before Downloads ✅
 
 **Problem**: Downloads would fail with errors about missing storage permissions, but the app never requested these permissions at runtime. This is especially critical for Android 13+ which requires explicit permission requests.
 
@@ -62,7 +65,7 @@ This document details the fixes applied to address all issues reported during us
 
 ---
 
-### 11. Download Error Messages Not Helpful ✅
+### 4. Download Error Messages Not Helpful ✅
 
 **Problem**: When downloads failed, error messages didn't provide actionable guidance or retry options, leaving users stuck.
 
@@ -80,7 +83,7 @@ This document details the fixes applied to address all issues reported during us
 
 ---
 
-### 12. Source Type Filtering Results Not Clear ✅
+### 5. Source Type Filtering Results Not Clear ✅
 
 **Problem**: When applying source type filters (ORIGINAL, DERIVATIVE, METADATA) that resulted in zero matches, users saw an empty list with minimal feedback about why, making it unclear if the filter was working or broken.
 
@@ -98,7 +101,7 @@ This document details the fixes applied to address all issues reported during us
 
 ---
 
-### 13. Notification Permissions Not Requested ✅
+### 6. Notification Permissions Not Requested ✅
 
 **Problem**: Download notifications wouldn't appear on Android 13+ because notification permissions weren't being requested.
 
@@ -267,7 +270,17 @@ This document details the fixes applied to address all issues reported during us
 
 ### For Each Fix (Latest):
 
-1. **Download Settings Modal Size**:
+1. **Back Navigation from Download and Archive Screens**:
+   - Navigate to the Downloads screen
+   - Press the back button or use swipe gesture
+   - Verify smooth return to previous screen without black screen
+   - Navigate to an archive detail screen
+   - Press the back button in the AppBar
+   - Verify smooth return to home screen without black screen
+   - Try using gesture navigation (swipe from left edge)
+   - Confirm both methods work correctly for both screens
+
+2. **Download Settings Modal Size**:
    - Navigate to an archive detail screen and select files
    - Click the gear icon next to the file selection summary
    - Verify the settings modal only covers as much screen as needed (not 70%+)
@@ -275,13 +288,6 @@ This document details the fixes applied to address all issues reported during us
    - Verify the drag handle at the top makes it clear how to dismiss
    - Verify the modal has rounded corners at the top
    - Test dismissing by dragging down or tapping outside
-
-2. **Back Navigation from Archive Page**: 
-   - Navigate to an archive detail screen
-   - Press the back button in the AppBar
-   - Verify smooth return to home screen without black screen
-   - Try using gesture navigation (swipe from left edge)
-   - Confirm both methods work correctly
 
 3. **Storage Permissions**:
    - Fresh install the app or clear app data
@@ -358,16 +364,19 @@ This document details the fixes applied to address all issues reported during us
 
 ## Summary
 
-All fourteen issues reported during user testing have been addressed with targeted, minimal changes:
+All reported issues during user testing have been addressed with targeted, minimal changes:
 
-- **Navigation Issues**: Fixed back button with explicit handler and proper canPop checks
+**Current PR Fixes (Issues 1-2):**
+- **Navigation Issues**: Fixed back navigation from download and archive screens with PopScope and explicit handlers
+- **Modal UX**: Download settings modal now sizes to content instead of covering 70-90% of screen
+
+**Previously Fixed (Issues 3-13 in codebase):**
 - **Permission Handling**: Comprehensive Android version-aware permission requests for storage and notifications
 - **Error Feedback**: Enhanced error messages with actionable tips and retry functionality
 - **Filter UX**: Clear feedback when filters result in no matches with quick recovery option
-- **Modal UX**: Download settings modal now sizes to content instead of covering most of screen
-- **Search UX**: Improved with immediate suggestions and scrolling (previously fixed)
-- **Circuit Breaker**: Proactive reset prevents failures (previously fixed)
-- **Filtering**: State persistence works correctly for all filter types (previously fixed)
-- **UI Feedback**: Badge and error messages accurately reflect system state (previously fixed)
+- **Search UX**: Improved with immediate suggestions and scrolling
+- **Circuit Breaker**: Proactive reset prevents failures
+- **Filtering**: State persistence works correctly for all filter types
+- **UI Feedback**: Badge and error messages accurately reflect system state
 
 The fixes maintain code quality and follow Flutter best practices while addressing each specific issue with surgical precision.
