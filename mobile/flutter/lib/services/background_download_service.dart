@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/download_progress.dart';
-import '../models/archive_metadata.dart';
-import 'ia_get_service.dart';
 import 'notification_service.dart';
 
 /// Service for managing background downloads with Android WorkManager integration
@@ -17,8 +14,7 @@ class BackgroundDownloadService extends ChangeNotifier {
   Timer? _statusUpdateTimer;
   Timer? _retryTimer;
   bool _isInitialized = false;
-  int _maxConcurrentDownloads = 3;
-  int _maxRetries = 3;
+  final int _maxConcurrentDownloads = 3;
 
   Map<String, DownloadProgress> get activeDownloads => Map.unmodifiable(_activeDownloads);
   Map<String, DownloadProgress> get completedDownloads => Map.unmodifiable(_completedDownloads);

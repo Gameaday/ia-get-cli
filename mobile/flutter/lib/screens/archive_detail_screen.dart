@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../services/ia_get_service.dart';
 import '../widgets/archive_info_widget.dart';
 import '../widgets/file_list_widget.dart';
-import '../widgets/filter_controls_widget.dart';
 import '../widgets/download_controls_widget.dart';
 import '../widgets/download_manager_widget.dart';
 

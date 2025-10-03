@@ -1,10 +1,8 @@
 import 'dart:ffi';
-import 'dart:isolate';
 import 'dart:convert';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import '../models/archive_metadata.dart';
-import '../models/download_progress.dart';
 
 // Callback function types
 typedef ProgressCallbackNative = Void Function(Double, Pointer<Utf8>, IntPtr);
