@@ -31,6 +31,7 @@ The project's unsafe code is already in optimal condition:
 All deprecated and obsolete code has been removed:
 
 - ✅ This PR: Removed `src/bin/ia-get-gui.rs.backup`
+- ✅ This PR: Removed unused `lazy_static` dependency (deprecated crate)
 - ✅ Previously: Old FFI interface (1,724 lines) 
 - ✅ Previously: Old CLI main (451 lines)
 - ✅ Verified: No other deprecated files exist

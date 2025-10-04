@@ -91,6 +91,15 @@ The codebase already implements best practices from previous improvements:
    - No longer needed with current implementation
    - Removed to reduce maintenance burden
 
+### Dependencies Removed
+
+#### In This PR
+1. **`lazy_static = "1.4"`** - Deprecated crate dependency
+   - This crate is no longer maintained and deprecated
+   - Was not being used anywhere in the codebase
+   - Modern Rust (1.70+) provides `std::sync::OnceLock` and `std::sync::LazyLock` (1.80+) as replacements
+   - Removed to reduce maintenance burden and dependency bloat
+
 #### Previously Removed
 1. **`src/interface/ffi.rs`** - Old FFI interface (1,724 lines)
    - Complex stateful FFI with 14+ functions

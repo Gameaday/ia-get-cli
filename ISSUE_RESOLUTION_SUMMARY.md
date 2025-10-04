@@ -24,10 +24,11 @@ Conducted a thorough analysis of all unsafe code in the repository:
 
 ### 2. Deprecated Code Removal
 
-Identified and removed all deprecated/obsolete files:
+Identified and removed all deprecated/obsolete files and dependencies:
 
 #### Removed in This PR
 - ✅ `src/bin/ia-get-gui.rs.backup` - Old GUI entry point backup file
+- ✅ `lazy_static = "1.4"` - Unused deprecated dependency (modern Rust provides `OnceLock`/`LazyLock`)
 
 #### Previously Removed (Verified)
 - ✅ `src/interface/ffi.rs` - Old FFI interface (1,724 lines)
