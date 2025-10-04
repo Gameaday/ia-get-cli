@@ -13,7 +13,10 @@ use std::time::Duration;
 /// Progress callback type for downloads
 ///
 /// Arguments: (bytes_downloaded, total_bytes)
-pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
+///
+/// Note: For synchronous downloads, Send+Sync is not required since the callback
+/// is only invoked on the same thread that calls download_file_sync
+pub type ProgressCallback = Box<dyn Fn(u64, u64)>;
 
 /// Download a file synchronously with progress tracking
 ///

@@ -7,7 +7,7 @@
 //! - Simple request-response pattern
 //! - All state managed by caller (Dart/Flutter)
 
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::os::raw::{c_char, c_int};
 use std::ptr;
 
@@ -26,7 +26,7 @@ pub enum IaGetResult {
 
 // Thread-local storage for error messages
 thread_local! {
-    static LAST_ERROR: std::cell::RefCell<Option<CString>> = std::cell::RefCell::new(None);
+    static LAST_ERROR: std::cell::RefCell<Option<CString>> = const { std::cell::RefCell::new(None) };
 }
 
 /// Set the last error message
@@ -64,8 +64,11 @@ fn clear_last_error() {
 /// # Safety
 ///
 /// The identifier must be a valid C string pointer.
+/// # Safety
+///
+/// The identifier must be a valid null-terminated C string pointer.
 #[no_mangle]
-pub extern "C" fn ia_get_fetch_metadata(identifier: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ia_get_fetch_metadata(identifier: *const c_char) -> *mut c_char {
     clear_last_error();
 
     // Validate input
@@ -75,13 +78,11 @@ pub extern "C" fn ia_get_fetch_metadata(identifier: *const c_char) -> *mut c_cha
     }
 
     // Convert C string to Rust string
-    let identifier_str = unsafe {
-        match CStr::from_ptr(identifier).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in identifier");
-                return ptr::null_mut();
-            }
+    let identifier_str = match CStr::from_ptr(identifier).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in identifier");
+            return ptr::null_mut();
         }
     };
 
@@ -105,7 +106,7 @@ pub extern "C" fn ia_get_fetch_metadata(identifier: *const c_char) -> *mut c_cha
 ///
 /// Arguments: (bytes_downloaded, total_bytes, user_data)
 pub type ProgressCallback =
-    Option<extern "C" fn(downloaded: u64, total: u64, user_data: *mut std::ffi::c_void)>;
+    Option<extern "C" fn(downloaded: u64, total: u64, user_data: *mut c_void)>;
 
 /// Download a file from URL to specified path
 ///
@@ -127,11 +128,11 @@ pub type ProgressCallback =
 ///
 /// URL and output_path must be valid C string pointers.
 #[no_mangle]
-pub extern "C" fn ia_get_download_file(
+pub unsafe extern "C" fn ia_get_download_file(
     url: *const c_char,
     output_path: *const c_char,
     progress_callback: ProgressCallback,
-    user_data: *mut std::ffi::c_void,
+    user_data: *mut c_void,
 ) -> IaGetResult {
     clear_last_error();
 
@@ -142,23 +143,19 @@ pub extern "C" fn ia_get_download_file(
     }
 
     // Convert C strings to Rust strings
-    let url_str = unsafe {
-        match CStr::from_ptr(url).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in URL");
-                return IaGetResult::ErrorInvalidInput;
-            }
+    let url_str = match CStr::from_ptr(url).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in URL");
+            return IaGetResult::ErrorInvalidInput;
         }
     };
 
-    let path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in output path");
-                return IaGetResult::ErrorInvalidInput;
-            }
+    let path_str = match CStr::from_ptr(output_path).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in output path");
+            return IaGetResult::ErrorInvalidInput;
         }
     };
 
@@ -209,7 +206,7 @@ pub extern "C" fn ia_get_download_file(
 ///
 /// Both paths must be valid C string pointers.
 #[no_mangle]
-pub extern "C" fn ia_get_decompress_file(
+pub unsafe extern "C" fn ia_get_decompress_file(
     archive_path: *const c_char,
     output_dir: *const c_char,
 ) -> *mut c_char {
@@ -222,23 +219,19 @@ pub extern "C" fn ia_get_decompress_file(
     }
 
     // Convert C strings to Rust strings
-    let archive_str = unsafe {
-        match CStr::from_ptr(archive_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in archive path");
-                return ptr::null_mut();
-            }
+    let archive_str = match CStr::from_ptr(archive_path).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in archive path");
+            return ptr::null_mut();
         }
     };
 
-    let output_str = unsafe {
-        match CStr::from_ptr(output_dir).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in output directory");
-                return ptr::null_mut();
-            }
+    let output_str = match CStr::from_ptr(output_dir).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in output directory");
+            return ptr::null_mut();
         }
     };
 
@@ -276,7 +269,7 @@ pub extern "C" fn ia_get_decompress_file(
 ///
 /// All arguments must be valid C string pointers.
 #[no_mangle]
-pub extern "C" fn ia_get_validate_checksum(
+pub unsafe extern "C" fn ia_get_validate_checksum(
     file_path: *const c_char,
     expected_hash: *const c_char,
     hash_type: *const c_char,
@@ -290,33 +283,27 @@ pub extern "C" fn ia_get_validate_checksum(
     }
 
     // Convert C strings to Rust strings
-    let path_str = unsafe {
-        match CStr::from_ptr(file_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in file path");
-                return -1;
-            }
+    let path_str = match CStr::from_ptr(file_path).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in file path");
+            return -1;
         }
     };
 
-    let hash_str = unsafe {
-        match CStr::from_ptr(expected_hash).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in expected hash");
-                return -1;
-            }
+    let hash_str = match CStr::from_ptr(expected_hash).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in expected hash");
+            return -1;
         }
     };
 
-    let type_str = unsafe {
-        match CStr::from_ptr(hash_type).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                set_last_error("Invalid UTF-8 in hash type");
-                return -1;
-            }
+    let type_str = match CStr::from_ptr(hash_type).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid UTF-8 in hash type");
+            return -1;
         }
     };
 
@@ -370,44 +357,47 @@ pub extern "C" fn ia_get_last_error() -> *const c_char {
 /// The pointer must have been returned by a function in this library.
 /// Do NOT use this to free `ia_get_last_error()` results.
 #[no_mangle]
-pub extern "C" fn ia_get_free_string(s: *mut c_char) {
+pub unsafe extern "C" fn ia_get_free_string(s: *mut c_char) {
     if !s.is_null() {
-        unsafe {
-            let _ = CString::from_raw(s);
-        }
+        let _ = CString::from_raw(s);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CString;
 
     #[test]
     fn test_error_handling() {
-        // Test null input
-        let result = ia_get_fetch_metadata(ptr::null());
-        assert!(result.is_null());
+        unsafe {
+            // Test null input
+            let result = ia_get_fetch_metadata(ptr::null());
+            assert!(result.is_null());
 
-        let error = ia_get_last_error();
-        assert!(!error.is_null());
+            let error = ia_get_last_error();
+            assert!(!error.is_null());
 
-        let error_msg = unsafe { CStr::from_ptr(error).to_str().unwrap() };
-        assert!(error_msg.contains("null"));
+            let error_msg = CStr::from_ptr(error).to_str().unwrap();
+            assert!(error_msg.contains("null"));
+        }
     }
 
     #[test]
     fn test_validate_checksum_null_input() {
-        let result = ia_get_validate_checksum(ptr::null(), ptr::null(), ptr::null());
-        assert_eq!(result, -1);
+        unsafe {
+            let result = ia_get_validate_checksum(ptr::null(), ptr::null(), ptr::null());
+            assert_eq!(result, -1);
 
-        let error = ia_get_last_error();
-        assert!(!error.is_null());
+            let error = ia_get_last_error();
+            assert!(!error.is_null());
+        }
     }
 
     #[test]
     fn test_free_string_null() {
         // Should not crash
-        ia_get_free_string(ptr::null_mut());
+        unsafe {
+            ia_get_free_string(ptr::null_mut());
+        }
     }
 }
