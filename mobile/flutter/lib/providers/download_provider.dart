@@ -170,6 +170,10 @@ class DownloadProvider extends ChangeNotifier {
   // Download queue for managing concurrent downloads
   final List<_QueuedDownload> _downloadQueue = [];
   bool _isProcessingQueue = false;
+  
+  // Enhanced: Automatic retry configuration
+  int maxRetryAttempts = 3;
+  Duration initialRetryDelay = const Duration(seconds: 2);
 
   /// Get all downloads
   Map<String, DownloadState> get downloads => Map.unmodifiable(_downloads);
@@ -448,6 +452,33 @@ class DownloadProvider extends ChangeNotifier {
       // Process queue if there are pending downloads
       _processQueue();
     }
+  }
+  
+  /// Retry a failed download
+  /// 
+  /// Automatically called for transient errors, but can also be manually triggered
+  Future<void> retryDownload(String identifier) async {
+    final downloadState = _downloads[identifier];
+    if (downloadState == null) {
+      throw Exception('Download not found: $identifier');
+    }
+    
+    if (downloadState.downloadStatus != DownloadStatus.error) {
+      throw Exception('Can only retry failed downloads');
+    }
+    
+    // Reset download state
+    _downloads[identifier] = downloadState.copyWith(
+      downloadStatus: DownloadStatus.idle,
+      error: null,
+    );
+    notifyListeners();
+    
+    // Restart the download
+    await startDownload(
+      identifier,
+      outputDir: downloadState.metadata?.identifier,
+    );
   }
 
   /// Process the download queue

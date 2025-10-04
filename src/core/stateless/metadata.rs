@@ -232,10 +232,10 @@ pub async fn fetch_metadata_async(identifier: &str) -> Result<ArchiveMetadata> {
             }
             Err(e) => {
                 // Only retry on transient network errors
-                let is_transient = e.is_timeout() 
-                    || e.is_connect() 
+                let is_transient = e.is_timeout()
+                    || e.is_connect()
                     || e.status().map_or(false, |s| s.is_server_error());
-                
+
                 last_error = Some(IaGetError::Network(format!("Request failed: {}", e)));
 
                 if attempt < max_retries && is_transient {
