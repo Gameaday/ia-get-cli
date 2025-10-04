@@ -321,14 +321,6 @@ class ArchiveService extends ChangeNotifier {
     return files.fold<int>(0, (sum, file) => sum + (file.size ?? 0));
   }
 
-  /// Reset circuit breaker (no-op for simplified FFI, kept for compatibility)
-  void resetCircuitBreaker() {
-    // Circuit breaker is not used in simplified FFI
-    // This method is kept for backward compatibility
-    _error = null;
-    notifyListeners();
-  }
-
   /// Search for archives (mock implementation - returns suggestions)
   Future<void> searchArchives(String query) async {
     if (query.isEmpty) {
