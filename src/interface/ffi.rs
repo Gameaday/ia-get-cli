@@ -269,6 +269,7 @@ fn next_session_id() -> i32 {
 
 /// Initialize the FFI interface
 /// Must be called once before using any other functions
+/// Returns 0 on success, non-zero error code on failure
 #[no_mangle]
 pub extern "C" fn ia_get_init() -> IaGetErrorCode {
     // Initialize logging for mobile debugging (optional)
@@ -277,6 +278,35 @@ pub extern "C" fn ia_get_init() -> IaGetErrorCode {
         // Simple logging initialization without external dependencies
         println!("ia-get FFI initialized");
     }
+
+    // Verify that critical global state is accessible
+    // This helps catch initialization issues early
+    match CIRCUIT_BREAKER.lock() {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("ia_get_init: failed to verify circuit breaker: {}", e);
+            return IaGetErrorCode::UnknownError;
+        }
+    }
+
+    match REQUEST_TRACKER.lock() {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("ia_get_init: failed to verify request tracker: {}", e);
+            return IaGetErrorCode::UnknownError;
+        }
+    }
+
+    match PERFORMANCE_METRICS.lock() {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("ia_get_init: failed to verify performance metrics: {}", e);
+            return IaGetErrorCode::UnknownError;
+        }
+    }
+
+    // Verify runtime is accessible
+    let _ = RUNTIME.handle();
 
     IaGetErrorCode::Success
 }
