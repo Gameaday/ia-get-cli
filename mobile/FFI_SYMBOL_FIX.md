@@ -64,4 +64,4 @@ $ nm -D target/release/libia_get_mobile.so | grep ia_get
 - Simplified FFI architecture: `docs/SIMPLIFIED_FFI_PROGRESS.md` (if exists)
 
 ## Note on JNI Bridge
-The JNI bridge (`mobile/rust-ffi/src/jni_bridge.rs`) still references the old FFI interface and will need updating if it's actively used. However, the Flutter app appears to use the simplified FFI directly via Dart FFI isolates, not through JNI, so this doesn't affect the immediate user-facing issue.
+The JNI bridge (`mobile/rust-ffi/src/jni_bridge.rs`) has been updated to import from the correct FFI module (`ffi_simple`). However, it still references old FFI functions (like `ia_get_init`, `ia_get_cleanup`, etc.) that don't exist in the simplified FFI interface. This module is legacy code that's not currently used by the Flutter app (which uses Dart FFI directly via isolates). The module has been marked as deprecated and will need to be rewritten or removed if JNI integration is needed in the future.

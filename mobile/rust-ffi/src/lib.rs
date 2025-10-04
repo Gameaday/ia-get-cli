@@ -7,6 +7,10 @@
 pub use ia_get::interface::ffi_simple::*;
 
 // JNI bridge for Android integration
+// NOTE: This module is legacy code that references the old FFI interface (14+ functions).
+// It is not currently used by the Flutter app, which uses the simplified FFI directly via Dart FFI.
+// If JNI integration is needed in the future, this module should be rewritten to use the
+// simplified FFI interface (6 functions) or removed entirely.
 #[cfg(target_os = "android")]
 pub mod jni_bridge;
 
