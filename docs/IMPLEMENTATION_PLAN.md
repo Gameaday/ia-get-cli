@@ -35,33 +35,33 @@ src/
 │   └── session/            # Existing (will be CLI-only)
 ```
 
-#### 1.2 Implement Stateless Metadata Module
+#### 1.2 Implement Stateless Metadata Module ✅ COMPLETE
 - [x] Plan created
-- [ ] Create `src/core/stateless/mod.rs`
-- [ ] Create `src/core/stateless/metadata.rs`
-  - [ ] `fetch_metadata_sync()` - Synchronous metadata fetching
-  - [ ] `fetch_metadata_async()` - Async version for CLI
-  - [ ] Return JSON strings for easy FFI transfer
+- [x] Create `src/core/stateless/mod.rs`
+- [x] Create `src/core/stateless/metadata.rs`
+  - [x] `fetch_metadata_sync()` - Synchronous metadata fetching
+  - [x] `fetch_metadata_async()` - Async version for CLI
+  - [x] Return JSON strings for easy FFI transfer
 
-#### 1.3 Implement Stateless Download Module
-- [ ] Create `src/core/stateless/download.rs`
-  - [ ] `download_file_sync()` - Blocking download with progress callback
-  - [ ] `download_file_async()` - Async version for CLI
-  - [ ] Support resume from offset
-  - [ ] Simple progress callback interface
+#### 1.3 Implement Stateless Download Module ✅ COMPLETE (Basic)
+- [x] Create `src/core/stateless/download.rs`
+  - [x] `download_file_sync()` - Blocking download with progress callback
+  - [ ] `download_file_async()` - Async version for CLI (TODO)
+  - [ ] Support resume from offset (TODO)
+  - [x] Simple progress callback interface
 
-#### 1.4 Implement Stateless Compression Module
-- [ ] Create `src/core/stateless/compression.rs`
-  - [ ] `decompress_archive()` - Extract archives
+#### 1.4 Implement Stateless Compression Module 🔄 IN PROGRESS
+- [x] Create `src/core/stateless/compression.rs`
+  - [ ] `decompress_archive()` - Extract archives (NEXT)
   - [ ] `compress_file()` - Create archives
   - [ ] Auto-detect format from extension
   - [ ] Return list of extracted files as JSON
 
-#### 1.5 Implement Stateless Validation Module
-- [ ] Create `src/core/stateless/validation.rs`
-  - [ ] `validate_checksum()` - Verify file integrity
-  - [ ] Support MD5, SHA1, SHA256
-  - [ ] Simple bool return for FFI
+#### 1.5 Implement Stateless Validation Module ✅ COMPLETE (Basic)
+- [x] Create `src/core/stateless/validation.rs`
+  - [x] `validate_checksum()` - Verify file integrity
+  - [x] Support MD5
+  - [ ] Support SHA1, SHA256 (TODO)
 
 ### Testing Strategy
 - Unit tests for each stateless function
