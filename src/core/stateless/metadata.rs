@@ -3,10 +3,7 @@
 //! Pure functions for fetching Internet Archive metadata without any state management.
 //! All functions are designed to be called from FFI with simple input/output.
 
-use crate::{
-    core::session::ArchiveMetadata, error::IaGetError, infrastructure::http::is_transient_error,
-    Result,
-};
+use crate::{core::session::ArchiveMetadata, error::IaGetError, Result};
 use reqwest::blocking::Client;
 use std::time::Duration;
 
@@ -22,6 +19,7 @@ const USER_AGENT: &str = concat!(
 /// Fetch metadata synchronously (blocking)
 ///
 /// This is a pure function with no state. Perfect for FFI integration.
+/// Includes Archive.org compliant rate limiting and retry logic.
 ///
 /// # Arguments
 ///
@@ -31,6 +29,13 @@ const USER_AGENT: &str = concat!(
 ///
 /// * `Ok(ArchiveMetadata)` - Successfully fetched metadata
 /// * `Err(IaGetError)` - Network or parsing error
+///
+/// # Archive.org Compliance
+///
+/// - Uses proper User-Agent identification
+/// - Implements exponential backoff on rate limiting (429, 503)
+/// - Respects Retry-After headers
+/// - Includes 150ms delay to avoid rapid-fire requests
 ///
 /// # Example
 ///
@@ -42,6 +47,10 @@ const USER_AGENT: &str = concat!(
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
+    // Small delay to be respectful to Archive.org API (150ms)
+    // This prevents rapid-fire requests when called in loops
+    std::thread::sleep(Duration::from_millis(150));
+
     // Create client with reasonable timeouts and proper User-Agent
     let client = Client::builder()
         .user_agent(USER_AGENT)
@@ -53,14 +62,39 @@ pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
     // Build metadata URL
     let url = format!("https://archive.org/metadata/{}", identifier);
 
-    // Fetch with retry logic (up to 3 attempts)
+    // Fetch with retry logic (up to 3 attempts with exponential backoff)
     let max_retries = 3;
     let mut last_error = None;
 
     for attempt in 1..=max_retries {
         match client.get(&url).header("Accept", "application/json").send() {
             Ok(response) => {
-                if response.status().is_success() {
+                let status = response.status();
+
+                // Check for rate limiting or service unavailable
+                if status.as_u16() == 429 || status.as_u16() == 503 {
+                    let retry_after = if let Some(header) = response.headers().get("Retry-After") {
+                        header
+                            .to_str()
+                            .ok()
+                            .and_then(|s| s.parse::<u64>().ok())
+                            .unwrap_or(2u64.pow(attempt))
+                    } else {
+                        // Exponential backoff: 2^attempt seconds (2s, 4s, 8s)
+                        2u64.pow(attempt)
+                    };
+
+                    last_error = Some(IaGetError::Network(format!(
+                        "Server returned {}: Rate limited or unavailable. Retry after {}s",
+                        status.as_u16(),
+                        retry_after
+                    )));
+
+                    if attempt < max_retries {
+                        std::thread::sleep(Duration::from_secs(retry_after));
+                        continue;
+                    }
+                } else if status.is_success() {
                     let text = response.text().map_err(|e| {
                         IaGetError::Network(format!("Failed to read response: {}", e))
                     })?;
@@ -84,11 +118,16 @@ pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
                 }
             }
             Err(e) => {
-                last_error = Some(e);
+                // Only retry on transient network errors
+                let is_transient = e.is_timeout()
+                    || e.is_connect()
+                    || e.status().map_or(false, |s| s.is_server_error());
 
-                // Only retry on transient errors
-                if attempt < max_retries && is_transient_error(last_error.as_ref().unwrap()) {
-                    std::thread::sleep(Duration::from_millis(1000 * attempt as u64));
+                last_error = Some(IaGetError::Network(format!("Request failed: {}", e)));
+
+                if attempt < max_retries && is_transient {
+                    // Exponential backoff for transient errors: 1s, 2s, 4s
+                    std::thread::sleep(Duration::from_millis(1000 * 2u64.pow(attempt - 1)));
                     continue;
                 }
 
@@ -192,10 +231,16 @@ pub async fn fetch_metadata_async(identifier: &str) -> Result<ArchiveMetadata> {
                 }
             }
             Err(e) => {
-                last_error = Some(e);
+                // Only retry on transient network errors
+                let is_transient = e.is_timeout() 
+                    || e.is_connect() 
+                    || e.status().map_or(false, |s| s.is_server_error());
+                
+                last_error = Some(IaGetError::Network(format!("Request failed: {}", e)));
 
-                if attempt < max_retries && is_transient_error(last_error.as_ref().unwrap()) {
-                    tokio::time::sleep(Duration::from_millis(1000 * attempt as u64)).await;
+                if attempt < max_retries && is_transient {
+                    // Exponential backoff for transient errors: 1s, 2s, 4s
+                    tokio::time::sleep(Duration::from_millis(1000 * 2u64.pow(attempt - 1))).await;
                     continue;
                 }
 
