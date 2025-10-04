@@ -6,6 +6,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/archive_metadata.dart';
 import '../models/download_progress.dart';
+import '../models/file_filter.dart';
 import '../services/ia_get_simple_service.dart';
 
 /// Download state machine for clear state transitions
@@ -241,10 +242,14 @@ class DownloadProvider extends ChangeNotifier {
   /// Start downloading an archive
   /// 
   /// If maxConcurrentDownloads is reached, the download will be queued.
+  /// 
+  /// [fileFilters] (deprecated): Use [filter] parameter instead for advanced filtering
+  /// [filter]: Advanced FileFilter object supporting subfolders, regex, size ranges, etc.
   Future<void> startDownload(
     String identifier, {
     String? outputDir,
     List<String>? fileFilters,
+    FileFilter? filter,
   }) async {
     if (_downloads.containsKey(identifier)) {
       if (_downloads[identifier]!.downloadStatus.isActive) {
@@ -259,6 +264,7 @@ class DownloadProvider extends ChangeNotifier {
         identifier: identifier,
         outputDir: outputDir,
         fileFilters: fileFilters,
+        filter: filter,
       ));
       
       // Initialize as queued state
@@ -275,7 +281,7 @@ class DownloadProvider extends ChangeNotifier {
       return;
     }
 
-    await _executeDownload(identifier, outputDir, fileFilters);
+    await _executeDownload(identifier, outputDir, fileFilters, filter);
   }
 
   /// Execute a download
@@ -283,6 +289,7 @@ class DownloadProvider extends ChangeNotifier {
     String identifier,
     String? outputDir,
     List<String>? fileFilters,
+    FileFilter? filter,
   ) async {
 
     // Initialize download state
@@ -312,13 +319,17 @@ class DownloadProvider extends ChangeNotifier {
       );
       notifyListeners();
 
-      // Enhanced: Improved file filtering with multiple patterns
+      // Enhanced: Improved file filtering with multiple patterns and advanced options
       var filesToDownload = metadata.files;
-      if (fileFilters != null && fileFilters.isNotEmpty) {
+      
+      // Use advanced filter if provided, otherwise fall back to simple fileFilters
+      if (filter != null && filter.hasActiveCriteria) {
+        filesToDownload = _applyAdvancedFilter(filesToDownload, filter);
+      } else if (fileFilters != null && fileFilters.isNotEmpty) {
         filesToDownload = filesToDownload.where((file) {
           final fileName = file.name.toLowerCase();
-          return fileFilters.any((filter) {
-            final filterLower = filter.toLowerCase();
+          return fileFilters.any((filterStr) {
+            final filterLower = filterStr.toLowerCase();
             // Support both exact contains and wildcard patterns
             if (filterLower.contains('*')) {
               // Simple wildcard matching
@@ -540,6 +551,7 @@ class DownloadProvider extends ChangeNotifier {
           queued.identifier,
           queued.outputDir,
           queued.fileFilters,
+          queued.filter,
         ).catchError((error) {
           if (kDebugMode) {
             print('Queued download failed: ${queued.identifier} - $error');
@@ -607,6 +619,106 @@ class DownloadProvider extends ChangeNotifier {
     _downloadHistory.clear();
     notifyListeners();
   }
+  
+  /// Apply advanced filter to list of files
+  List<ArchiveFile> _applyAdvancedFilter(List<ArchiveFile> files, FileFilter filter) {
+    return files.where((file) {
+      // Source type filtering
+      if (file.source != null) {
+        final source = file.source!.toLowerCase();
+        if (source == 'original' && !filter.includeOriginal) return false;
+        if (source == 'derivative' && !filter.includeDerivative) return false;
+        if (source == 'metadata' && !filter.includeMetadata) return false;
+      }
+      
+      // Format filtering
+      if (filter.includeFormats.isNotEmpty && file.format != null) {
+        if (!filter.includeFormats.contains(file.format!.toLowerCase())) {
+          return false;
+        }
+      }
+      if (filter.excludeFormats.isNotEmpty && file.format != null) {
+        if (filter.excludeFormats.contains(file.format!.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      // Size filtering
+      if (file.size != null) {
+        if (filter.minSize != null && file.size! < filter.minSize!) return false;
+        if (filter.maxSize != null && file.size! > filter.maxSize!) return false;
+      }
+      
+      // Subfolder filtering
+      if (filter.includeSubfolders.isNotEmpty) {
+        bool matchesSubfolder = filter.includeSubfolders.any((subfolder) => 
+          file.isInSubfolder(subfolder)
+        );
+        if (!matchesSubfolder) return false;
+      }
+      if (filter.excludeSubfolders.isNotEmpty) {
+        bool matchesExcluded = filter.excludeSubfolders.any((subfolder) => 
+          file.isInSubfolder(subfolder)
+        );
+        if (matchesExcluded) return false;
+      }
+      
+      // Pattern filtering (filename-based)
+      final fileName = file.filename.toLowerCase();
+      final fullPath = file.name.toLowerCase();
+      
+      if (filter.includePatterns.isNotEmpty) {
+        bool matchesPattern = filter.includePatterns.any((pattern) {
+          return _matchesPattern(fullPath, pattern, filter.useRegex);
+        });
+        if (!matchesPattern) return false;
+      }
+      
+      if (filter.excludePatterns.isNotEmpty) {
+        bool matchesExcluded = filter.excludePatterns.any((pattern) {
+          return _matchesPattern(fullPath, pattern, filter.useRegex);
+        });
+        if (matchesExcluded) return false;
+      }
+      
+      return true;
+    }).toList();
+  }
+  
+  /// Match a filename against a pattern (wildcard or regex)
+  bool _matchesPattern(String filename, String pattern, bool useRegex) {
+    final filenameLower = filename.toLowerCase();
+    final patternLower = pattern.toLowerCase();
+    
+    if (useRegex) {
+      // Treat pattern as regex
+      try {
+        final regex = RegExp(patternLower);
+        return regex.hasMatch(filenameLower);
+      } catch (_) {
+        // Invalid regex, fall back to contains
+        return filenameLower.contains(patternLower);
+      }
+    } else {
+      // Wildcard pattern matching
+      if (patternLower.contains('*') || patternLower.contains('?')) {
+        final regexPattern = patternLower
+            .replaceAll('\\', '\\\\')
+            .replaceAll('.', '\\.')
+            .replaceAll('*', '.*')
+            .replaceAll('?', '.');
+        try {
+          final regex = RegExp('^$regexPattern\$');
+          return regex.hasMatch(filenameLower);
+        } catch (_) {
+          return filenameLower.contains(patternLower);
+        }
+      } else {
+        // Simple substring matching
+        return filenameLower.contains(patternLower);
+      }
+    }
+  }
 
   /// Check if file is an archive
   bool _isArchive(String filename) {
@@ -630,11 +742,13 @@ class _QueuedDownload {
   final String identifier;
   final String? outputDir;
   final List<String>? fileFilters;
+  final FileFilter? filter;
 
   _QueuedDownload({
     required this.identifier,
     this.outputDir,
     this.fileFilters,
+    this.filter,
   });
 }
 
