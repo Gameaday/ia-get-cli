@@ -192,19 +192,24 @@ Official decision documentation following ADR pattern:
 
 ## 🔄 Alternative Approaches
 
-### If Pure Dart Doesn't Work
+### If You Want to Keep Rust as Core ⭐
 
-**Fallback 1: HTTP Bridge**
+**Simplified FFI (Hybrid Approach)** - RECOMMENDED for keeping Rust
+- Reduce from 14 to 5 FFI functions (64% reduction!)
+- Move ALL state management to Dart
+- Rust becomes stateless computation engine
+- Eliminates race conditions while keeping Rust core
+- Maintains 90%+ code reuse
+- Supports platforms Flutter doesn't run on
+- **See:** [RUST_CORE_FLUTTER_INTEGRATION.md](RUST_CORE_FLUTTER_INTEGRATION.md)
+
+### Other Options
+
+**HTTP Bridge**
 - Rust runs as embedded HTTP service
 - Flutter connects via REST API
-- Eliminates FFI complexity
+- Clean separation but more overhead
 - Maintains 90% code reuse
-
-**Fallback 2: Simplified FFI**
-- Reduce from 14 to 3-5 FFI functions
-- Move ALL state to Dart
-- Use Rust only for computation
-- Accept as technical debt
 
 ## ❓ FAQ
 

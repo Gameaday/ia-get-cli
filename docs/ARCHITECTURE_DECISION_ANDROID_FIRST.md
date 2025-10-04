@@ -40,7 +40,49 @@ The Internet Archive Helper project currently uses a Rust core with FFI bindings
 
 ## Options Considered
 
-### Option 1: Pure Flutter/Dart (Mobile-First) ✅ RECOMMENDED
+### Option 1: Simplified FFI (Hybrid - Rust Core) ✅ **CO-RECOMMENDED**
+
+**Description:** Keep Rust as core, dramatically simplify FFI, move all state to Dart.
+
+**Architecture:**
+```
+┌─────────────────────────────────────────┐
+│        Flutter App (State Owner)        │
+│        • All state management           │
+│        • Business logic in Dart         │
+│        • UI and navigation              │
+└─────────────────────────────────────────┘
+          ↓ Minimal FFI (5 functions only)
+┌─────────────────────────────────────────┐
+│     Rust Core (Stateless Engine)        │
+│     • Pure computation functions        │
+│     • No state management               │
+│     • Performance-critical operations   │
+└─────────────────────────────────────────┘
+```
+
+**Pros:**
+- ✅ Keeps Rust as single source of truth
+- ✅ 64% reduction in FFI complexity (14 → 5 functions)
+- ✅ Eliminates race conditions (state in Dart only)
+- ✅ Maintains 90%+ code reuse
+- ✅ Supports platforms Flutter doesn't run on
+- ✅ Clear separation: Rust=computation, Dart=state
+- ✅ CLI remains fully independent
+- ✅ Best of both worlds
+
+**Cons:**
+- ⚠️ Still has FFI (but much simpler)
+- ⚠️ Still two build systems
+- ⚠️ Requires architectural redesign (2 months)
+
+**Effort:** Medium (redesign architecture)
+**Risk:** Low (proven pattern, simpler than current)
+**Code Reuse:** 90%+
+
+---
+
+### Option 2: Pure Flutter/Dart (Mobile-First) ✅ **CO-RECOMMENDED**
 
 **Description:** Rewrite mobile app entirely in Dart, keep CLI as separate Rust project.
 
@@ -80,9 +122,15 @@ The Internet Archive Helper project currently uses a Rust core with FFI bindings
 
 ---
 
-### Option 2: Simplified FFI Interface
+### Option 3: Simplified FFI Interface
 
 **Description:** Keep FFI but drastically simplify to 3-5 functions only.
+
+*Note: This is essentially the same as Option 1 above. See Option 1 for full details.*
+
+---
+
+### Option 4: HTTP Bridge Architecture
 
 **Architecture:**
 ```
@@ -159,7 +207,7 @@ The Internet Archive Helper project currently uses a Rust core with FFI bindings
 
 ---
 
-### Option 4: Keep Current Architecture
+### Option 5: Keep Current Architecture
 
 **Description:** Continue with existing Rust FFI + Flutter approach.
 
@@ -183,61 +231,168 @@ The Internet Archive Helper project currently uses a Rust core with FFI bindings
 
 ## Decision Matrix
 
-| Criteria | Pure Dart | Simplified FFI | HTTP Bridge | Current FFI |
-|----------|-----------|---------------|-------------|-------------|
-| **Complexity** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
-| **Maintainability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
-| **Development Speed** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| **Debugging** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
-| **Performance** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Code Reuse** | ⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **Mobile-First** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| **Risk Level** | Low | Medium | Medium | High |
-| **Initial Effort** | High | Medium | Medium | Low |
-| **Long-term Value** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
+| Criteria | Simplified FFI | Pure Dart | HTTP Bridge | Current FFI |
+|----------|---------------|-----------|-------------|-------------|
+| **Complexity** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
+| **Maintainability** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
+| **Development Speed** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **Debugging** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| **Performance** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Code Reuse** | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Mobile-First** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **Platform Support** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Rust Core** | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Risk Level** | Low | Low | Medium | High |
+| **Initial Effort** | Medium | High | Medium | Low |
+| **Long-term Value** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ |
 
-## Recommended Decision: Option 1 - Pure Flutter/Dart
+## Recommended Decision: Two Co-Recommended Options
 
-### Rationale
+Based on the analysis, there are **two equally valid approaches** depending on your priorities:
 
-**The Pure Dart approach is recommended because it:**
+### Option A: Simplified FFI (Hybrid) - **If Keeping Rust is Priority**
 
-1. **Solves the Root Problem**
-   - Eliminates ALL FFI complexity
-   - No race conditions possible
-   - Single source of truth (per platform)
+**Choose this if:**
+- ✅ You want Rust to remain the heart of the project
+- ✅ You need support for platforms Flutter doesn't run on (embedded Linux, FreeBSD, servers)
+- ✅ You value maximum code reuse (90%+)
+- ✅ You want native performance for all operations
+- ✅ You're willing to maintain FFI (albeit much simpler)
+
+**Result:** Rust stays as core, FFI complexity reduced by 64%, race conditions eliminated.
+
+**See:** [RUST_CORE_FLUTTER_INTEGRATION.md](RUST_CORE_FLUTTER_INTEGRATION.md) for detailed implementation.
+
+### Option B: Pure Flutter/Dart - **If Mobile-First is Priority**
+
+**Choose this if:**
+- ✅ Mobile is the primary platform
+- ✅ You want the absolute simplest architecture
+- ✅ You're willing to accept separate CLI and mobile codebases
+- ✅ You prioritize development velocity over code reuse
+- ✅ You want zero FFI complexity
+
+**Result:** Two simple, independent codebases optimized for their platforms.
+
+## Recommendation Based on Your Comment
+
+Given your statement: *"I don't really feel like killing rust out of the project is what I want to do because it feels like the heart of where I started"* and the need for non-Flutter platforms:
+
+**→ Simplified FFI (Option A) is recommended for your use case.**
+
+### Rationale for Simplified FFI Approach
+
+**The Simplified FFI approach is recommended when keeping Rust is a priority because it:**
+
+1. **Preserves Rust as the Heart**
+   - Rust remains the core computation engine
+   - All platforms use the same Rust logic
+   - CLI maintains full independence
+   - Can run on any Rust-supported platform
+
+2. **Dramatically Reduces Complexity**
+   - 64% reduction in FFI functions (14 → 5)
+   - Eliminates all race conditions
+   - State management unified in Dart
    - Clear architectural boundaries
 
-2. **Optimizes for the Right Thing**
-   - Mobile users need great UX, not maximum code reuse
-   - Desktop CLI users need performance, not mobile features
-   - Each platform excels at what it does best
+3. **Best of Both Worlds**
+   - Rust performance and platform reach
+   - Flutter UI excellence and developer experience
+   - Simple FFI without current complexity
+   - High code reuse (90%+)
 
-3. **Long-term Sustainability**
-   - Easier to maintain two simple codebases than one complex integration
-   - Standard patterns for each platform
-   - Easier onboarding for contributors
-   - Faster development velocity
+4. **Platform Flexibility**
+   - Rust core runs on: Android, iOS, Windows, Mac, Linux, embedded Linux, FreeBSD, servers
+   - Flutter runs on: Android, iOS, Web, Desktop
+   - CLI works everywhere Rust runs
 
-4. **Proven Approach**
-   - Many successful apps use platform-specific implementations
-   - Flutter provides excellent mobile development experience
-   - Rust provides excellent CLI experience
-   - No need to force them together
+### The Key Insight
 
-### The "Code Reuse" Argument
+**You don't need to kill Rust to fix the FFI complexity!**
 
-**Traditional View:** "We should maximize code reuse between platforms!"
+The problem isn't Rust or FFI itself—it's **where the state lives**. Current architecture has state in both Rust and Dart, causing race conditions.
 
-**Reality Check:** 
-- Code reuse at 85% but complexity at 500% is a bad trade-off
-- The cost of maintaining complex abstractions exceeds the cost of some duplication
-- Platform-specific code allows platform-specific optimizations
-- Shared algorithms can be documented rather than forced into shared code
+**Solution:** Move ALL state to Dart, make Rust stateless. This gives you:
+- Simple FFI (5 functions vs 14)
+- No race conditions (state in one place)
+- Rust remains the source of truth for operations
+- Flutter gets full control over state and UI
 
-**Better Metric:** Complexity per feature delivered
+### Alternative: Pure Dart Approach
 
-### Migration Strategy
+For context, the Pure Dart approach has these characteristics:
+
+1. **Solves Complexity Completely**
+   - Eliminates ALL FFI complexity
+   - No race conditions possible
+   - Simplest architecture
+
+2. **Trade-offs**
+   - 0% code sharing between platforms
+   - Mobile-only focus (doesn't help CLI/server use cases)
+   - Dart performance adequate but not as fast as Rust
+
+3. **Best For**
+   - Projects where mobile is the only priority
+   - Teams that want zero FFI maintenance
+   - Cases where code reuse isn't important
+
+**Given your priorities (keeping Rust as core, supporting non-Flutter platforms), the Simplified FFI approach is better.**
+
+### Migration Strategy for Simplified FFI
+
+#### Phase 1: Redesign Rust Core (2-3 weeks)
+- [ ] Separate core logic from state management
+- [ ] Create stateless function versions
+- [ ] Add synchronous wrappers for FFI
+- [ ] Test independently
+
+#### Phase 2: Simplify FFI Layer (1-2 weeks)
+- [ ] Reduce to 5 core functions
+- [ ] Remove state from FFI
+- [ ] Simplify error handling
+- [ ] Update bindings
+
+#### Phase 3: Update Flutter (2-3 weeks)
+- [ ] Move all state to Dart
+- [ ] Update FFI bindings
+- [ ] Use Isolates for blocking calls
+- [ ] Test thoroughly
+
+#### Phase 4: Deprecate Old FFI (1 week)
+- [ ] Mark old functions deprecated
+- [ ] Update documentation
+- [ ] Provide migration guide
+
+**Total: 6-9 weeks (1.5-2 months)**
+
+### Implementation Comparison
+
+**Current FFI (Complex):**
+```rust
+// 14 functions managing state
+ia_get_init()
+ia_get_create_session()
+ia_get_pause_download()
+ia_get_resume_download()
+ia_get_get_session_info()
+// ... 9 more
+```
+
+**Simplified FFI (Clean):**
+```rust
+// 5 stateless functions
+ia_get_fetch_metadata(id) -> json
+ia_get_download_file(url, path, callback) -> result
+ia_get_decompress_file(path, output) -> files
+ia_get_validate_checksum(file, hash) -> bool
+ia_get_last_error() -> string
+```
+
+### Migration Strategy (Alternative: Pure Dart)
+
+If you later decide Pure Dart is better:
 
 #### Phase 1: Proof of Concept (3 weeks)
 - Implement core functionality in pure Dart

@@ -171,19 +171,23 @@ Code Reuse:      ░░░░░░░░░░░░░░░░░░░░  0
 
 ## Alternative Approaches
 
-If the pure Dart approach proves insufficient during the proof of concept:
+If you want to keep Rust as the core (recommended for cross-platform support):
 
-### Fallback 1: HTTP Bridge
+### **Alternative 1: Simplified FFI (Hybrid Approach)** ⭐ **RECOMMENDED IF KEEPING RUST**
+- Reduce from 14 to 5 FFI functions (64% reduction!)
+- Move ALL state to Dart side
+- Rust becomes stateless computation engine
+- Maintains 90%+ code reuse
+- Eliminates race conditions while keeping Rust core
+- **See:** [RUST_CORE_FLUTTER_INTEGRATION.md](RUST_CORE_FLUTTER_INTEGRATION.md)
+
+### Fallback 2: HTTP Bridge
 - Run Rust as embedded HTTP service
 - Flutter communicates via REST API
-- Still eliminates FFI complexity
+- Clean separation but more overhead
 - Maintains 90% code reuse
 
-### Fallback 2: Simplified FFI
-- Reduce from 14 to 3-5 FFI functions
-- Move ALL state to Dart side
-- Use Rust only for pure computation
-- Still has FFI but much simpler
+If the pure Dart approach proves insufficient during the proof of concept, the Simplified FFI approach provides the best balance.
 
 ## What About the CLI?
 
