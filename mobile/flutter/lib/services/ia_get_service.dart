@@ -48,9 +48,13 @@ class IaGetFFI {
 
   static String? get loadError => _loadError;
 
-  // FFI function signatures
-  static final _iaGetInit = dylib
-      .lookupFunction<Int32 Function(), int Function()>('ia_get_init');
+  // FFI function signatures - made lazy to avoid exceptions during class initialization
+  static int Function()? __iaGetInit;
+  static int Function() get _iaGetInit {
+    if (__iaGetInit != null) return __iaGetInit!;
+    __iaGetInit = dylib.lookupFunction<Int32 Function(), int Function()>('ia_get_init');
+    return __iaGetInit!;
+  }
 
   static final _iaGetFetchMetadata = dylib
       .lookupFunction<
@@ -150,8 +154,17 @@ class IaGetFFI {
       >('ia_get_search_archives');
 
   /// Initialize the FFI library
+  /// Returns 0 on success, non-zero error code on failure
   static int init() {
-    return _iaGetInit();
+    try {
+      return _iaGetInit();
+    } catch (e) {
+      if (kDebugMode) {
+        print('FFI: Failed to initialize - symbol lookup or call failed: $e');
+      }
+      _loadError = 'Init failed: ${e.toString()}';
+      return -1;
+    }
   }
 
   /// Fetch archive metadata
@@ -439,8 +452,14 @@ class IaGetService extends ChangeNotifier {
         print('FFI initialization exception: $e');
         print('Stack trace: $stackTrace');
       }
+    } finally {
+      // ALWAYS notify listeners, even if there was an exception
+      // This ensures the UI updates to show the error state
+      if (kDebugMode) {
+        print('IaGetService: Notifying listeners (isInitialized=$_isInitialized, error=$_error)');
+      }
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   /// Fetch metadata for an archive
