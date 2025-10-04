@@ -33,7 +33,25 @@ class _DownloadScreenState extends State<DownloadScreen> {
           canPop: true,
           child: Scaffold(
             appBar: AppBar(
-              title: const Text('Downloads'),
+              title: Row(
+                children: [
+                  const Text('Downloads'),
+                  if (downloadProvider.activeDownloadCount > 0 || 
+                      downloadProvider.queuedDownloadCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        '(${downloadProvider.activeDownloadCount} active'
+                        '${downloadProvider.queuedDownloadCount > 0 
+                            ? ', ${downloadProvider.queuedDownloadCount} queued' 
+                            : ''})',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               actions: [
                 if (downloads.isNotEmpty)
                   IconButton(
