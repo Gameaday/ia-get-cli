@@ -99,6 +99,15 @@ pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
                         IaGetError::Network(format!("Failed to read response: {}", e))
                     })?;
 
+                    // Check if the response is an empty JSON object (item doesn't exist)
+                    let trimmed = text.trim();
+                    if trimmed == "{}" || trimmed.is_empty() {
+                        return Err(IaGetError::Network(format!(
+                            "Item '{}' not found or has no metadata. The Archive.org API returned an empty response.",
+                            identifier
+                        )));
+                    }
+
                     match serde_json::from_str::<ArchiveMetadata>(&text) {
                         Ok(metadata) => return Ok(metadata),
                         Err(e) => {
@@ -212,11 +221,32 @@ pub async fn fetch_metadata_async(identifier: &str) -> Result<ArchiveMetadata> {
         {
             Ok(response) => {
                 if response.status().is_success() {
-                    match response.json::<ArchiveMetadata>().await {
-                        Ok(metadata) => return Ok(metadata),
+                    // First get the text to check if it's empty
+                    match response.text().await {
+                        Ok(text) => {
+                            // Check if the response is an empty JSON object (item doesn't exist)
+                            let trimmed = text.trim();
+                            if trimmed == "{}" || trimmed.is_empty() {
+                                return Err(IaGetError::Network(format!(
+                                    "Item '{}' not found or has no metadata. The Archive.org API returned an empty response.",
+                                    identifier
+                                )));
+                            }
+
+                            // Try to parse the JSON
+                            match serde_json::from_str::<ArchiveMetadata>(&text) {
+                                Ok(metadata) => return Ok(metadata),
+                                Err(e) => {
+                                    return Err(IaGetError::Parse(format!(
+                                        "Failed to parse metadata JSON: {}",
+                                        e
+                                    )));
+                                }
+                            }
+                        }
                         Err(e) => {
-                            return Err(IaGetError::Parse(format!(
-                                "Failed to parse metadata JSON: {}",
+                            return Err(IaGetError::Network(format!(
+                                "Failed to read response: {}",
                                 e
                             )));
                         }
@@ -270,7 +300,8 @@ mod tests {
             return;
         }
 
-        let result = fetch_metadata_sync("commute_test");
+        // Use a well-known archive identifier that should always exist
+        let result = fetch_metadata_sync("goodytwoshoes00newyiala");
         assert!(
             result.is_ok(),
             "Failed to fetch metadata: {:?}",
@@ -287,7 +318,8 @@ mod tests {
             return;
         }
 
-        let result = fetch_metadata_json("commute_test");
+        // Use a well-known archive identifier that should always exist
+        let result = fetch_metadata_json("goodytwoshoes00newyiala");
         assert!(
             result.is_ok(),
             "Failed to fetch metadata JSON: {:?}",
@@ -308,7 +340,8 @@ mod tests {
             return;
         }
 
-        let result = fetch_metadata_async("commute_test").await;
+        // Use a well-known archive identifier that should always exist
+        let result = fetch_metadata_async("goodytwoshoes00newyiala").await;
         assert!(
             result.is_ok(),
             "Failed to fetch metadata: {:?}",
@@ -317,5 +350,25 @@ mod tests {
 
         let metadata = result.unwrap();
         assert!(!metadata.files.is_empty(), "No files in metadata");
+    }
+
+    #[test]
+    fn test_fetch_metadata_nonexistent() {
+        if std::env::var("CI").is_ok() {
+            return;
+        }
+
+        // Test with an identifier that returns empty JSON
+        let result = fetch_metadata_sync("commute_test");
+        assert!(result.is_err(), "Should fail for non-existent item");
+
+        if let Err(e) = result {
+            let error_msg = e.to_string();
+            assert!(
+                error_msg.contains("not found") || error_msg.contains("empty response"),
+                "Error message should indicate item not found, got: {}",
+                error_msg
+            );
+        }
     }
 }
