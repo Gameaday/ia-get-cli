@@ -166,6 +166,10 @@ class DownloadProvider extends ChangeNotifier {
   // Enhanced: Concurrent download configuration
   int maxConcurrentDownloads = 3;
   int _activeDownloads = 0;
+  
+  // Download queue for managing concurrent downloads
+  final List<_QueuedDownload> _downloadQueue = [];
+  bool _isProcessingQueue = false;
 
   /// Get all downloads
   Map<String, DownloadState> get downloads => Map.unmodifiable(_downloads);
@@ -175,6 +179,9 @@ class DownloadProvider extends ChangeNotifier {
   
   /// Get active download count
   int get activeDownloadCount => _activeDownloads;
+  
+  /// Get queued download count
+  int get queuedDownloadCount => _downloadQueue.length;
 
   /// Get specific download state
   DownloadState? getDownload(String identifier) {
@@ -193,6 +200,8 @@ class DownloadProvider extends ChangeNotifier {
   }
 
   /// Start downloading an archive
+  /// 
+  /// If maxConcurrentDownloads is reached, the download will be queued.
   Future<void> startDownload(
     String identifier, {
     String? outputDir,
@@ -203,6 +212,39 @@ class DownloadProvider extends ChangeNotifier {
         throw Exception('Download already in progress for $identifier');
       }
     }
+
+    // Check if we can start immediately or need to queue
+    if (_activeDownloads >= maxConcurrentDownloads) {
+      // Queue the download
+      _downloadQueue.add(_QueuedDownload(
+        identifier: identifier,
+        outputDir: outputDir,
+        fileFilters: fileFilters,
+      ));
+      
+      // Initialize as queued state
+      _downloads[identifier] = DownloadState(
+        identifier: identifier,
+        downloadStatus: DownloadStatus.idle,
+        startTime: DateTime.now(),
+      );
+      notifyListeners();
+      
+      if (kDebugMode) {
+        print('Download queued: $identifier (${_downloadQueue.length} in queue)');
+      }
+      return;
+    }
+
+    await _executeDownload(identifier, outputDir, fileFilters);
+  }
+
+  /// Execute a download
+  Future<void> _executeDownload(
+    String identifier,
+    String? outputDir,
+    List<String>? fileFilters,
+  ) async {
 
     // Initialize download state
     _downloads[identifier] = DownloadState(
@@ -402,6 +444,42 @@ class DownloadProvider extends ChangeNotifier {
       if (_activeDownloads > 0) {
         _activeDownloads--;
       }
+      
+      // Process queue if there are pending downloads
+      _processQueue();
+    }
+  }
+
+  /// Process the download queue
+  Future<void> _processQueue() async {
+    // Prevent concurrent queue processing
+    if (_isProcessingQueue || _downloadQueue.isEmpty) {
+      return;
+    }
+
+    _isProcessingQueue = true;
+
+    try {
+      while (_downloadQueue.isNotEmpty && _activeDownloads < maxConcurrentDownloads) {
+        final queued = _downloadQueue.removeAt(0);
+        
+        if (kDebugMode) {
+          print('Processing queued download: ${queued.identifier}');
+        }
+
+        // Execute the queued download (fire and forget to allow queue processing)
+        _executeDownload(
+          queued.identifier,
+          queued.outputDir,
+          queued.fileFilters,
+        ).catchError((error) {
+          if (kDebugMode) {
+            print('Queued download failed: ${queued.identifier} - $error');
+          }
+        });
+      }
+    } finally {
+      _isProcessingQueue = false;
     }
   }
 
@@ -453,6 +531,19 @@ class DownloadProvider extends ChangeNotifier {
         lowercaseName.endsWith('.bz2') ||
         lowercaseName.endsWith('.xz');
   }
+}
+
+/// Helper class for queued downloads
+class _QueuedDownload {
+  final String identifier;
+  final String? outputDir;
+  final List<String>? fileFilters;
+
+  _QueuedDownload({
+    required this.identifier,
+    this.outputDir,
+    this.fileFilters,
+  });
 }
 
 /// Extension to add copyWith to DownloadProgress
