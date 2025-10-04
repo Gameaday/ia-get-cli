@@ -81,16 +81,37 @@ class DownloadProvider extends ChangeNotifier {
   // State management - all in Dart!
   final Map<String, DownloadState> _downloads = {};
   final List<String> _downloadHistory = [];
+  
+  // Enhanced: Metadata caching for better performance
+  final Map<String, ArchiveMetadata> _metadataCache = {};
+  
+  // Enhanced: Concurrent download configuration
+  int maxConcurrentDownloads = 3;
+  int _activeDownloads = 0;
 
   /// Get all downloads
   Map<String, DownloadState> get downloads => Map.unmodifiable(_downloads);
 
   /// Get download history
   List<String> get downloadHistory => List.unmodifiable(_downloadHistory);
+  
+  /// Get active download count
+  int get activeDownloadCount => _activeDownloads;
 
   /// Get specific download state
   DownloadState? getDownload(String identifier) {
     return _downloads[identifier];
+  }
+  
+  /// Get cached metadata if available
+  ArchiveMetadata? getCachedMetadata(String identifier) {
+    return _metadataCache[identifier];
+  }
+  
+  /// Clear metadata cache
+  void clearMetadataCache() {
+    _metadataCache.clear();
+    notifyListeners();
   }
 
   /// Start downloading an archive
@@ -114,8 +135,16 @@ class DownloadProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Fetch metadata
-      final metadata = await _service.fetchMetadata(identifier);
+      // Fetch metadata with caching
+      ArchiveMetadata metadata;
+      if (_metadataCache.containsKey(identifier)) {
+        // Use cached metadata for better performance
+        metadata = _metadataCache[identifier]!;
+      } else {
+        // Fetch from network and cache
+        metadata = await _service.fetchMetadata(identifier);
+        _metadataCache[identifier] = metadata;
+      }
       
       _downloads[identifier] = _downloads[identifier]!.copyWith(
         metadata: metadata,
@@ -123,11 +152,23 @@ class DownloadProvider extends ChangeNotifier {
       );
       notifyListeners();
 
-      // Filter files if specified
+      // Enhanced: Improved file filtering with multiple patterns
       var filesToDownload = metadata.files;
       if (fileFilters != null && fileFilters.isNotEmpty) {
         filesToDownload = filesToDownload.where((file) {
-          return fileFilters.any((filter) => file.name.contains(filter));
+          final fileName = file.name.toLowerCase();
+          return fileFilters.any((filter) {
+            final filterLower = filter.toLowerCase();
+            // Support both exact contains and wildcard patterns
+            if (filterLower.contains('*')) {
+              // Simple wildcard matching
+              final pattern = filterLower.replaceAll('*', '.*');
+              return RegExp(pattern).hasMatch(fileName);
+            } else {
+              // Exact substring matching
+              return fileName.contains(filterLower);
+            }
+          });
         }).toList();
       }
 
@@ -137,6 +178,9 @@ class DownloadProvider extends ChangeNotifier {
 
       // Download each file
       final downloadDir = outputDir ?? '/sdcard/Download/ia-get/$identifier';
+      
+      // Track active downloads for concurrency control
+      _activeDownloads++;
       
       for (final file in filesToDownload) {
         final url = 'https://archive.org/download/$identifier/${file.name}';
@@ -257,14 +301,29 @@ class DownloadProvider extends ChangeNotifier {
         print('Stack trace: $stackTrace');
       }
 
+      // Enhanced: More specific error messages
+      String errorMessage = e.toString();
+      if (errorMessage.contains('network') || errorMessage.contains('HTTP')) {
+        errorMessage = 'Network error: Please check your internet connection';
+      } else if (errorMessage.contains('permission') || errorMessage.contains('denied')) {
+        errorMessage = 'Permission error: Cannot write to destination';
+      } else if (errorMessage.contains('space') || errorMessage.contains('full')) {
+        errorMessage = 'Storage error: Insufficient disk space';
+      }
+
       _downloads[identifier] = _downloads[identifier]!.copyWith(
         status: 'error',
-        error: e.toString(),
+        error: errorMessage,
         endTime: DateTime.now(),
       );
       notifyListeners();
 
       rethrow;
+    } finally {
+      // Ensure active download count is decremented
+      if (_activeDownloads > 0) {
+        _activeDownloads--;
+      }
     }
   }
 
