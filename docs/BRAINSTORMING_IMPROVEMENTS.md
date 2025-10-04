@@ -2,75 +2,344 @@
 
 This document brainstorms additional improvements for both the Rust CLI and Flutter UI implementations, building on the recent architecture enhancements.
 
+## 📋 Archive.org API Compliance Guidelines
+
+Before implementing any improvements, we must ensure compliance with Archive.org's API usage policies and best practices:
+
+### 1. Rate Limiting & Respectful Use
+**Guidelines:**
+- **Limit concurrent connections**: Max 3-5 concurrent downloads per user
+- **Implement exponential backoff**: On 429 (Too Many Requests) or 503 (Service Unavailable)
+- **Add delays between requests**: Minimum 100-200ms between metadata API calls
+- **Monitor response codes**: Respect server-indicated retry times
+
+**Implementation:**
+```rust
+pub struct ArchiveOrgClient {
+    max_concurrent: usize,        // Default: 3
+    request_delay_ms: u64,        // Default: 150ms
+    backoff_multiplier: f64,      // Default: 2.0
+    max_backoff_seconds: u64,     // Default: 60
+}
+
+impl ArchiveOrgClient {
+    pub async fn fetch_with_rate_limit(&self, url: &str) -> Result<Response> {
+        // Check rate limiter
+        self.rate_limiter.acquire().await;
+        
+        // Add delay between requests
+        tokio::time::sleep(Duration::from_millis(self.request_delay_ms)).await;
+        
+        // Make request with retry
+        self.fetch_with_retry(url).await
+    }
+}
+```
+
+### 2. User Agent Identification
+**Requirement:** All requests must include a descriptive User-Agent header
+
+**Implementation:**
+```rust
+// User-Agent format: ProjectName/Version (contact; purpose)
+const USER_AGENT: &str = concat!(
+    "ia-get/", env!("CARGO_PKG_VERSION"),
+    " (https://github.com/Gameaday/ia-get-cli; ",
+    "Archive downloader and helper tool)"
+);
+
+pub fn create_client() -> Result<Client> {
+    Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(Duration::from_secs(30))
+        .build()
+}
+```
+
+### 3. Bandwidth Considerations
+**Guidelines:**
+- **Respect server resources**: Don't saturate connections
+- **Implement bandwidth throttling**: Allow users to limit download speed
+- **Off-peak downloads**: Encourage scheduling for non-peak hours
+
+**Implementation:**
+```rust
+pub struct BandwidthThrottle {
+    max_bytes_per_second: Option<u64>,
+    bucket: TokenBucket,
+}
+
+impl BandwidthThrottle {
+    pub async fn acquire(&self, bytes: usize) {
+        if let Some(limit) = self.max_bytes_per_second {
+            self.bucket.wait_for_tokens(bytes).await;
+        }
+    }
+}
+```
+
+### 4. Caching & Reuse
+**Best Practices:**
+- **Cache metadata locally**: Reduce repeated API calls
+- **Use conditional requests**: If-Modified-Since headers
+- **Respect Cache-Control headers**: Honor server caching directives
+
+**Implementation:**
+```rust
+pub struct MetadataCache {
+    cache: Arc<RwLock<HashMap<String, CachedMetadata>>>,
+    ttl: Duration,  // Default: 1 hour
+}
+
+impl MetadataCache {
+    pub async fn get_or_fetch(&self, identifier: &str) -> Result<Metadata> {
+        // Check cache first
+        if let Some(cached) = self.check_cache(identifier).await {
+            return Ok(cached);
+        }
+        
+        // Fetch with conditional request
+        let metadata = self.fetch_with_etag(identifier).await?;
+        self.store(identifier, metadata.clone()).await;
+        Ok(metadata)
+    }
+}
+```
+
+### 5. Error Handling & Logging
+**Requirements:**
+- **Log API errors appropriately**: Help debugging without spamming
+- **Provide context to users**: Clear error messages
+- **Report persistent issues**: Help identify systemic problems
+
+**Implementation:**
+```rust
+pub enum ArchiveOrgError {
+    RateLimited { retry_after: Duration },
+    ServiceUnavailable { retry_after: Option<Duration> },
+    NotFound { identifier: String },
+    NetworkError { source: reqwest::Error },
+}
+
+impl ArchiveOrgError {
+    pub fn should_retry(&self) -> bool {
+        matches!(self, 
+            Self::RateLimited{..} | 
+            Self::ServiceUnavailable{..} |
+            Self::NetworkError{..}
+        )
+    }
+}
+```
+
+### 6. Respectful Concurrent Operations
+**Guidelines:**
+- **Limit parallel downloads**: Default max 3 concurrent downloads
+- **Stagger start times**: Don't start all downloads simultaneously
+- **Monitor server load indicators**: Adjust behavior based on response times
+
+**Implementation:**
+```rust
+pub struct DownloadManager {
+    semaphore: Arc<Semaphore>,
+    stagger_delay: Duration,  // Default: 500ms between starts
+}
+
+impl DownloadManager {
+    pub async fn download_batch(&self, files: Vec<FileInfo>) -> Result<()> {
+        for file in files {
+            // Wait for available slot
+            let permit = self.semaphore.acquire().await?;
+            
+            // Stagger starts to avoid thundering herd
+            tokio::time::sleep(self.stagger_delay).await;
+            
+            // Start download
+            tokio::spawn(async move {
+                let _permit = permit;  // Hold permit until complete
+                download_file(file).await
+            });
+        }
+        Ok(())
+    }
+}
+```
+
+### 7. Archive.org Specific Features
+**Leverage Archive.org APIs properly:**
+- **Use metadata API**: `https://archive.org/metadata/{identifier}`
+- **Use download URLs correctly**: `https://archive.org/download/{identifier}/{filename}`
+- **Respect item access restrictions**: Check `metadata.is_dark` and `access-restricted`
+- **Handle different media types**: Books, audio, video, software, etc.
+
+**Implementation:**
+```rust
+pub struct ArchiveItem {
+    pub identifier: String,
+    pub metadata: Metadata,
+    pub is_dark: bool,
+    pub access_restricted: bool,
+}
+
+impl ArchiveItem {
+    pub fn can_download(&self) -> bool {
+        !self.is_dark && !self.access_restricted
+    }
+    
+    pub fn get_download_url(&self, filename: &str) -> String {
+        format!(
+            "https://archive.org/download/{}/{}",
+            self.identifier,
+            filename
+        )
+    }
+}
+```
+
+### Compliance Checklist
+Before implementing any enhancement, ensure:
+- [ ] Rate limiting is implemented and configurable
+- [ ] Proper User-Agent header is set
+- [ ] Exponential backoff for retries
+- [ ] Respect for server response codes (429, 503)
+- [ ] Metadata caching to reduce API calls
+- [ ] Bandwidth throttling option available
+- [ ] Clear error messages for users
+- [ ] Logging for debugging without spam
+- [ ] Concurrent download limits enforced
+- [ ] Staggered start times for batch operations
+
 ## 🦀 Rust CLI Improvements
 
 ### 1. Performance & Efficiency
 
-#### A. Parallel Downloads
+#### A. Parallel Downloads (Archive.org Compliant)
 **Current:** Sequential file downloads
-**Improvement:** Implement parallel download capability
+**Improvement:** Implement parallel download capability with rate limiting
 ```rust
-// Use tokio for async concurrent downloads
+// Use tokio for async concurrent downloads with Archive.org compliance
+pub struct ArchiveDownloader {
+    max_concurrent: usize,      // Default: 3 (Archive.org friendly)
+    rate_limiter: RateLimiter,
+    stagger_delay: Duration,     // 500ms between starts
+}
+
 pub async fn download_files_parallel(
+    downloader: &ArchiveDownloader,
     files: Vec<FileInfo>,
-    max_concurrent: usize,
 ) -> Result<Vec<DownloadResult>> {
     use futures::stream::{self, StreamExt};
     
     stream::iter(files)
-        .map(|file| download_file(file))
-        .buffer_unordered(max_concurrent)
+        .enumerate()
+        .map(|(i, file)| async move {
+            // Stagger starts to avoid thundering herd
+            tokio::time::sleep(Duration::from_millis(i as u64 * 500)).await;
+            downloader.download_file(file).await
+        })
+        .buffer_unordered(downloader.max_concurrent)
         .collect()
         .await
 }
 ```
 **Benefits:**
-- 3-5x faster for multi-file downloads
-- Better utilization of network bandwidth
-- Configurable concurrency for different network conditions
+- 2-3x faster for multi-file downloads (limited to respect server)
+- Respectful of Archive.org resources
+- Configurable concurrency with safe defaults
+- Staggered starts prevent connection spikes
 
-#### B. Download Resume
+**Archive.org Compliance:**
+- ✅ Limits concurrent connections (default 3)
+- ✅ Staggers connection starts
+- ✅ Includes rate limiting
+- ✅ Respects server response codes
+
+#### B. Download Resume (Archive.org Compliant)
 **Current:** Downloads restart from beginning on failure
-**Improvement:** Implement HTTP range requests
+**Improvement:** Implement HTTP range requests with proper retry logic
 ```rust
 pub struct PartialDownload {
     url: String,
     output_path: PathBuf,
     bytes_downloaded: u64,
     total_bytes: u64,
+    etag: Option<String>,  // Verify file hasn't changed
 }
 
-pub fn resume_download(partial: PartialDownload) -> Result<()> {
-    let headers = Headers::from_iter([
-        ("Range", format!("bytes={}-", partial.bytes_downloaded))
-    ]);
+pub async fn resume_download(partial: PartialDownload) -> Result<()> {
+    // Verify file hasn't changed using ETag
+    if let Some(etag) = &partial.etag {
+        if !verify_etag(&partial.url, etag).await? {
+            // File changed, restart download
+            return download_from_start(&partial.url, &partial.output_path).await;
+        }
+    }
+    
+    let client = create_archive_org_client();
+    let response = client
+        .get(&partial.url)
+        .header("Range", format!("bytes={}-", partial.bytes_downloaded))
+        .send()
+        .await?;
+    
     // Continue download from last position
+    append_to_file(&partial.output_path, response).await
 }
 ```
 **Benefits:**
 - Resilient to network interruptions
-- Saves bandwidth on retry
+- Saves bandwidth on retry (respectful to Archive.org)
 - Better user experience
+- Verifies file integrity with ETags
 
-#### C. Bandwidth Throttling
+**Archive.org Compliance:**
+- ✅ Uses standard HTTP Range requests
+- ✅ Verifies file hasn't changed (ETag)
+- ✅ Reduces unnecessary bandwidth usage
+- ✅ Gracefully falls back to full download if needed
+
+#### C. Bandwidth Throttling (Archive.org Friendly)
 **Current:** No bandwidth control
-**Improvement:** Add configurable rate limiting
+**Improvement:** Add configurable rate limiting to be respectful to Archive.org
 ```rust
 pub struct BandwidthLimiter {
-    max_bytes_per_second: u64,
-    current_usage: Arc<Mutex<u64>>,
+    max_bytes_per_second: Option<u64>,
+    token_bucket: Arc<Mutex<TokenBucket>>,
 }
 
 impl BandwidthLimiter {
+    pub fn new(max_bytes_per_second: Option<u64>) -> Self {
+        Self {
+            max_bytes_per_second,
+            token_bucket: Arc::new(Mutex::new(
+                TokenBucket::new(max_bytes_per_second.unwrap_or(u64::MAX))
+            )),
+        }
+    }
+    
     pub async fn throttle(&self, bytes: usize) {
-        // Implement token bucket algorithm
+        if let Some(limit) = self.max_bytes_per_second {
+            self.token_bucket.lock().await.acquire(bytes).await;
+        }
     }
 }
+
+// Configuration examples:
+// - Default: No limit (but still respectful concurrent limits)
+// - Conservative: 1MB/s per connection
+// - Mobile: 500KB/s to save data
 ```
 **Benefits:**
 - Prevents network saturation
-- Allows background downloads
-- Better system resource management
+- Allows background downloads without impacting other activities
+- Respectful to Archive.org infrastructure
+- Configurable per user needs
+
+**Archive.org Compliance:**
+- ✅ Prevents overwhelming server connections
+- ✅ Allows users to self-limit bandwidth usage
+- ✅ Better for shared/limited connections
+- ✅ Encourages considerate usage patterns
 
 ### 2. CLI Usability
 

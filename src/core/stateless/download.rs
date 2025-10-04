@@ -10,6 +10,15 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
+/// Archive.org compliant User-Agent string
+/// Format: ProjectName/Version (contact; purpose)
+const USER_AGENT: &str = concat!(
+    "ia-get/",
+    env!("CARGO_PKG_VERSION"),
+    " (https://github.com/Gameaday/ia-get-cli; ",
+    "Internet Archive download helper)"
+);
+
 /// Progress callback type for downloads
 ///
 /// Arguments: (bytes_downloaded, total_bytes)
@@ -41,6 +50,7 @@ where
     P: AsRef<Path>,
 {
     let client = Client::builder()
+        .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(300)) // 5 minutes
         .connect_timeout(Duration::from_secs(30))
         .build()

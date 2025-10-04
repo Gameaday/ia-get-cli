@@ -10,6 +10,15 @@ use crate::{
 use reqwest::blocking::Client;
 use std::time::Duration;
 
+/// Archive.org compliant User-Agent string
+/// Format: ProjectName/Version (contact; purpose)
+const USER_AGENT: &str = concat!(
+    "ia-get/",
+    env!("CARGO_PKG_VERSION"),
+    " (https://github.com/Gameaday/ia-get-cli; ",
+    "Internet Archive download helper)"
+);
+
 /// Fetch metadata synchronously (blocking)
 ///
 /// This is a pure function with no state. Perfect for FFI integration.
@@ -33,8 +42,9 @@ use std::time::Duration;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
-    // Create client with reasonable timeouts
+    // Create client with reasonable timeouts and proper User-Agent
     let client = Client::builder()
+        .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(10))
         .build()
