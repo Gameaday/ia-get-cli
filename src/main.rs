@@ -90,10 +90,10 @@ async fn launch_gui_with_mode_switching() -> Result<()> {
     use std::sync::{Arc, Mutex};
 
     // Set up logging for GUI with error handling
-    if let Err(e) = env_logger::try_init() {
+    if let Err(_e) = env_logger::try_init() {
         // Only warn in debug builds to avoid noise
         #[cfg(debug_assertions)]
-        eprintln!("Warning: Failed to initialize logger: {}", e);
+        eprintln!("Warning: Failed to initialize logger: {}", _e);
     }
 
     // Configure GUI options with better responsiveness
