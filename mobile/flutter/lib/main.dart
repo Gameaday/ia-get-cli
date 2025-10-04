@@ -184,13 +184,9 @@ class _AppInitializerState extends State<AppInitializer> {
       deepLinkService.onArchiveLinkReceived = (identifier) {
         if (!mounted) return;
         
-        final iaGetService = context.read<IaGetService>();
-        // Only fetch metadata if service is initialized
-        if (iaGetService.isInitialized) {
-          iaGetService.fetchMetadata(identifier);
-        } else {
-          debugPrint('Deep link received but IaGetService not initialized: $identifier');
-        }
+        final archiveService = context.read<ArchiveService>();
+        // Fetch metadata (new service doesn't need explicit initialization)
+        archiveService.fetchMetadata(identifier);
       };
 
       // Request notification permissions (non-blocking, fire-and-forget)

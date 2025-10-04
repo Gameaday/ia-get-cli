@@ -341,6 +341,11 @@ class ArchiveService extends ChangeNotifier {
     }
   }
 
+  /// Notify listeners of file selection changes (for UI updates)
+  void notifyFileSelectionChanged() {
+    notifyListeners();
+  }
+
   /// Cancel current operation (no-op for simplified FFI but kept for compatibility)
   void cancelOperation() {
     _isLoading = false;
