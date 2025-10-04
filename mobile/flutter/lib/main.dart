@@ -133,6 +133,16 @@ class _AppInitializerState extends State<AppInitializer> {
   }
 
   /// Initialize app with proper sequencing and error handling
+  /// 
+  /// Startup sequence:
+  /// 1. Check onboarding status (fast, local operation)
+  /// 2. After first frame: Initialize services sequentially
+  ///    a. BackgroundDownloadService (no dependencies)
+  ///    b. DeepLinkService (independent)
+  ///    c. Set up deep link handler (with service validation)
+  ///    d. Request notification permissions (fire-and-forget)
+  /// 
+  /// All operations have timeout and error handling to prevent app hangs.
   Future<void> _initializeApp() async {
     try {
       // Step 1: Check onboarding status (fast, local check)

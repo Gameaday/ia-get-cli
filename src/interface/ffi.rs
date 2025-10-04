@@ -154,8 +154,19 @@ impl FfiSession {
 
 // Global state management for mobile platforms
 lazy_static::lazy_static! {
+    /// Tokio runtime for async operations
+    /// Uses a multi-threaded runtime with reasonable defaults
     static ref RUNTIME: Arc<Runtime> = Arc::new(
-        Runtime::new().expect("Failed to create Tokio runtime")
+        Runtime::new()
+            .unwrap_or_else(|e| {
+                eprintln!("FATAL: Failed to create Tokio runtime: {}", e);
+                eprintln!("This is likely due to system resource constraints");
+                // Fallback to basic runtime
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Failed to create fallback runtime")
+            })
     );
     static ref SESSIONS: Arc<Mutex<HashMap<i32, FfiSession>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref METADATA_CACHE: Arc<Mutex<HashMap<String, ArchiveMetadata>>> = Arc::new(Mutex::new(HashMap::new()));
