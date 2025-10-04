@@ -121,7 +121,7 @@ pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
                 // Only retry on transient network errors
                 let is_transient = e.is_timeout()
                     || e.is_connect()
-                    || e.status().map_or(false, |s| s.is_server_error());
+                    || e.status().is_some_and(|s| s.is_server_error());
 
                 last_error = Some(IaGetError::Network(format!("Request failed: {}", e)));
 
@@ -234,7 +234,7 @@ pub async fn fetch_metadata_async(identifier: &str) -> Result<ArchiveMetadata> {
                 // Only retry on transient network errors
                 let is_transient = e.is_timeout()
                     || e.is_connect()
-                    || e.status().map_or(false, |s| s.is_server_error());
+                    || e.status().is_some_and(|s| s.is_server_error());
 
                 last_error = Some(IaGetError::Network(format!("Request failed: {}", e)));
 

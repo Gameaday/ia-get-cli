@@ -124,7 +124,6 @@ where
     // Open file in append mode if resuming, create if new
     let mut file = if starting_position > 0 {
         std::fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .open(path_ref)
             .map_err(|e| IaGetError::FileSystem(format!("Failed to open file for resume: {}", e)))?
