@@ -8,12 +8,63 @@ import '../models/archive_metadata.dart';
 import '../models/download_progress.dart';
 import '../services/ia_get_simple_service.dart';
 
+/// Download state machine for clear state transitions
+enum DownloadStatus {
+  idle,
+  fetchingMetadata,
+  downloading,
+  validating,
+  extracting,
+  complete,
+  error,
+  cancelled,
+}
+
+/// Extension to convert DownloadStatus to string for backward compatibility
+extension DownloadStatusExtension on DownloadStatus {
+  String get value {
+    switch (this) {
+      case DownloadStatus.idle:
+        return 'idle';
+      case DownloadStatus.fetchingMetadata:
+        return 'fetching_metadata';
+      case DownloadStatus.downloading:
+        return 'downloading';
+      case DownloadStatus.validating:
+        return 'validating';
+      case DownloadStatus.extracting:
+        return 'extracting';
+      case DownloadStatus.complete:
+        return 'complete';
+      case DownloadStatus.error:
+        return 'error';
+      case DownloadStatus.cancelled:
+        return 'cancelled';
+    }
+  }
+  
+  /// Check if download is in progress
+  bool get isActive {
+    return this == DownloadStatus.fetchingMetadata ||
+           this == DownloadStatus.downloading ||
+           this == DownloadStatus.validating ||
+           this == DownloadStatus.extracting;
+  }
+  
+  /// Check if download has finished (success or failure)
+  bool get isFinished {
+    return this == DownloadStatus.complete ||
+           this == DownloadStatus.error ||
+           this == DownloadStatus.cancelled;
+  }
+}
+
 /// Download state for a single item
 class DownloadState {
   final String identifier;
   final ArchiveMetadata? metadata;
   final Map<String, DownloadProgress> fileProgress;
-  final String status; // 'idle', 'fetching_metadata', 'downloading', 'complete', 'error'
+  final DownloadStatus downloadStatus;
   final String? error;
   final DateTime? startTime;
   final DateTime? endTime;
@@ -22,17 +73,21 @@ class DownloadState {
     required this.identifier,
     this.metadata,
     Map<String, DownloadProgress>? fileProgress,
-    this.status = 'idle',
+    this.downloadStatus = DownloadStatus.idle,
     this.error,
     this.startTime,
     this.endTime,
   }) : fileProgress = fileProgress ?? {};
+  
+  /// Get status as string for backward compatibility
+  String get status => downloadStatus.value;
 
   DownloadState copyWith({
     String? identifier,
     ArchiveMetadata? metadata,
     Map<String, DownloadProgress>? fileProgress,
-    String? status,
+    DownloadStatus? downloadStatus,
+    String? status,  // Deprecated, use downloadStatus
     String? error,
     DateTime? startTime,
     DateTime? endTime,
@@ -41,11 +96,34 @@ class DownloadState {
       identifier: identifier ?? this.identifier,
       metadata: metadata ?? this.metadata,
       fileProgress: fileProgress ?? this.fileProgress,
-      status: status ?? this.status,
+      downloadStatus: downloadStatus ?? 
+                      (status != null ? _parseStatus(status) : this.downloadStatus),
       error: error ?? this.error,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
     );
+  }
+  
+  /// Parse status string to enum for backward compatibility
+  static DownloadStatus _parseStatus(String status) {
+    switch (status) {
+      case 'fetching_metadata':
+        return DownloadStatus.fetchingMetadata;
+      case 'downloading':
+        return DownloadStatus.downloading;
+      case 'validating':
+        return DownloadStatus.validating;
+      case 'extracting':
+        return DownloadStatus.extracting;
+      case 'complete':
+        return DownloadStatus.complete;
+      case 'error':
+        return DownloadStatus.error;
+      case 'cancelled':
+        return DownloadStatus.cancelled;
+      default:
+        return DownloadStatus.idle;
+    }
   }
 
   double get overallProgress {
@@ -121,7 +199,7 @@ class DownloadProvider extends ChangeNotifier {
     List<String>? fileFilters,
   }) async {
     if (_downloads.containsKey(identifier)) {
-      if (_downloads[identifier]!.status == 'downloading') {
+      if (_downloads[identifier]!.downloadStatus.isActive) {
         throw Exception('Download already in progress for $identifier');
       }
     }
@@ -129,7 +207,7 @@ class DownloadProvider extends ChangeNotifier {
     // Initialize download state
     _downloads[identifier] = DownloadState(
       identifier: identifier,
-      status: 'fetching_metadata',
+      downloadStatus: DownloadStatus.fetchingMetadata,
       startTime: DateTime.now(),
     );
     notifyListeners();
@@ -148,7 +226,7 @@ class DownloadProvider extends ChangeNotifier {
       
       _downloads[identifier] = _downloads[identifier]!.copyWith(
         metadata: metadata,
-        status: 'downloading',
+        downloadStatus: DownloadStatus.downloading,
       );
       notifyListeners();
 
@@ -282,7 +360,7 @@ class DownloadProvider extends ChangeNotifier {
 
       // Mark download as complete
       _downloads[identifier] = _downloads[identifier]!.copyWith(
-        status: 'complete',
+        downloadStatus: DownloadStatus.complete,
         endTime: DateTime.now(),
       );
       
@@ -312,7 +390,7 @@ class DownloadProvider extends ChangeNotifier {
       }
 
       _downloads[identifier] = _downloads[identifier]!.copyWith(
-        status: 'error',
+        downloadStatus: DownloadStatus.error,
         error: errorMessage,
         endTime: DateTime.now(),
       );
@@ -336,7 +414,7 @@ class DownloadProvider extends ChangeNotifier {
     // Note: In a full implementation, you'd need to signal the Rust side
     // to cancel the download. For now, we just update the state.
     _downloads[identifier] = _downloads[identifier]!.copyWith(
-      status: 'cancelled',
+      downloadStatus: DownloadStatus.cancelled,
       endTime: DateTime.now(),
     );
     notifyListeners();

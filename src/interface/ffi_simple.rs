@@ -1,11 +1,31 @@
 //! Simplified FFI Interface for Mobile Platforms
 //!
 //! This module provides a minimal, stateless C-compatible interface for Flutter/mobile integration.
-//! Key principles:
-//! - Only 5 core functions (down from 14+)
-//! - No state management in Rust
-//! - Simple request-response pattern
-//! - All state managed by caller (Dart/Flutter)
+//!
+//! ## Key Principles
+//!
+//! - **Only 5 core functions** (down from 14+) - Simplified API surface
+//! - **No state management in Rust** - All state owned by caller (Dart/Flutter)
+//! - **Simple request-response pattern** - No callbacks or complex async
+//! - **Stateless operations** - Each call is independent
+//! - **Safe by design** - Helper functions minimize unsafe code blocks
+//!
+//! ## Safety Improvements
+//!
+//! This module uses safe helper functions to minimize direct `unsafe` operations:
+//! - `safe_c_str_to_str` - Safely converts C strings to Rust strings with validation
+//! - `safe_str_to_c_string` - Safely converts Rust strings to C strings
+//!
+//! These helpers encapsulate all pointer validation and UTF-8 checking, reducing
+//! the surface area of unsafe code and making the FFI layer more maintainable.
+//!
+//! ## Architecture
+//!
+//! ```text
+//! Flutter (Dart) --> FFI Bindings --> Safe Helpers --> Stateless Core Functions
+//! ```
+//!
+//! All complex logic lives in stateless core modules, keeping this FFI layer thin.
 
 use std::ffi::{c_void, CStr, CString};
 use std::os::raw::{c_char, c_int};
