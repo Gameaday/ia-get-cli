@@ -550,6 +550,30 @@ class DownloadProvider extends ChangeNotifier {
       _isProcessingQueue = false;
     }
   }
+  
+  /// Download multiple files from the same archive (batch operation)
+  /// 
+  /// Efficiently downloads selected files with concurrent processing
+  Future<void> batchDownload(
+    String identifier,
+    List<String> fileNames, {
+    String? outputDir,
+  }) async {
+    if (fileNames.isEmpty) {
+      throw Exception('No files selected for batch download');
+    }
+    
+    if (kDebugMode) {
+      print('Starting batch download: $identifier with ${fileNames.length} files');
+    }
+    
+    // Use the file filters to download only selected files
+    await startDownload(
+      identifier,
+      outputDir: outputDir,
+      fileFilters: fileNames,
+    );
+  }
 
   /// Cancel a download
   Future<void> cancelDownload(String identifier) async {
