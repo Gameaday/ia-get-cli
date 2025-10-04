@@ -174,6 +174,12 @@ class DownloadProvider extends ChangeNotifier {
   // Enhanced: Automatic retry configuration
   int maxRetryAttempts = 3;
   Duration initialRetryDelay = const Duration(seconds: 2);
+  
+  // Enhanced: Download statistics
+  int _totalDownloadsStarted = 0;
+  int _totalDownloadsCompleted = 0;
+  int _totalDownloadsFailed = 0;
+  int _totalBytesDownloaded = 0;
 
   /// Get all downloads
   Map<String, DownloadState> get downloads => Map.unmodifiable(_downloads);
@@ -186,6 +192,35 @@ class DownloadProvider extends ChangeNotifier {
   
   /// Get queued download count
   int get queuedDownloadCount => _downloadQueue.length;
+  
+  /// Get download statistics
+  int get totalDownloadsStarted => _totalDownloadsStarted;
+  int get totalDownloadsCompleted => _totalDownloadsCompleted;
+  int get totalDownloadsFailed => _totalDownloadsFailed;
+  int get totalBytesDownloaded => _totalBytesDownloaded;
+  
+  /// Calculate average download speed (bytes per second)
+  double get averageDownloadSpeed {
+    final activeDownloads = _downloads.values.where((d) => d.downloadStatus.isActive);
+    if (activeDownloads.isEmpty) return 0.0;
+    
+    double totalSpeed = 0.0;
+    int count = 0;
+    
+    for (final download in activeDownloads) {
+      if (download.startTime != null) {
+        final elapsed = DateTime.now().difference(download.startTime!).inSeconds;
+        if (elapsed > 0) {
+          final totalBytes = download.fileProgress.values
+              .fold<int>(0, (sum, progress) => sum + progress.downloaded);
+          totalSpeed += totalBytes / elapsed;
+          count++;
+        }
+      }
+    }
+    
+    return count > 0 ? totalSpeed / count : 0.0;
+  }
 
   /// Get specific download state
   DownloadState? getDownload(String identifier) {
@@ -256,6 +291,7 @@ class DownloadProvider extends ChangeNotifier {
       downloadStatus: DownloadStatus.fetchingMetadata,
       startTime: DateTime.now(),
     );
+    _totalDownloadsStarted++;
     notifyListeners();
 
     try {
@@ -440,6 +476,7 @@ class DownloadProvider extends ChangeNotifier {
         error: errorMessage,
         endTime: DateTime.now(),
       );
+      _totalDownloadsFailed++;
       notifyListeners();
 
       rethrow;
