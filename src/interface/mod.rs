@@ -6,6 +6,8 @@
 pub mod cli;
 #[cfg(feature = "ffi")]
 pub mod ffi;
+#[cfg(feature = "ffi")]
+pub mod ffi_simple; // NEW: Simplified FFI interface
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod interactive;
