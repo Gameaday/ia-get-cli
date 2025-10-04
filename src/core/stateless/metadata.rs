@@ -23,7 +23,7 @@ const USER_AGENT: &str = concat!(
 ///
 /// # Arguments
 ///
-/// * `identifier` - Archive.org identifier (e.g., "commute_test")
+/// * `identifier` - Archive.org identifier (e.g., "goodytwoshoes00newyiala")
 ///
 /// # Returns
 ///
@@ -42,7 +42,7 @@ const USER_AGENT: &str = concat!(
 /// ```rust,no_run
 /// use ia_get::core::stateless::metadata::fetch_metadata_sync;
 ///
-/// let metadata = fetch_metadata_sync("commute_test")?;
+/// let metadata = fetch_metadata_sync("goodytwoshoes00newyiala")?;
 /// println!("Files: {}", metadata.files.len());
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -174,7 +174,7 @@ pub fn fetch_metadata_sync(identifier: &str) -> Result<ArchiveMetadata> {
 /// ```rust,no_run
 /// use ia_get::core::stateless::metadata::fetch_metadata_json;
 ///
-/// let json = fetch_metadata_json("commute_test")?;
+/// let json = fetch_metadata_json("goodytwoshoes00newyiala")?;
 /// println!("Metadata JSON: {}", json);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
