@@ -23,10 +23,10 @@ class _DownloadScreenState extends State<DownloadScreen> {
       builder: (context, downloadProvider, child) {
         final downloads = downloadProvider.downloads;
         final activeDownloads = downloads.values
-            .where((d) => d.status == 'downloading' || d.status == 'fetching_metadata')
+            .where((d) => d.downloadStatus.isActive)
             .toList();
         final completedDownloads = downloads.values
-            .where((d) => d.status == 'complete')
+            .where((d) => d.downloadStatus == DownloadStatus.complete)
             .toList();
 
         return PopScope(
@@ -121,7 +121,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              downloadState.status == 'fetching_metadata' 
+              downloadState.downloadStatus == DownloadStatus.fetchingMetadata
                 ? 'Fetching metadata...' 
                 : 'Downloading ${downloadState.fileProgress.length} files',
               style: TextStyle(color: Colors.grey.shade600),
