@@ -3,24 +3,26 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
-import 'ia_get_simple_service.dart';
+import 'internet_archive_api.dart';
+import '../core/constants/internet_archive_constants.dart';
 
-/// Archive Service - Unified service using simplified FFI
+/// Archive Service - Pure Dart/Flutter implementation
 ///
-/// This service replaces the old IaGetService with a cleaner implementation
-/// using the new simplified FFI interface (6 functions instead of 14+).
+/// This service provides a clean interface for interacting with the Internet Archive,
+/// now using a pure Dart implementation instead of FFI.
 ///
-/// Benefits:
-/// - No race conditions (stateless FFI)
-/// - Simpler error handling
-/// - Better performance
-/// - All state managed in Dart
+/// Benefits of pure Dart approach:
+/// - No native library dependencies or build complexity
+/// - Works on all Flutter platforms (Android, iOS, Web, Desktop)
+/// - Easier to debug and maintain
+/// - Better error messages and handling
+/// - No race conditions from FFI boundaries
 
 class ArchiveService extends ChangeNotifier {
-  final IaGetSimpleService _ffi = IaGetSimpleService();
+  final InternetArchiveApi _api = InternetArchiveApi();
 
   // State
-  bool _isInitialized = true; // Simplified FFI doesn't need explicit init
+  bool _isInitialized = true; // No initialization needed for pure Dart
   bool _isLoading = false;
   String? _error;
   ArchiveMetadata? _currentMetadata;
@@ -42,7 +44,7 @@ class ArchiveService extends ChangeNotifier {
   bool get canCancel => _isLoading; // Simplified - no request tracking needed
   List<SearchResult> get suggestions => _suggestions;
 
-  /// Initialize the service (no-op for simplified FFI, but kept for compatibility)
+  /// Initialize the service
   Future<void> initialize() async {
     _isInitialized = true;
     _error = null;
@@ -50,12 +52,12 @@ class ArchiveService extends ChangeNotifier {
   }
 
   /// Fetch metadata for an archive
-  Future<void> fetchMetadata(String identifier) async {
+  Future<ArchiveMetadata> fetchMetadata(String identifier) async {
     final trimmedIdentifier = identifier.trim();
     if (trimmedIdentifier.isEmpty) {
       _error = 'Invalid identifier: cannot be empty';
       notifyListeners();
-      return;
+      throw Exception(_error);
     }
 
     _isLoading = true;
@@ -66,8 +68,8 @@ class ArchiveService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Use simplified FFI to fetch metadata
-      final metadata = await _ffi.fetchMetadata(trimmedIdentifier);
+      // Use pure Dart API to fetch metadata
+      final metadata = await _api.fetchMetadata(trimmedIdentifier);
       
       _currentMetadata = metadata;
       _filteredFiles = metadata.files;
@@ -79,18 +81,23 @@ class ArchiveService extends ChangeNotifier {
       }
 
       _error = null;
+      _isLoading = false;
+      notifyListeners();
+      
+      return metadata;
     } catch (e, stackTrace) {
       _error = 'Failed to fetch metadata: ${e.toString()}';
       _currentMetadata = null;
       _filteredFiles = [];
+      _isLoading = false;
       
       if (kDebugMode) {
         print('Error fetching metadata: $e');
         print('Stack trace: $stackTrace');
       }
-    } finally {
-      _isLoading = false;
+      
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -336,10 +343,12 @@ class ArchiveService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Use Internet Archive's search API
-      // https://archive.org/advancedsearch.php?q=<query>&output=json
-      final encodedQuery = Uri.encodeComponent(query);
-      final searchUrl = 'https://archive.org/advancedsearch.php?q=$encodedQuery&fl[]=identifier,title,description&rows=10&output=json';
+      // Use standardized search URL builder
+      final searchUrl = IAUtils.buildSearchUrl(
+        query: query,
+        rows: IASearchParams.defaultRows,
+        fields: IASearchParams.defaultFields,
+      );
       
       final response = await http.get(Uri.parse(searchUrl));
       
@@ -402,8 +411,71 @@ class ArchiveService extends ChangeNotifier {
     return formats;
   }
 
+  /// Download a file from the given URL to the specified output path
+  /// 
+  /// [url] - The URL to download from
+  /// [outputPath] - The local file path where the file will be saved
+  /// [onProgress] - Optional callback for download progress updates (downloaded bytes, total bytes)
+  Future<void> downloadFile(
+    String url,
+    String outputPath, {
+    Function(int downloaded, int total)? onProgress,
+  }) async {
+    try {
+      await _api.downloadFile(url, outputPath, onProgress: onProgress);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error downloading file: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Validate file checksum
+  /// 
+  /// [filePath] - Path to the file to validate
+  /// [expectedHash] - The expected hash value
+  /// [hashType] - Type of hash (md5, sha1, sha256, etc.)
+  /// 
+  /// Returns true if the checksum matches, false otherwise
+  Future<bool> validateChecksum(
+    String filePath,
+    String expectedHash, {
+    String hashType = 'md5',
+  }) async {
+    try {
+      return await _api.validateChecksum(filePath, expectedHash, hashType);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error validating checksum: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Decompress/extract an archive file
+  /// 
+  /// [archivePath] - Path to the archive file
+  /// [outputDir] - Directory where files will be extracted
+  /// 
+  /// Returns a list of extracted file paths
+  Future<List<String>> decompressFile(
+    String archivePath,
+    String outputDir,
+  ) async {
+    try {
+      return await _api.decompressFile(archivePath, outputDir);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error decompressing file: $e');
+      }
+      rethrow;
+    }
+  }
+
   @override
   void dispose() {
+    _api.dispose();
     _currentMetadata = null;
     _filteredFiles = [];
     _suggestions = [];
