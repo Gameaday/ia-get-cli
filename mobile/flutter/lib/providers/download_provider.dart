@@ -3,7 +3,8 @@ import '../models/archive_metadata.dart';
 import '../models/download_progress.dart' hide DownloadStatus;
 import '../models/download_progress.dart' as progress_model show DownloadStatus;
 import '../models/file_filter.dart';
-import '../services/ia_get_simple_service.dart';
+import '../services/archive_service.dart';
+import '../core/constants/internet_archive_constants.dart';
 
 /// Download State Management Provider
 ///
@@ -153,10 +154,10 @@ class DownloadState {
 
 /// Download Provider - manages all download state in Dart
 ///
-/// This is the single source of truth for download state, eliminating
-/// race conditions between Rust and Dart.
+/// This is the single source of truth for download state.
+/// Uses pure Dart implementation for all Internet Archive operations.
 class DownloadProvider extends ChangeNotifier {
-  final IaGetSimpleService _service = IaGetSimpleService();
+  final ArchiveService _service = ArchiveService();
   
   // State management - all in Dart!
   final Map<String, DownloadState> _downloads = {};
@@ -355,7 +356,7 @@ class DownloadProvider extends ChangeNotifier {
       _activeDownloads++;
       
       for (final file in filesToDownload) {
-        final url = 'https://archive.org/download/$identifier/${file.name}';
+        final url = IAUtils.buildDownloadUrl(identifier, file.name);
         final outputPath = '$downloadDir/${file.name}';
 
         // Initialize progress for this file
