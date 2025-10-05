@@ -413,7 +413,6 @@ jobs:
   flutter-mobile:
     name: Flutter Mobile App Build (Pure Dart)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     # This job builds Flutter mobile app using PURE DART implementation
     # No FFI, no native dependencies, no Rust compilation required
     
