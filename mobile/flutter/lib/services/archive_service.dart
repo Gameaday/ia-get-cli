@@ -347,10 +347,30 @@ class ArchiveService extends ChangeNotifier {
         final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
         
         _suggestions = docs.map((doc) {
+          // Handle title which can be a string or list
+          String title = 'Untitled';
+          if (doc['title'] != null) {
+            if (doc['title'] is List) {
+              title = (doc['title'] as List).isNotEmpty ? (doc['title'] as List).first.toString() : 'Untitled';
+            } else {
+              title = doc['title'].toString();
+            }
+          }
+          
+          // Handle description which can be a string or list
+          String description = '';
+          if (doc['description'] != null) {
+            if (doc['description'] is List) {
+              description = (doc['description'] as List).isNotEmpty ? (doc['description'] as List).first.toString() : '';
+            } else {
+              description = doc['description'].toString();
+            }
+          }
+          
           return {
-            'identifier': doc['identifier'] ?? '',
-            'title': doc['title'] ?? 'Untitled',
-            'description': doc['description'] ?? '',
+            'identifier': (doc['identifier'] ?? '').toString(),
+            'title': title,
+            'description': description,
           };
         }).toList();
       } else {
