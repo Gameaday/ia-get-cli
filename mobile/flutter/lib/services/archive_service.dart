@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/archive_metadata.dart';
+import '../models/search_result.dart';
 import 'ia_get_simple_service.dart';
 
 /// Archive Service - Unified service using simplified FFI
@@ -24,7 +25,7 @@ class ArchiveService extends ChangeNotifier {
   String? _error;
   ArchiveMetadata? _currentMetadata;
   List<ArchiveFile> _filteredFiles = [];
-  List<Map<String, String>> _suggestions = [];
+  List<SearchResult> _suggestions = [];
 
   // File filtering state
   String? _includeFormats;
@@ -39,7 +40,7 @@ class ArchiveService extends ChangeNotifier {
   ArchiveMetadata? get currentMetadata => _currentMetadata;
   List<ArchiveFile> get filteredFiles => _filteredFiles;
   bool get canCancel => _isLoading; // Simplified - no request tracking needed
-  List<Map<String, String>> get suggestions => _suggestions;
+  List<SearchResult> get suggestions => _suggestions;
 
   /// Initialize the service (no-op for simplified FFI, but kept for compatibility)
   Future<void> initialize() async {
@@ -346,33 +347,9 @@ class ArchiveService extends ChangeNotifier {
         final jsonData = json.decode(response.body);
         final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
         
-        _suggestions = docs.map((doc) {
-          // Handle title which can be a string or list
-          String title = 'Untitled';
-          if (doc['title'] != null) {
-            if (doc['title'] is List) {
-              title = (doc['title'] as List).isNotEmpty ? (doc['title'] as List).first.toString() : 'Untitled';
-            } else {
-              title = doc['title'].toString();
-            }
-          }
-          
-          // Handle description which can be a string or list
-          String description = '';
-          if (doc['description'] != null) {
-            if (doc['description'] is List) {
-              description = (doc['description'] as List).isNotEmpty ? (doc['description'] as List).first.toString() : '';
-            } else {
-              description = doc['description'].toString();
-            }
-          }
-          
-          return {
-            'identifier': (doc['identifier'] ?? '').toString(),
-            'title': title,
-            'description': description,
-          };
-        }).toList();
+        _suggestions = docs
+            .map((doc) => SearchResult.fromJson(doc as Map<String, dynamic>))
+            .toList();
       } else {
         if (kDebugMode) {
           print('Search API returned status ${response.statusCode}');
