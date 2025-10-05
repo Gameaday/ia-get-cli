@@ -1,162 +1,119 @@
-# Mobile FFI Wrapper - README
+# Mobile App - README
 
-This directory contains the Rust FFI wrapper for the mobile (Flutter) application.
+This directory contains the Flutter mobile application.
 
 ## Overview
 
-The mobile app uses Dart FFI to call Rust functions directly. This provides:
-- High performance for CPU-intensive operations
-- Native networking and file I/O
-- Shared codebase with the CLI tool
+The mobile app uses a **pure Dart implementation** for accessing Internet Archive content. This provides:
+- Cross-platform compatibility (Android, iOS, Web, Desktop)
+- Standard Flutter development workflow
+- No native build dependencies
+- Fast build times without native compilation
 
 ## Architecture
 
 ```
 Flutter/Dart App
-    ↓ (Dart FFI)
-mobile/rust-ffi/ (this library)
-    ↓ (Rust dependency)
-ia-get core library (src/interface/ffi_simple.rs)
+    ↓ (HTTP API)
+Internet Archive JSON API
 ```
 
 ### Key Design Principles
 
-1. **No Symbol Duplication**: The mobile library depends on the main library with the `ffi` feature. FFI symbols from the main library are automatically included in the final `cdylib`. No wrapper functions needed!
+1. **Pure Dart Implementation**: All functionality is implemented in Dart, making it portable and easy to maintain.
 
-2. **Stateless FFI**: All state management happens in Dart. The FFI layer is purely functional.
+2. **Standard Flutter Architecture**: Uses standard Flutter packages and follows Flutter best practices.
 
-3. **Minimal Wrapper**: This library only adds mobile-specific functions (version, supported architectures). All core FFI functions come from the main library.
+3. **API-First Design**: Direct communication with Internet Archive's JSON API using Dart's http package.
 
 ## Building
 
-### Debug Build
+### Development Build
 ```bash
-cargo build --manifest-path mobile/rust-ffi/Cargo.toml --lib
+cd mobile/flutter
+flutter pub get
+flutter run
 ```
 
-### Release Build
+### Android APK Build
 ```bash
-cargo build --manifest-path mobile/rust-ffi/Cargo.toml --lib --release
+# From project root
+./scripts/build-mobile.sh --development
+
+# Or directly with Flutter
+cd mobile/flutter
+flutter build apk
 ```
 
-### Android Cross-Compilation
+### Production Build
 ```bash
-# Add Android targets
-rustup target add aarch64-linux-android
-rustup target add armv7-linux-androideabi
-rustup target add x86_64-linux-android
+# From project root
+./scripts/build-mobile.sh --production --store-ready
 
-# Build for each architecture
-cargo build --target aarch64-linux-android --release --lib
-cargo build --target armv7-linux-androideabi --release --lib
-cargo build --target x86_64-linux-android --release --lib
-
-# Libraries will be in:
-# target/aarch64-linux-android/release/libia_get_mobile.so
-# target/armv7-linux-androideabi/release/libia_get_mobile.so
-# target/x86_64-linux-android/release/libia_get_mobile.so
+# Or build both APK and App Bundle
+./scripts/build-mobile.sh --production --appbundle --store-ready
 ```
-
-Copy these to:
-```
-mobile/flutter/android/app/src/main/jniLibs/
-  arm64-v8a/libia_get_mobile.so
-  armeabi-v7a/libia_get_mobile.so
-  x86_64/libia_get_mobile.so
-```
-
-## Verification
-
-Run the automated verification script to ensure all symbols are properly exported:
-
-```bash
-./mobile/verify_ffi_symbols.sh
-```
-
-This script:
-- Builds both debug and release versions
-- Verifies all 8 FFI symbols are exported
-- Runs all FFI tests
-- Checks code quality with clippy
-
-## Exported Symbols
-
-### Core FFI Functions (from main library)
-1. `ia_get_fetch_metadata` - Fetch archive metadata as JSON
-2. `ia_get_download_file` - Download a file with progress callback
-3. `ia_get_decompress_file` - Decompress an archive file
-4. `ia_get_validate_checksum` - Validate file checksum
-5. `ia_get_last_error` - Get last error message
-6. `ia_get_free_string` - Free strings returned by library
-
-### Mobile-Specific Functions (defined here)
-7. `ia_get_mobile_version` - Get library version
-8. `ia_get_mobile_supported_archs` - Get supported Android architectures
-
-## Troubleshooting
-
-### Symbol Not Found Errors
-If you see "undefined symbol" errors:
-1. Verify the library is built: `cargo build --manifest-path mobile/rust-ffi/Cargo.toml --lib --release`
-2. Check symbols are exported: `nm -D target/release/libia_get_mobile.so | grep ia_get`
-3. Ensure the Flutter app is loading the correct library path
-
-### Release Build Failures
-If release builds fail with "symbol multiply defined":
-- ❌ **Don't** create wrapper functions with `#[no_mangle]` that call other `#[no_mangle]` functions
-- ✅ **Do** let the dependency's symbols be automatically included in the final cdylib
-
-### LTO Issues
-The mobile library is built with LTO (`lto = true`) for size optimization. This can expose symbol duplication issues that don't appear in debug builds. Always test release builds!
-
-## Documentation
-
-- `FFI_SYMBOL_FIX.md` - Detailed explanation of the symbol duplication fix
-- `FINAL_FIX_SUMMARY.md` - Comprehensive summary of the FFI architecture and fix
-- `../flutter/lib/services/ia_get_simple_service.dart` - Dart FFI bindings
 
 ## Testing
 
-Run FFI tests from the root directory:
+Run Flutter tests from the mobile app directory:
 ```bash
-cargo test --lib --features ffi
+cd mobile/flutter
+flutter test
 ```
+
+Run analysis:
+```bash
+cd mobile/flutter
+flutter analyze
+```
+
+## Documentation
+
+See the Flutter app's README for detailed information:
+- [Flutter App README](flutter/README.md) - Complete Flutter app documentation
+- [Android Deployment Guide](../ANDROID_DEPLOYMENT_GUIDE.md) - Play Store submission guide
 
 ## Common Tasks
 
-### Update FFI Interface
-If you need to add new FFI functions:
-1. Add the function to `src/interface/ffi_simple.rs` in the main library
-2. Mark it with `#[no_mangle]`
-3. The symbol will automatically be available in the mobile library (no changes needed here!)
-4. Update the Dart bindings in `mobile/flutter/lib/services/ia_get_simple_service.dart`
-
-### Check Symbol Exports
-```bash
-nm -D mobile/rust-ffi/target/release/libia_get_mobile.so | grep ia_get
+### Update App Version
+Update the version in `mobile/flutter/pubspec.yaml`:
+```yaml
+version: 1.0.0+1
 ```
 
-### Size Optimization
-The mobile library is built with aggressive size optimization:
-- `opt-level = "z"` (optimize for size)
-- `lto = true` (Link-Time Optimization)
-- `strip = true` (remove debug symbols)
-- `codegen-units = 1` (better optimization)
+### Add New Features
+1. Create new Dart files in `lib/`
+2. Follow Flutter best practices and Material Design guidelines
+3. Test changes with `flutter test`
+4. Run analysis with `flutter analyze`
 
-This results in a much smaller library for mobile deployment.
+### Debug on Device
+```bash
+cd mobile/flutter
+flutter run -v  # Verbose output for debugging
+```
 
 ## Flutter Integration
 
-The Flutter app loads this library using `DynamicLibrary.process()` on Android/iOS. See `mobile/flutter/lib/services/ia_get_simple_service.dart` for the Dart FFI bindings.
+The Flutter app communicates directly with the Internet Archive API using standard HTTP requests. See `mobile/flutter/lib/services/` for the service implementations.
 
 ## Contributing
 
-When making changes to the FFI layer:
-1. Keep functions simple and stateless
-2. Avoid creating wrapper functions (let symbols pass through)
-3. Always build and test in release mode
-4. Run the verification script before committing
-5. Update documentation if adding new functions
+When making changes to the mobile app:
+1. Follow Flutter and Dart best practices
+2. Use Material Design 3 components
+3. Test on multiple screen sizes
+4. Run `flutter analyze` before committing
+5. Update documentation for significant changes
+
+## Platform Support
+
+The app is built using Flutter and can target:
+- **Android** - Primary platform (fully tested)
+- **iOS** - Coming soon
+- **Web** - Experimental support
+- **Desktop** - Windows, macOS, Linux (via Flutter Desktop)
 
 ## License
 

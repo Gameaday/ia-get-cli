@@ -1,59 +1,26 @@
 #!/bin/bash
-# Build script for Android cross-compilation
+# Build script for Android cross-compilation (DEPRECATED)
 # 
-# NOTE: This script builds native libraries only (.so files)
-# For complete Android APK builds, use: ./scripts/build-mobile.sh
+# NOTE: This script is DEPRECATED and not needed for the Flutter mobile app.
+# The Flutter mobile app now uses a pure Dart implementation with no native dependencies.
+# 
+# For Flutter Android APK builds, use: ./scripts/build-mobile.sh
+# 
+# This script remains for reference purposes only.
 
 set -e
 
-# Source common utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+error() {
+    echo "❌ ERROR: This script is deprecated!"
+    echo ""
+    echo "The Flutter mobile app now uses a pure Dart implementation."
+    echo "No native library compilation is needed."
+    echo ""
+    echo "To build the Flutter Android app, use:"
+    echo "  ./scripts/build-mobile.sh --development"
+    echo "  ./scripts/build-mobile.sh --production"
+    echo ""
+    exit 1
+}
 
-warning "This script builds native libraries only (.so files)"
-info "For complete Android APK builds, use: ./scripts/build-mobile.sh"
-info "Building ia-get for Android targets..."
-
-# Configure Android cross-compilation environment
-configure_android_environment
-
-# Android targets to build for
-TARGET_NAMES=(aarch64 armv7a x86_64 i686)
-
-# Create output directory
-mkdir -p target/android
-
-# Build for each target
-for target_name in "${TARGET_NAMES[@]}"; do
-    target=$(get_rust_target "$target_name")
-    info "Building for $target..."
-    
-    # Check if target is installed
-    check_rust_target "$target"
-    
-    # Build the library
-    if cargo build --target "$target" --release --features ffi; then
-        success "Successfully built for $target"
-        
-        # Copy library to organized output directory
-        android_abi=$(get_android_abi "$target_name")
-        mkdir -p "target/android/$android_abi"
-        cp "target/${target}/release/libia_get.so" "target/android/$android_abi/"
-    else
-        error_exit "Failed to build for $target"
-    fi
-done
-
-success "All Android targets built successfully!"
-info "Libraries available in target/android/"
-
-# Generate header file for FFI
-info "Generating C header file..."
-if command_exists cbindgen; then
-    cbindgen --config cbindgen.toml --crate ia-get --output target/android/ia_get.h
-    success "Header file generated: target/android/ia_get.h"
-else
-    warning "cbindgen not found. Install with: cargo install cbindgen"
-fi
-
-success "Build complete!"
+error
