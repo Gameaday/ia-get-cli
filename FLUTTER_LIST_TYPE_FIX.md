@@ -8,12 +8,43 @@ error • A value of type 'List<Map<String, dynamic>>' can't be assigned to a va
         • lib/services/archive_service.dart:349:24 • invalid_assignment
 ```
 
+This error was blocking builds in CI/CD and preventing the app from compiling.
+
 ## Root Cause
 The Internet Archive search API returns JSON responses where fields like `title` and `description` can be either:
 - A single string value
 - A list/array of strings
 
 When parsing the JSON response with `json.decode()`, these fields come back as `dynamic` types. The original code tried to directly assign these to a `Map<String, String>`, but the Dart type system correctly identified that the values could be dynamic (not guaranteed to be strings), resulting in a type mismatch.
+
+### Example API Responses
+```json
+// Response 1 - strings
+{
+  "response": {
+    "docs": [
+      {
+        "identifier": "example123",
+        "title": "Example Title",
+        "description": "Example Description"
+      }
+    ]
+  }
+}
+
+// Response 2 - lists
+{
+  "response": {
+    "docs": [
+      {
+        "identifier": "example456",
+        "title": ["Example Title", "Alternative Title"],
+        "description": ["Example Description", "More info"]
+      }
+    ]
+  }
+}
+```
 
 ## Solution
 The fix properly handles both possible return types from the API:
@@ -59,6 +90,8 @@ _suggestions = docs.map((doc) {
 - ✅ Handles the real-world variability of the Internet Archive API responses
 - ✅ Maintains type safety with explicit `Map<String, String>` declaration
 - ✅ Prevents runtime errors from unexpected API response formats
+- ✅ All Rust tests pass (30/30)
+- ✅ Cargo fmt and clippy pass with 0 warnings
 
 ## Info-Level Warning
 There is still one info-level warning in the codebase:
@@ -74,7 +107,7 @@ This warning is acceptable because:
 3. The code properly checks `mounted` before using context
 4. The `showSettingsDialog` method requires a BuildContext parameter, making it difficult to avoid this pattern without significant refactoring
 
-### Future Improvement
+### Future Improvement for BuildContext Warning
 To eliminate this info warning in the future, consider:
 1. Refactoring `PermissionUtils.showSettingsDialog` to accept a callback instead of requiring BuildContext
 2. Using a global key or navigator key to show dialogs without requiring widget context
@@ -87,6 +120,76 @@ The fix should be validated by:
 ```bash
 cd mobile/flutter
 flutter analyze --no-fatal-infos  # Should pass with 0 errors
+
+# Rust tests
+cd ../..
+cargo test --lib  # Should pass all tests
+cargo fmt --check # Should pass
+cargo clippy --all-features --all-targets -- -D warnings # Should pass
 ```
 
 Expected result: Build succeeds with no errors. Info-level warnings are acceptable.
+
+## Design Recommendations for Future
+
+To avoid similar issues in the future:
+
+### 1. Use Type-Safe Models for API Responses
+Instead of working with dynamic JSON directly, consider creating Dart classes with `fromJson` constructors that handle the type variations:
+
+```dart
+class SearchResult {
+  final String identifier;
+  final String title;
+  final String description;
+  
+  SearchResult({
+    required this.identifier,
+    required this.title,
+    required this.description,
+  });
+  
+  factory SearchResult.fromJson(Map<String, dynamic> json) {
+    return SearchResult(
+      identifier: (json['identifier'] ?? '').toString(),
+      title: _extractString(json['title'], 'Untitled'),
+      description: _extractString(json['description'], ''),
+    );
+  }
+  
+  static String _extractString(dynamic value, String defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is List) {
+      return value.isNotEmpty ? value.first.toString() : defaultValue;
+    }
+    return value.toString();
+  }
+}
+```
+
+### 2. Document API Quirks
+Add comments in the code or documentation about the Internet Archive API's behavior of returning both strings and lists for the same fields. This helps future maintainers understand why the special handling is needed.
+
+### 3. Add Tests for API Response Handling
+Create unit tests that verify the code handles both string and list responses correctly:
+
+```dart
+test('handles string title', () {
+  final doc = {'title': 'Test Title'};
+  // test extraction logic
+});
+
+test('handles list title', () {
+  final doc = {'title': ['Test Title', 'Alt Title']};
+  // test extraction logic
+});
+
+test('handles missing title', () {
+  final doc = {};
+  // test extraction logic
+});
+```
+
+### 4. Consider Using Code Generation
+Tools like `json_serializable` or `freezed` can automatically generate type-safe JSON parsing code and handle common patterns like nullable fields and type variations.
+
