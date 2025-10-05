@@ -56,5 +56,5 @@ pub extern "C" fn ia_get_mobile_version() -> *const std::os::raw::c_char {
 #[no_mangle]
 pub extern "C" fn ia_get_mobile_supported_archs() -> *const std::os::raw::c_char {
     // Return a static string that doesn't need to be freed
-    "arm64-v8a,armeabi-v7a,x86_64,x86\0".as_ptr() as *const std::os::raw::c_char
+    c"arm64-v8a,armeabi-v7a,x86_64,x86".as_ptr()
 }
