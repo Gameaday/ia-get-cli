@@ -19,11 +19,10 @@ RESULTS_DIR="target/test-results"
 mkdir -p "$RESULTS_DIR"
 
 echo -e "${YELLOW}📋 Test Suite Overview${NC}"
-echo -e "1. Rust FFI Core Tests"
-echo -e "2. Flutter Widget Tests"
+echo -e "1. Flutter Widget Tests"
+echo -e "2. Flutter Analysis"
 echo -e "3. Integration Tests"
-echo -e "4. Performance Tests"
-echo -e "5. Code Quality Analysis"
+echo -e "4. Code Quality"
 echo ""
 
 # Test counters
@@ -50,20 +49,7 @@ run_test() {
     fi
 }
 
-echo -e "${YELLOW}🦀 Phase 1: Rust FFI Core Tests${NC}"
-
-# Test FFI functionality
-run_test "FFI Core Tests" "cargo test --features ffi"
-
-# Test mobile wrapper
-if [[ -d "mobile/rust-ffi" ]]; then
-    run_test "Mobile FFI Wrapper" "cd mobile/rust-ffi && cargo test"
-fi
-
-# Test cross-compilation
-run_test "Android Cross-compilation" "cargo check --target aarch64-linux-android --features ffi"
-
-echo -e "${YELLOW}📱 Phase 2: Flutter Tests${NC}"
+echo -e "${YELLOW}📱 Phase 1: Flutter Tests${NC}"
 
 cd "$FLUTTER_DIR"
 
@@ -83,7 +69,7 @@ fi
 
 cd "../.."
 
-echo -e "${YELLOW}🔧 Phase 3: Integration Tests${NC}"
+echo -e "${YELLOW}🔧 Phase 2: Integration Tests${NC}"
 
 # Build validation
 run_test "Debug Build Validation" "cd $FLUTTER_DIR && flutter build apk --debug"
@@ -142,23 +128,12 @@ EOF
 
 run_test "Memory Usage" "cd $FLUTTER_DIR && flutter test /tmp/memory_test.dart"
 
-echo -e "${YELLOW}📊 Phase 5: Code Quality Analysis${NC}"
-
-# Rust code quality
-run_test "Rust Clippy" "cargo clippy --features ffi -- -D warnings"
-
-# Rust formatting
-run_test "Rust Formatting" "cargo fmt --check"
+echo -e "${YELLOW}📊 Phase 3: Code Quality Analysis${NC}"
 
 # Flutter formatting
 run_test "Flutter Formatting" "cd $FLUTTER_DIR && dart format --set-exit-if-changed lib/"
 
-# Security analysis
-if command -v cargo-audit &> /dev/null; then
-    run_test "Security Audit" "cargo audit"
-fi
-
-echo -e "${YELLOW}📈 Phase 6: Build Size Analysis${NC}"
+echo -e "${YELLOW}📈 Phase 4: Build Size Analysis${NC}"
 
 # Analyze build sizes
 if [[ -f "$FLUTTER_DIR/build/app/outputs/flutter-apk/app-debug.apk" ]]; then

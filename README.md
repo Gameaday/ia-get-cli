@@ -295,10 +295,8 @@ Internet Archive Helper uses **two independent, optimized implementations**:
 - ✅ Clear separation of concerns
 - ✅ Independent optimization for each platform
 - ✅ Simplified development and maintenance
-- ✅ No build complexity from FFI bridges
 - ✅ Both implementations maintain full feature parity
 
-See [FFI Removal Migration Guide](docs/FFI_REMOVAL_MIGRATION_GUIDE.md) for details on the architectural change.
 - **📦 Professional CI/CD**: Automated builds and testing across all supported platforms
 - **🎯 Cross-Platform Excellence**: Native performance on desktop, mobile, and embedded systems
 
