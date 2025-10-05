@@ -96,27 +96,51 @@ jobs:
           if [ -d "mobile/flutter/build/app/outputs" ]; then
             echo "✓ Found Flutter build outputs"
             
-            # Copy App Bundle files
-            if [ -d "mobile/flutter/build/app/outputs/bundle" ]; then
-              if ls mobile/flutter/build/app/outputs/bundle/*/*.aab 1> /dev/null 2>&1; then
-                cp mobile/flutter/build/app/outputs/bundle/*/*.aab flutter-release-artifacts/
-                AAB_COUNT=$(ls mobile/flutter/build/app/outputs/bundle/*/*.aab | wc -l)
-                echo "✓ Copied $AAB_COUNT App Bundle file(s)"
-                FOUND_ITEMS=$((FOUND_ITEMS + AAB_COUNT))
+            # Copy App Bundle files - check multiple possible locations
+            AAB_FOUND=false
+            AAB_SEARCH_PATHS=(
+              "mobile/flutter/build/app/outputs/bundle/*/*.aab"
+              "mobile/flutter/build/app/outputs/bundle/*/*/*.aab"
+            )
+            
+            for search_path in "${AAB_SEARCH_PATHS[@]}"; do
+              if ls $search_path 1> /dev/null 2>&1; then
+                echo "✓ Found AAB files at: $search_path"
+                cp $search_path flutter-release-artifacts/ 2>/dev/null || true
+                AAB_FOUND=true
               fi
+            done
+            
+            if [ "$AAB_FOUND" = true ]; then
+              AAB_COUNT=$(find flutter-release-artifacts/ -name "*.aab" | wc -l)
+              echo "✓ Copied $AAB_COUNT App Bundle file(s)"
+              FOUND_ITEMS=$((FOUND_ITEMS + AAB_COUNT))
             fi
             
-            # Copy APK files  
-            if [ -d "mobile/flutter/build/app/outputs/flutter-apk" ]; then
-              if ls mobile/flutter/build/app/outputs/flutter-apk/*.apk 1> /dev/null 2>&1; then
-                cp mobile/flutter/build/app/outputs/flutter-apk/*.apk flutter-release-artifacts/
-                APK_COUNT=$(ls mobile/flutter/build/app/outputs/flutter-apk/*.apk | wc -l)
-                echo "✓ Copied $APK_COUNT APK file(s)"
-                FOUND_ITEMS=$((FOUND_ITEMS + APK_COUNT))
+            # Copy APK files - check multiple possible locations
+            APK_FOUND=false
+            APK_SEARCH_PATHS=(
+              "mobile/flutter/build/app/outputs/flutter-apk/*.apk"
+              "mobile/flutter/build/app/outputs/apk/*/release/*.apk"
+              "mobile/flutter/build/app/outputs/apk/*/*.apk"
+            )
+            
+            for search_path in "${APK_SEARCH_PATHS[@]}"; do
+              if ls $search_path 1> /dev/null 2>&1; then
+                echo "✓ Found APK files at: $search_path"
+                cp $search_path flutter-release-artifacts/ 2>/dev/null || true
+                APK_FOUND=true
               fi
+            done
+            
+            if [ "$APK_FOUND" = true ]; then
+              APK_COUNT=$(find flutter-release-artifacts/ -name "*.apk" | wc -l)
+              echo "✓ Copied $APK_COUNT APK file(s)"
+              FOUND_ITEMS=$((FOUND_ITEMS + APK_COUNT))
             fi
           else
             echo "❌ ERROR: Flutter build outputs not found!"
+            echo "Searched for: mobile/flutter/build/app/outputs"
             exit 1
           fi
           
@@ -129,6 +153,17 @@ jobs:
           # Validate content
           if [ $FOUND_ITEMS -eq 0 ]; then
             echo "❌ ERROR: No Flutter release artifacts found!"
+            echo "Searched APK paths:"
+            for search_path in "${APK_SEARCH_PATHS[@]}"; do
+              echo "  - $search_path"
+            done
+            echo "Searched AAB paths:"
+            for search_path in "${AAB_SEARCH_PATHS[@]}"; do
+              echo "  - $search_path"
+            done
+            echo ""
+            echo "Actual build outputs:"
+            find mobile/flutter/build/app/outputs -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null || echo "No APK or AAB files found"
             exit 1
           fi
           
