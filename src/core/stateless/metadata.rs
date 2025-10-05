@@ -198,8 +198,9 @@ pub fn fetch_metadata_json(identifier: &str) -> Result<String> {
 /// * `Ok(ArchiveMetadata)` - Successfully fetched metadata
 /// * `Err(IaGetError)` - Network or parsing error
 pub async fn fetch_metadata_async(identifier: &str) -> Result<ArchiveMetadata> {
-    // Create async client
+    // Create async client with proper User-Agent
     let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(10))
         .build()
