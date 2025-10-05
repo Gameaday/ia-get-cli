@@ -162,21 +162,61 @@ if [[ "$BUILD_TYPE" == "appbundle" ]]; then
     info "Building App Bundle..."
     flutter build appbundle "${BUILD_ARGS[@]}"
     
-    OUTPUT_PATH="build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab"
-    if [[ -f "$OUTPUT_PATH" ]]; then
+    # Try different possible output paths for App Bundle with flavors
+    OUTPUT_PATH=""
+    POSSIBLE_PATHS=(
+        "build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab"
+        "build/app/outputs/bundle/release/app-release.aab"
+    )
+    
+    # Find the actual output file
+    for path in "${POSSIBLE_PATHS[@]}"; do
+        if [[ -f "$path" ]]; then
+            OUTPUT_PATH="$path"
+            break
+        fi
+    done
+    
+    if [[ -n "$OUTPUT_PATH" && -f "$OUTPUT_PATH" ]]; then
         success "App Bundle built successfully"
         echo ""
         echo -e "${GREEN}Output: $OUTPUT_PATH${NC}"
+        
+        # Display AAB size
+        SIZE=$(du -h "$OUTPUT_PATH" | cut -f1)
+        info "Size: $SIZE"
     else
         error "Build completed but output file not found"
+        echo "Searched in the following locations:"
+        for path in "${POSSIBLE_PATHS[@]}"; do
+            echo "  - $path"
+        done
+        echo ""
+        echo "Actual contents of bundle directory:"
+        find build/app/outputs/bundle -type f -name "*.aab" 2>/dev/null || echo "No AAB files found"
         exit 1
     fi
 else
     info "Building APK..."
     flutter build apk "${BUILD_ARGS[@]}"
     
-    OUTPUT_PATH="build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
-    if [[ -f "$OUTPUT_PATH" ]]; then
+    # Try different possible output paths for APK with flavors
+    OUTPUT_PATH=""
+    POSSIBLE_PATHS=(
+        "build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
+        "build/app/outputs/apk/${FLAVOR}/release/app-${FLAVOR}-release.apk"
+        "build/app/outputs/flutter-apk/app-release.apk"
+    )
+    
+    # Find the actual output file
+    for path in "${POSSIBLE_PATHS[@]}"; do
+        if [[ -f "$path" ]]; then
+            OUTPUT_PATH="$path"
+            break
+        fi
+    done
+    
+    if [[ -n "$OUTPUT_PATH" && -f "$OUTPUT_PATH" ]]; then
         success "APK built successfully"
         echo ""
         echo -e "${GREEN}Output: $OUTPUT_PATH${NC}"
@@ -186,6 +226,13 @@ else
         info "Size: $SIZE"
     else
         error "Build completed but output file not found"
+        echo "Searched in the following locations:"
+        for path in "${POSSIBLE_PATHS[@]}"; do
+            echo "  - $path"
+        done
+        echo ""
+        echo "Actual contents of build directory:"
+        find build/app/outputs -type f -name "*.apk" 2>/dev/null || echo "No APK files found"
         exit 1
     fi
 fi

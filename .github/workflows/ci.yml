@@ -486,40 +486,73 @@ jobs:
         # Track what we find
         FOUND_ITEMS=0
         
-        # Copy APK files with validation
+        # Copy APK files with validation - check multiple possible locations
         echo "🔍 Checking for mobile/flutter/build/app/outputs..."
-        if [ -d "mobile/flutter/build/app/outputs/flutter-apk" ]; then
-          echo "✓ Found Flutter APK output directory"
-          ls -la mobile/flutter/build/app/outputs/flutter-apk/
-          
-          # Copy APK files
-          echo "🔍 Checking for APK files..."
-          if ls mobile/flutter/build/app/outputs/flutter-apk/*.apk 1> /dev/null 2>&1; then
-            echo "🔍 Copying APK files..."
-            cp mobile/flutter/build/app/outputs/flutter-apk/*.apk flutter-artifacts/
-            APK_COUNT=$(ls mobile/flutter/build/app/outputs/flutter-apk/*.apk | wc -l)
-            echo "✓ Copied $APK_COUNT APK file(s)"
-            FOUND_ITEMS=$((FOUND_ITEMS + APK_COUNT))
-          else
-            echo "❌ ERROR: No APK files found"
-            echo "Flutter APK build must have failed. Check build logs above."
-            exit 1
+        APK_FOUND=false
+        
+        # Check multiple possible APK output locations (flavored builds have different paths)
+        APK_SEARCH_PATHS=(
+          "mobile/flutter/build/app/outputs/flutter-apk/*.apk"
+          "mobile/flutter/build/app/outputs/apk/*/release/*.apk"
+          "mobile/flutter/build/app/outputs/apk/*/*.apk"
+        )
+        
+        for search_path in "${APK_SEARCH_PATHS[@]}"; do
+          echo "🔍 Checking: $search_path"
+          if ls $search_path 1> /dev/null 2>&1; then
+            echo "✓ Found APK files at: $search_path"
+            cp $search_path flutter-artifacts/ 2>/dev/null || true
+            APK_FOUND=true
           fi
+        done
+        
+        # Count APK files found
+        if [ "$APK_FOUND" = true ]; then
+          APK_COUNT=$(find flutter-artifacts/ -name "*.apk" | wc -l)
+          echo "✓ Copied $APK_COUNT APK file(s)"
+          FOUND_ITEMS=$((FOUND_ITEMS + APK_COUNT))
+        else
+          echo "❌ ERROR: No APK files found in any location"
+          echo "Searched paths:"
+          for search_path in "${APK_SEARCH_PATHS[@]}"; do
+            echo "  - $search_path"
+          done
+          echo ""
+          echo "Actual build outputs:"
+          find mobile/flutter/build/app/outputs -type f -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
+          exit 1
         fi
         
-        # Copy App Bundle files (AAB)
+        # Copy App Bundle files (AAB) - check multiple possible locations
         echo "🔍 Checking for AAB files..."
-        if [ -d "mobile/flutter/build/app/outputs/bundle" ]; then
-          if ls mobile/flutter/build/app/outputs/bundle/*/*.aab 1> /dev/null 2>&1; then
-            echo "🔍 Copying AAB files..."
-            cp mobile/flutter/build/app/outputs/bundle/*/*.aab flutter-artifacts/
-            AAB_COUNT=$(ls mobile/flutter/build/app/outputs/bundle/*/*.aab | wc -l)
-            echo "✓ Copied $AAB_COUNT App Bundle file(s)"
-            FOUND_ITEMS=$((FOUND_ITEMS + AAB_COUNT))
-          else
-            echo "⚠ No App Bundle (.aab) files found"
-            echo "Note: App Bundle build may have been skipped"
+        AAB_FOUND=false
+        
+        # Check multiple possible AAB output locations
+        AAB_SEARCH_PATHS=(
+          "mobile/flutter/build/app/outputs/bundle/*/*.aab"
+          "mobile/flutter/build/app/outputs/bundle/*/*/*.aab"
+        )
+        
+        for search_path in "${AAB_SEARCH_PATHS[@]}"; do
+          echo "🔍 Checking: $search_path"
+          if ls $search_path 1> /dev/null 2>&1; then
+            echo "✓ Found AAB files at: $search_path"
+            cp $search_path flutter-artifacts/ 2>/dev/null || true
+            AAB_FOUND=true
           fi
+        done
+        
+        if [ "$AAB_FOUND" = true ]; then
+          AAB_COUNT=$(find flutter-artifacts/ -name "*.aab" | wc -l)
+          echo "✓ Copied $AAB_COUNT App Bundle file(s)"
+          FOUND_ITEMS=$((FOUND_ITEMS + AAB_COUNT))
+        else
+          echo "⚠ No App Bundle (.aab) files found"
+          echo "Note: App Bundle build may have been skipped or failed"
+          echo "Searched paths:"
+          for search_path in "${AAB_SEARCH_PATHS[@]}"; do
+            echo "  - $search_path"
+          done
         fi
         
         # Note: NO native libraries - Pure Dart implementation!
