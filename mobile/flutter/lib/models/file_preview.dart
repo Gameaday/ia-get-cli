@@ -148,6 +148,7 @@ enum PreviewType {
   document('document', 'Document', '📑'),
   audio('audio', 'Audio', '🎵'),
   video('video', 'Video', '🎬'),
+  archive('archive', 'Archive', '📦'),
   audioWaveform('audio_waveform', 'Audio Waveform', '🎵'),
   videoThumbnail('video_thumbnail', 'Video Thumbnail', '🎬'),
   unavailable('unavailable', 'N/A', '❌');

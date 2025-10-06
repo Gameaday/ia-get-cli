@@ -49,6 +49,12 @@ class FilePreviewService {
     'pdf',
   };
 
+  static const Set<String> _archiveFormats = {
+    'zip', 'tar', 'gz', 'gzip', 'bz2', 'bzip2', 'xz',
+    'tgz', 'tar.gz', 'tbz', 'tbz2', 'tar.bz2', 'txz', 'tar.xz',
+    '7z', 'rar', 'cab', 'arj', 'lzh', 'ace',
+  };
+
   /// Check if a file format can be previewed
   bool canPreview(String fileName) {
     final extension = _getFileExtension(fileName).toLowerCase();
@@ -56,7 +62,8 @@ class FilePreviewService {
            _imageFormats.contains(extension) ||
            _audioFormats.contains(extension) ||
            _videoFormats.contains(extension) ||
-           _documentFormats.contains(extension);
+           _documentFormats.contains(extension) ||
+           _archiveFormats.contains(extension);
   }
 
   /// Determine the preview type based on file extension
@@ -68,6 +75,7 @@ class FilePreviewService {
     if (_audioFormats.contains(extension)) return PreviewType.audio;
     if (_videoFormats.contains(extension)) return PreviewType.video;
     if (_documentFormats.contains(extension)) return PreviewType.document;
+    if (_archiveFormats.contains(extension)) return PreviewType.archive;
     
     return PreviewType.unavailable;
   }
@@ -180,6 +188,9 @@ class FilePreviewService {
         break;
       case PreviewType.video:
         preview = await _generateVideoPreview(identifier, file);
+        break;
+      case PreviewType.archive:
+        preview = await _generateArchivePreview(identifier, file);
         break;
       case PreviewType.audioWaveform:
       case PreviewType.videoThumbnail:
@@ -621,6 +632,55 @@ class FilePreviewService {
       );
     } catch (e) {
       debugPrint('Error generating video preview: $e');
+      rethrow;
+    }
+  }
+
+  Future<FilePreview> _generateArchivePreview(
+    String identifier,
+    ArchiveFile file,
+  ) async {
+    try {
+      debugPrint('Generating archive preview for: ${file.name}');
+      
+      // Construct download URL
+      final url = Uri.parse(
+        'https://archive.org/download/$identifier/${file.name}',
+      );
+
+      debugPrint('Downloading archive preview: $url');
+      
+      // Download archive with longer timeout for large files
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 180), // 3 minutes for large archives
+        onTimeout: () {
+          throw TimeoutException('Archive preview download timed out');
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to download archive: HTTP ${response.statusCode}',
+        );
+      }
+
+      final archiveBytes = response.bodyBytes;
+      
+      debugPrint(
+        'Downloaded archive size: ${_formatBytes(archiveBytes.length)}',
+      );
+
+      // Create preview with raw archive data
+      return FilePreview(
+        identifier: identifier,
+        fileName: file.name,
+        previewType: PreviewType.archive,
+        previewData: archiveBytes,
+        cachedAt: DateTime.now(),
+        fileSize: file.size,
+      );
+    } catch (e) {
+      debugPrint('Error generating archive preview: $e');
       rethrow;
     }
   }

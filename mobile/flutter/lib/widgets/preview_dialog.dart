@@ -9,6 +9,7 @@ import 'image_preview_widget.dart';
 import 'pdf_preview_widget.dart';
 import 'audio_preview_widget.dart';
 import 'video_preview_widget.dart';
+import 'archive_preview_widget.dart';
 
 /// Helper class to hold error information for enhanced error displays
 class _ErrorInfo {
@@ -155,6 +156,9 @@ class _PreviewDialogState extends State<PreviewDialog> {
           break;
         case PreviewType.video:
           _showShareError('Video sharing coming soon');
+          break;
+        case PreviewType.archive:
+          _showShareError('Archive sharing coming soon');
           break;
         default:
           _showShareError('Sharing not available for this file type');
@@ -875,6 +879,16 @@ class _PreviewDialogState extends State<PreviewDialog> {
           );
         }
         return _buildUnsupportedPreview('Video data not available');
+
+      case PreviewType.archive:
+        if (preview.previewData != null && preview.previewData!.isNotEmpty) {
+          return ArchivePreviewWidget(
+            archiveBytes: preview.previewData!,
+            fileName: preview.fileName,
+            fileSize: preview.fileSize,
+          );
+        }
+        return _buildUnsupportedPreview('Archive data not available');
 
       case PreviewType.audioWaveform:
         return _buildUnsupportedPreview('Audio waveform coming soon');
