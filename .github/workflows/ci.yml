@@ -633,7 +633,7 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         path: release-artifacts
-        pattern: ia-get-*  # Download both GUI and Android artifacts
+        pattern: '{ia-get-*,flutter-mobile-dev}'  # Download CLI/GUI and Flutter mobile artifacts
 
     - name: Prepare release artifacts
       run: |
@@ -652,7 +652,7 @@ jobs:
         echo "" >> ../HASHES.md
         
         # Collect hashes from all hash files
-        for hash_file in ../release-artifacts/*/hashes_*_gui.txt ../release-artifacts/*/android-dev-hash.txt; do
+        for hash_file in ../release-artifacts/*/hashes_*_gui.txt ../release-artifacts/*/flutter-dev-hash.txt; do
           if [ -f "$hash_file" ]; then
             # Read each line from the hash file and match with files in final-artifacts
             while IFS= read -r line; do
