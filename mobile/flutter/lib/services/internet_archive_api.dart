@@ -9,6 +9,7 @@ import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../core/errors/ia_exceptions.dart';
+import '../utils/identifier_validator.dart';
 
 /// Pure Dart/Flutter implementation of Internet Archive API client
 ///
@@ -47,6 +48,19 @@ class InternetArchiveApi {
   /// Returns the parsed [ArchiveMetadata] or throws an exception on error
   Future<ArchiveMetadata> fetchMetadata(String identifier) async {
     final metadataUrl = _getMetadataUrl(identifier);
+    
+    // Validate identifier format early
+    final extractedId = _extractIdentifier(identifier);
+    final validationError = IdentifierValidator.validate(extractedId);
+    if (validationError != null) {
+      // Suggest a correction if possible
+      final suggestion = IdentifierValidator.suggestCorrection(extractedId);
+      if (suggestion != null) {
+        throw FormatException(
+            '$validationError. Did you mean "$suggestion"?');
+      }
+      throw FormatException(validationError);
+    }
     
     if (kDebugMode) {
       print('Fetching metadata from: $metadataUrl');
@@ -97,7 +111,39 @@ class InternetArchiveApi {
           // to populate suggestions separately
           throw NotFoundException(identifier);
         } else if (response.statusCode == 403) {
-          throw Exception(IAErrorMessages.forbidden);
+          throw ForbiddenException(
+              'Access forbidden. This item may be restricted or require authentication.');
+        } else if (response.statusCode == 503) {
+          // Service unavailable - check for Retry-After header first
+          if (retries < IARateLimits.maxRetries - 1) {
+            final serverRetryAfter = int.tryParse(response.headers['retry-after'] ?? '');
+            final waitTime = serverRetryAfter != null 
+                ? Duration(seconds: serverRetryAfter)
+                : retryDelay;
+            
+            if (kDebugMode) {
+              if (serverRetryAfter != null) {
+                print('Service unavailable, retrying in ${waitTime.inSeconds}s (as requested by server)...');
+              } else {
+                print('Service unavailable, retrying in ${waitTime.inSeconds}s (exponential backoff)...');
+              }
+            }
+            
+            await Future.delayed(waitTime);
+            retries++;
+            
+            // Only apply exponential backoff if server didn't specify retry-after
+            if (serverRetryAfter == null) {
+              retryDelay = Duration(
+                  seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
+              if (retryDelay.inSeconds > IARateLimits.maxBackoffDelaySecs) {
+                retryDelay = const Duration(seconds: IARateLimits.maxBackoffDelaySecs);
+              }
+            }
+            continue;
+          }
+          throw ServiceUnavailableException(
+              'Archive.org service temporarily unavailable. This is likely temporary.');
         } else if (response.statusCode >= 500) {
           // Server error - check for Retry-After header first, then use exponential backoff
           if (retries < IARateLimits.maxRetries - 1) {
@@ -607,6 +653,42 @@ class InternetArchiveApi {
     }
   }
 
+  /// Extract identifier from various input formats
+  ///
+  /// Handles:
+  /// - Details URL: https://archive.org/details/identifier -> identifier
+  /// - Metadata URL: https://archive.org/metadata/identifier -> identifier
+  /// - Simple identifier: identifier -> identifier
+  String _extractIdentifier(String input) {
+    final trimmed = input.trim();
+
+    if (trimmed.contains('/details/')) {
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      final detailsIndex = segments.indexOf('details');
+      if (detailsIndex >= 0 && detailsIndex < segments.length - 1) {
+        return segments[detailsIndex + 1];
+      }
+    } else if (trimmed.contains('/metadata/')) {
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      final metadataIndex = segments.indexOf('metadata');
+      if (metadataIndex >= 0 && metadataIndex < segments.length - 1) {
+        return segments[metadataIndex + 1];
+      }
+    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      // It's a URL but not a details or metadata URL - extract last segment
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      if (segments.isNotEmpty) {
+        return segments.last;
+      }
+    }
+    
+    // Assume it's a bare identifier
+    return trimmed;
+  }
+
   /// Enforce rate limiting between requests
   Future<void> _enforceRateLimit() async {
     if (_lastRequestTime != null) {
@@ -668,4 +750,24 @@ class NotFoundException implements Exception {
   
   @override
   String toString() => 'Archive item "$identifier" not found (404)';
+}
+
+/// Exception thrown when access is forbidden
+class ForbiddenException implements Exception {
+  final String message;
+  
+  ForbiddenException(this.message);
+  
+  @override
+  String toString() => 'Access forbidden (403): $message';
+}
+
+/// Exception thrown when the service is unavailable
+class ServiceUnavailableException implements Exception {
+  final String message;
+  
+  ServiceUnavailableException(this.message);
+  
+  @override
+  String toString() => 'Service unavailable (503): $message';
 }
