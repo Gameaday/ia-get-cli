@@ -147,9 +147,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(16),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -297,7 +295,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
 
     if (!hasPermission) {
       if (!mounted) return;
-      
+
       // Show rationale before requesting permission
       final shouldRequest = await PermissionUtils.showPermissionRationaleDialog(
         context: context,
@@ -412,7 +410,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
     }
 
     try {
-      // Start background download
+      // Start background download with metadata for archive storage
       final downloadId = await downloadService.startBackgroundDownload(
         identifier: service.currentMetadata!.identifier,
         selectedFiles: selectedFiles.map((f) => f.name).toList(),
@@ -420,6 +418,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
         includeFormats: null, // Will be handled by file selection
         excludeFormats: null,
         maxSize: null,
+        metadata: service.currentMetadata, // Pass metadata for local archive storage
       );
 
       if (downloadId != null) {
@@ -432,10 +431,12 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
             action: SnackBarAction(
               label: 'View',
               onPressed: () {
-                // Navigate to downloads screen
+                // Navigate to downloads screen with background service flag
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const DownloadScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const DownloadScreen(useBackground: true),
+                  ),
                 );
               },
             ),
@@ -526,18 +527,19 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                 // Capture context and navigator before async operations
                 final navigator = Navigator.of(context);
                 final localContext = context;
-                
+
                 navigator.pop();
                 // Retry after checking permissions again
                 final hasPermission =
                     await PermissionUtils.hasStoragePermissions();
                 if (!mounted) return;
-                
+
                 if (!hasPermission) {
                   if (!mounted) return;
                   // Safe: localContext captured before async, mounted checked immediately before use
                   PermissionUtils.showSettingsDialog(
-                    context: localContext, // ignore: use_build_context_synchronously
+                    context:
+                        localContext, // ignore: use_build_context_synchronously
                     message:
                         'Storage permission is required. Please enable it in Settings.',
                   );

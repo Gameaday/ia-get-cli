@@ -12,9 +12,9 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
   List<String> _selectedIncludeFormats = [];
   List<String> _selectedExcludeFormats = [];
   String? _maxSize;
-  bool _includeOriginal = true;
-  bool _includeDerivative = true;
-  bool _includeMetadata = true;
+  bool _includeOriginal = false;
+  bool _includeDerivative = false;
+  bool _includeMetadata = false;
 
   @override
   Widget build(BuildContext context) {
@@ -161,9 +161,9 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
           result['excludeFormats'] ?? [],
         );
         _maxSize = result['maxSize'] as String?;
-        _includeOriginal = result['includeOriginal'] as bool? ?? true;
-        _includeDerivative = result['includeDerivative'] as bool? ?? true;
-        _includeMetadata = result['includeMetadata'] as bool? ?? true;
+        _includeOriginal = result['includeOriginal'] as bool? ?? false;
+        _includeDerivative = result['includeDerivative'] as bool? ?? false;
+        _includeMetadata = result['includeMetadata'] as bool? ?? false;
       });
     }
   }

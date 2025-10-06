@@ -1,9 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:crypto/crypto.dart';
+import 'package:open_file/open_file.dart';
 import '../models/archive_metadata.dart';
 import '../services/archive_service.dart';
 import '../screens/file_preview_screen.dart';
 import '../screens/filters_screen.dart';
+
+// File download state enum
+enum _FileState { notDownloaded, downloaded, outdated, checking }
 
 class FileListWidget extends StatefulWidget {
   final List<ArchiveFile> files;
@@ -23,6 +29,25 @@ class _FileListWidgetState extends State<FileListWidget> {
   List<String> _selectedIncludeFormats = [];
   List<String> _selectedExcludeFormats = [];
   String? _maxSize;
+
+  // Source type filters - start unselected (no filter)
+  bool _includeOriginal = false;
+  bool _includeDerivative = false;
+  bool _includeMetadata = false;
+
+  // File state tracking
+  final Map<String, _FileState> _fileStates = {};
+  String? _currentArchiveId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Get archive ID from service for constructing file paths
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final service = context.read<ArchiveService>();
+      _currentArchiveId = service.currentMetadata?.identifier;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,6 +254,9 @@ class _FileListWidgetState extends State<FileListWidget> {
                                     _selectedIncludeFormats.clear();
                                     _selectedExcludeFormats.clear();
                                     _maxSize = null;
+                                    _includeOriginal = false;
+                                    _includeDerivative = false;
+                                    _includeMetadata = false;
                                   });
                                   // Re-apply with no filters
                                   service.filterFiles();
@@ -258,6 +286,9 @@ class _FileListWidgetState extends State<FileListWidget> {
   }
 
   Widget _buildFileItem(ArchiveFile file) {
+    // Get cached file state or default to notDownloaded
+    final fileState = _fileStates[file.name] ?? _FileState.notDownloaded;
+
     return CheckboxListTile(
       value: file.selected,
       onChanged: (selected) {
@@ -268,10 +299,18 @@ class _FileListWidgetState extends State<FileListWidget> {
         // Notify service that selection changed
         context.read<ArchiveService>().notifyFileSelectionChanged();
       },
-      title: Text(
-        file.displayName,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              file.displayName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // File state badge
+          _buildFileStateBadge(fileState),
+        ],
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,41 +353,78 @@ class _FileListWidgetState extends State<FileListWidget> {
             ),
         ],
       ),
-      secondary: PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert),
-        onSelected: (action) => _handleFileAction(file, action),
-        itemBuilder: (context) => [
-          const PopupMenuItem(
-            value: 'preview',
-            child: Row(
-              children: [
-                Icon(Icons.preview),
-                SizedBox(width: 8),
-                Text('Preview'),
-              ],
-            ),
-          ),
-          const PopupMenuItem(
-            value: 'info',
-            child: Row(
-              children: [
-                Icon(Icons.info),
-                SizedBox(width: 8),
-                Text('File Info'),
-              ],
-            ),
-          ),
-          if (file.md5 != null || file.sha1 != null)
-            const PopupMenuItem(
-              value: 'checksum',
-              child: Row(
-                children: [
-                  Icon(Icons.fingerprint),
-                  SizedBox(width: 8),
-                  Text('Checksums'),
-                ],
+      secondary: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Contextual action button based on file state
+          _buildActionButton(file, fileState),
+          // Overflow menu
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (action) => _handleFileAction(file, action, fileState),
+            itemBuilder: (context) => [
+              // Show Open option if file is downloaded
+              if (fileState == _FileState.downloaded ||
+                  fileState == _FileState.outdated)
+                PopupMenuItem(
+                  value: 'open',
+                  child: Row(
+                    children: [
+                      Icon(_getFileTypeIcon(file.format)),
+                      const SizedBox(width: 8),
+                      Text(_getFileTypeAction(file.format)),
+                    ],
+                  ),
+                ),
+              // Show Delete option if file is downloaded
+              if (fileState == _FileState.downloaded ||
+                  fileState == _FileState.outdated)
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text(
+                        'Delete Local File',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'preview',
+                child: Row(
+                  children: [
+                    Icon(Icons.preview),
+                    SizedBox(width: 8),
+                    Text('Preview'),
+                  ],
+                ),
               ),
-            ),
+              const PopupMenuItem(
+                value: 'info',
+                child: Row(
+                  children: [
+                    Icon(Icons.info),
+                    SizedBox(width: 8),
+                    Text('File Info'),
+                  ],
+                ),
+              ),
+              if (file.md5 != null || file.sha1 != null)
+                const PopupMenuItem(
+                  value: 'checksum',
+                  child: Row(
+                    children: [
+                      Icon(Icons.fingerprint),
+                      SizedBox(width: 8),
+                      Text('Checksums'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       dense: true,
@@ -441,8 +517,18 @@ class _FileListWidgetState extends State<FileListWidget> {
     return '${size.toStringAsFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}';
   }
 
-  void _handleFileAction(ArchiveFile file, String action) {
+  void _handleFileAction(
+    ArchiveFile file,
+    String action,
+    _FileState fileState,
+  ) {
     switch (action) {
+      case 'open':
+        _openLocalFile(file);
+        break;
+      case 'delete':
+        _deleteLocalFile(file);
+        break;
       case 'preview':
         _showFilePreview(file);
         break;
@@ -538,7 +624,10 @@ class _FileListWidgetState extends State<FileListWidget> {
   bool _hasActiveFilters() {
     return _selectedIncludeFormats.isNotEmpty ||
         _selectedExcludeFormats.isNotEmpty ||
-        _maxSize != null;
+        _maxSize != null ||
+        _includeOriginal ||
+        _includeDerivative ||
+        _includeMetadata;
   }
 
   int _getActiveFilterCount() {
@@ -546,6 +635,8 @@ class _FileListWidgetState extends State<FileListWidget> {
     if (_selectedIncludeFormats.isNotEmpty) count++;
     if (_selectedExcludeFormats.isNotEmpty) count++;
     if (_maxSize != null) count++;
+    // Count source type as active when at least one is selected
+    if (_includeOriginal || _includeDerivative || _includeMetadata) count++;
     return count;
   }
 
@@ -557,6 +648,9 @@ class _FileListWidgetState extends State<FileListWidget> {
           initialIncludeFormats: _selectedIncludeFormats,
           initialExcludeFormats: _selectedExcludeFormats,
           initialMaxSize: _maxSize,
+          initialIncludeOriginal: _includeOriginal,
+          initialIncludeDerivative: _includeDerivative,
+          initialIncludeMetadata: _includeMetadata,
         ),
       ),
     );
@@ -571,7 +665,257 @@ class _FileListWidgetState extends State<FileListWidget> {
           result['excludeFormats'] ?? [],
         );
         _maxSize = result['maxSize'] as String?;
+        _includeOriginal = result['includeOriginal'] as bool? ?? false;
+        _includeDerivative = result['includeDerivative'] as bool? ?? false;
+        _includeMetadata = result['includeMetadata'] as bool? ?? false;
       });
+    }
+  }
+
+  // File state checking methods
+  Future<void> _checkFileState(ArchiveFile file) async {
+    if (_currentArchiveId == null) return;
+
+    setState(() {
+      _fileStates[file.name] = _FileState.checking;
+    });
+
+    final filePath = _getLocalFilePath(_currentArchiveId!, file.filename);
+    final localFile = File(filePath);
+
+    if (!await localFile.exists()) {
+      setState(() {
+        _fileStates[file.name] = _FileState.notDownloaded;
+      });
+      return;
+    }
+
+    // File exists, check MD5 hash if available
+    if (file.md5 != null) {
+      final calculatedMd5 = await _calculateFileMD5(localFile);
+      if (calculatedMd5 != null &&
+          calculatedMd5.toLowerCase() == file.md5!.toLowerCase()) {
+        setState(() {
+          _fileStates[file.name] = _FileState.downloaded;
+        });
+      } else {
+        setState(() {
+          _fileStates[file.name] = _FileState.outdated;
+        });
+      }
+    } else {
+      // No hash available, assume downloaded
+      setState(() {
+        _fileStates[file.name] = _FileState.downloaded;
+      });
+    }
+  }
+
+  Future<String?> _calculateFileMD5(File file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final digest = md5.convert(bytes);
+      return digest.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _getLocalFilePath(String archiveId, String filename) {
+    return '/storage/emulated/0/Download/ia-get/$archiveId/$filename';
+  }
+
+  // UI helper methods
+  Widget _buildFileStateBadge(_FileState state) {
+    switch (state) {
+      case _FileState.downloaded:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.green.shade100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(
+            Icons.check_circle,
+            size: 14,
+            color: Colors.green.shade700,
+          ),
+        );
+      case _FileState.outdated:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade100,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Icon(Icons.update, size: 14, color: Colors.orange.shade700),
+        );
+      case _FileState.checking:
+        return const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case _FileState.notDownloaded:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildActionButton(ArchiveFile file, _FileState state) {
+    switch (state) {
+      case _FileState.downloaded:
+        return IconButton(
+          icon: Icon(_getFileTypeIcon(file.format)),
+          tooltip: _getFileTypeAction(file.format),
+          onPressed: () => _openLocalFile(file),
+          color: Colors.green,
+        );
+      case _FileState.outdated:
+        return IconButton(
+          icon: const Icon(Icons.download),
+          tooltip: 'Update File',
+          onPressed: () => _redownloadFile(file),
+          color: Colors.orange,
+        );
+      case _FileState.checking:
+        return const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case _FileState.notDownloaded:
+        // Check file state when button is about to be built
+        if (_currentArchiveId != null && !_fileStates.containsKey(file.name)) {
+          _checkFileState(file);
+        }
+        return const SizedBox.shrink();
+    }
+  }
+
+  IconData _getFileTypeIcon(String? format) {
+    if (format == null) return Icons.insert_drive_file;
+    final fmt = format.toLowerCase();
+
+    // Video formats
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'].contains(fmt)) {
+      return Icons.play_circle_outline;
+    }
+    // Audio formats
+    if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'].contains(fmt)) {
+      return Icons.headphones;
+    }
+    // Image formats
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].contains(fmt)) {
+      return Icons.image;
+    }
+    // Document formats
+    if (['pdf', 'doc', 'docx', 'txt', 'epub'].contains(fmt)) {
+      return Icons.description;
+    }
+
+    return Icons.folder_open;
+  }
+
+  String _getFileTypeAction(String? format) {
+    if (format == null) return 'Open';
+    final fmt = format.toLowerCase();
+
+    // Video formats
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'].contains(fmt)) {
+      return 'Watch';
+    }
+    // Audio formats
+    if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'].contains(fmt)) {
+      return 'Listen';
+    }
+    // Image formats
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].contains(fmt)) {
+      return 'View';
+    }
+
+    return 'Open';
+  }
+
+  // File action methods
+  Future<void> _openLocalFile(ArchiveFile file) async {
+    if (_currentArchiveId == null) return;
+
+    final filePath = _getLocalFilePath(_currentArchiveId!, file.filename);
+    final result = await OpenFile.open(filePath);
+
+    if (mounted && result.type != ResultType.done) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open file: ${result.message}')),
+      );
+    }
+  }
+
+  Future<void> _deleteLocalFile(ArchiveFile file) async {
+    if (_currentArchiveId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Local File'),
+        content: Text('Delete ${file.filename} from your device?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final filePath = _getLocalFilePath(_currentArchiveId!, file.filename);
+      final localFile = File(filePath);
+
+      if (await localFile.exists()) {
+        await localFile.delete();
+        setState(() {
+          _fileStates[file.name] = _FileState.notDownloaded;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File deleted successfully')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting file: $e')));
+      }
+    }
+  }
+
+  void _redownloadFile(ArchiveFile file) {
+    // Mark for re-download by selecting it and triggering download
+    setState(() {
+      file.selected = true;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${file.filename} selected for re-download'),
+          action: SnackBarAction(
+            label: 'Download',
+            onPressed: () {
+              // User should use the download button to proceed
+            },
+          ),
+        ),
+      );
     }
   }
 }

@@ -5,6 +5,7 @@ import 'services/archive_service.dart';
 import 'services/history_service.dart';
 import 'services/background_download_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/local_archive_storage.dart';
 import 'providers/download_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/archive_detail_screen.dart';
@@ -47,11 +48,15 @@ class IAGetMobileApp extends StatelessWidget {
           create: (_) => HistoryService(),
           lazy: true,
         ),
+        // Local archive storage - for managing downloaded archives
+        ChangeNotifierProvider<LocalArchiveStorage>(
+          create: (_) => LocalArchiveStorage(),
+          lazy: false, // Initialize eagerly to load saved archives
+        ),
         // Core services - lazy loaded to optimize startup time
         ChangeNotifierProxyProvider<HistoryService, ArchiveService>(
-          create: (context) => ArchiveService(
-            historyService: context.read<HistoryService>(),
-          ),
+          create: (context) =>
+              ArchiveService(historyService: context.read<HistoryService>()),
           update: (context, historyService, previous) =>
               previous ?? ArchiveService(historyService: historyService),
           lazy: true,
@@ -60,8 +65,21 @@ class IAGetMobileApp extends StatelessWidget {
           create: (_) => DownloadProvider(),
           lazy: true,
         ),
-        ChangeNotifierProvider<BackgroundDownloadService>(
-          create: (_) => BackgroundDownloadService(),
+        // Background download service with archive storage integration
+        ChangeNotifierProxyProvider<
+          LocalArchiveStorage,
+          BackgroundDownloadService
+        >(
+          create: (context) {
+            final service = BackgroundDownloadService();
+            service.setArchiveStorage(context.read<LocalArchiveStorage>());
+            return service;
+          },
+          update: (context, archiveStorage, previous) {
+            final service = previous ?? BackgroundDownloadService();
+            service.setArchiveStorage(archiveStorage);
+            return service;
+          },
           lazy: true,
         ),
         Provider<DeepLinkService>(
@@ -146,12 +164,12 @@ class _AppInitializerState extends State<AppInitializer> {
   }
 
   /// Initialize app with proper sequencing and error handling
-  /// 
+  ///
   /// Startup sequence (optimized for fast app launch):
   /// 1. Check onboarding status (fast, local operation)
   /// 2. Show UI immediately (deferred service initialization)
   /// 3. Initialize services lazily on first access
-  /// 
+  ///
   /// Services are now lazy-loaded through Provider, eliminating startup bottleneck.
   Future<void> _initializeApp() async {
     try {
@@ -178,11 +196,20 @@ class _AppInitializerState extends State<AppInitializer> {
     if (!mounted) return;
 
     try {
+      // Initialize LocalArchiveStorage first (loads saved archives)
+      final archiveStorage = context.read<LocalArchiveStorage>();
+      await archiveStorage.initialize().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('Archive storage initialization timed out');
+        },
+      );
+
       // Initialize BackgroundDownloadService (needs early setup for notifications)
       final bgService = context.read<BackgroundDownloadService>();
       // Initialize DeepLinkService (needs early setup for app links)
       final deepLinkService = context.read<DeepLinkService>();
-      
+
       await bgService.initialize().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -200,14 +227,13 @@ class _AppInitializerState extends State<AppInitializer> {
       // Set up deep link handler
       deepLinkService.onArchiveLinkReceived = (identifier) {
         if (!mounted) return;
-        
+
         final archiveService = context.read<ArchiveService>();
         archiveService.fetchMetadata(identifier);
       };
 
       // Request notification permissions (non-blocking)
       _requestNotificationPermissions();
-
     } catch (e) {
       // Log but don't block app startup for service initialization failures
       debugPrint('Service initialization error: $e');
@@ -231,12 +257,11 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _checkOnboardingStatus() async {
     try {
-      final shouldShow = await OnboardingWidget.shouldShowOnboarding()
-          .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => false, // Default to not showing on timeout
-          );
-      
+      final shouldShow = await OnboardingWidget.shouldShowOnboarding().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => false, // Default to not showing on timeout
+      );
+
       if (mounted) {
         setState(() {
           _shouldShowOnboarding = shouldShow;
@@ -269,11 +294,7 @@ class _AppInitializerState extends State<AppInitializer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text(
                 'Initialization Error',

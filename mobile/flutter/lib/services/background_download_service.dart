@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import '../models/download_progress.dart';
 import '../models/archive_metadata.dart';
 import '../models/download_statistics.dart';
+import '../models/downloaded_archive.dart';
 import 'internet_archive_api.dart';
 import 'notification_service.dart';
+import 'local_archive_storage.dart';
 
 /// Service for managing background downloads with Android WorkManager integration
 class BackgroundDownloadService extends ChangeNotifier {
@@ -16,12 +18,16 @@ class BackgroundDownloadService extends ChangeNotifier {
 
   final Map<String, DownloadProgress> _activeDownloads = {};
   final Map<String, DownloadProgress> _completedDownloads = {};
+  final Map<String, ArchiveMetadata> _downloadMetadata = {};
+  final Map<String, List<String>> _downloadFiles =
+      {}; // Track selected files per download
   final List<String> _downloadQueue = [];
   Timer? _statusUpdateTimer;
   Timer? _retryTimer;
   bool _isInitialized = false;
   int _maxConcurrentDownloads = 3;
   int _maxRetries = 3;
+  LocalArchiveStorage? _archiveStorage;
 
   Map<String, DownloadProgress> get activeDownloads =>
       Map.unmodifiable(_activeDownloads);
@@ -55,6 +61,11 @@ class BackgroundDownloadService extends ChangeNotifier {
     }
   }
 
+  /// Set archive storage service for saving downloaded archives
+  void setArchiveStorage(LocalArchiveStorage storage) {
+    _archiveStorage = storage;
+  }
+
   // Statistics
   int _totalBytesDownloaded = 0;
   int _totalFilesDownloaded = 0;
@@ -85,28 +96,24 @@ class BackgroundDownloadService extends ChangeNotifier {
       }
 
       // Start periodic status updates (faster for better feedback)
-      _statusUpdateTimer = Timer.periodic(
-        const Duration(milliseconds: 500),
-        (_) {
-          try {
-            _updateDownloadStatuses();
-          } catch (e) {
-            debugPrint('Error updating download statuses: $e');
-          }
-        },
-      );
+      _statusUpdateTimer = Timer.periodic(const Duration(milliseconds: 500), (
+        _,
+      ) {
+        try {
+          _updateDownloadStatuses();
+        } catch (e) {
+          debugPrint('Error updating download statuses: $e');
+        }
+      });
 
       // Start retry timer for failed downloads
-      _retryTimer = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) {
-          try {
-            _retryFailedDownloads();
-          } catch (e) {
-            debugPrint('Error retrying failed downloads: $e');
-          }
-        },
-      );
+      _retryTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        try {
+          _retryFailedDownloads();
+        } catch (e) {
+          debugPrint('Error retrying failed downloads: $e');
+        }
+      });
 
       // Initialize session tracking
       _sessionStartTime = DateTime.now();
@@ -194,11 +201,18 @@ class BackgroundDownloadService extends ChangeNotifier {
     String? includeFormats,
     String? excludeFormats,
     String? maxSize,
+    ArchiveMetadata? metadata,
   }) async {
     try {
       // Use identifier as downloadId
       final downloadId = identifier;
-      
+
+      // Store metadata and files for later use
+      if (metadata != null) {
+        _downloadMetadata[downloadId] = metadata;
+      }
+      _downloadFiles[downloadId] = selectedFiles;
+
       // Create download progress entry
       _activeDownloads[downloadId] = DownloadProgress(
         downloadId: downloadId,
@@ -207,7 +221,7 @@ class BackgroundDownloadService extends ChangeNotifier {
         status: DownloadStatus.queued,
       );
       notifyListeners();
-      
+
       // Start download in background using Dart isolate
       _startDartDownload(
         downloadId: downloadId,
@@ -218,14 +232,14 @@ class BackgroundDownloadService extends ChangeNotifier {
         excludeFormats: excludeFormats,
         maxSize: maxSize,
       );
-      
+
       return downloadId;
     } catch (e) {
       debugPrint('Failed to start background download: $e');
       return null;
     }
   }
-  
+
   /// Start download using pure Dart (no native code needed)
   Future<void> _startDartDownload({
     required String downloadId,
@@ -244,16 +258,16 @@ class BackgroundDownloadService extends ChangeNotifier {
         );
         notifyListeners();
       }
-      
+
       // Use the InternetArchiveApi to download files
       final api = InternetArchiveApi();
       int completedFiles = 0;
-      
+
       for (final fileName in selectedFiles) {
         try {
           final fileUrl = 'https://archive.org/download/$identifier/$fileName';
           final filePath = '$downloadPath/$fileName';
-          
+
           // Download file using the API
           await api.downloadFile(
             fileUrl,
@@ -262,24 +276,26 @@ class BackgroundDownloadService extends ChangeNotifier {
               // Update progress
               if (_activeDownloads.containsKey(downloadId)) {
                 final progress = (received / total * 100).toDouble();
-                _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
-                  completedFiles: completedFiles,
-                  currentFileProgress: progress,
-                  status: DownloadStatus.downloading,
-                );
+                _activeDownloads[downloadId] = _activeDownloads[downloadId]!
+                    .copyWith(
+                      completedFiles: completedFiles,
+                      currentFileProgress: progress,
+                      status: DownloadStatus.downloading,
+                    );
                 notifyListeners();
               }
             },
           );
-          
+
           completedFiles++;
-          
+
           // Update completed count
           if (_activeDownloads.containsKey(downloadId)) {
-            _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
-              completedFiles: completedFiles,
-              currentFileProgress: 0,
-            );
+            _activeDownloads[downloadId] = _activeDownloads[downloadId]!
+                .copyWith(
+                  completedFiles: completedFiles,
+                  currentFileProgress: 0,
+                );
             notifyListeners();
           }
         } catch (e) {
@@ -287,7 +303,7 @@ class BackgroundDownloadService extends ChangeNotifier {
           // Continue with next file even if one fails
         }
       }
-      
+
       // Mark as complete
       if (_activeDownloads.containsKey(downloadId)) {
         final download = _activeDownloads.remove(downloadId)!;
@@ -295,14 +311,18 @@ class BackgroundDownloadService extends ChangeNotifier {
           status: DownloadStatus.completed,
           completedFiles: completedFiles,
         );
-        
+
         // Update statistics
         _totalFilesDownloaded += completedFiles;
+
+        // Save to local archive storage
+        await _saveToLocalArchive(downloadId, selectedFiles, downloadPath);
+
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Download error for $downloadId: $e');
-      
+
       // Mark as failed
       if (_activeDownloads.containsKey(downloadId)) {
         _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
@@ -449,6 +469,16 @@ class BackgroundDownloadService extends ChangeNotifier {
       // Move to completed downloads
       _completedDownloads[downloadId] = completedDownload;
       _activeDownloads.remove(downloadId);
+
+      // Save to local archive storage (async, non-blocking)
+      final files = _downloadFiles[downloadId];
+      if (files != null && files.isNotEmpty) {
+        _saveToLocalArchive(
+          downloadId,
+          files,
+          '/storage/emulated/0/Download/ia-get/$downloadId',
+        );
+      }
 
       // Show completion notification
       NotificationService.showDownloadComplete(
@@ -739,5 +769,39 @@ class BackgroundDownloadService extends ChangeNotifier {
       'downloadsWithRetries': downloadsWithRetries,
       'retryRate': retryRate,
     };
+  }
+
+  /// Save completed download to local archive storage
+  Future<void> _saveToLocalArchive(
+    String identifier,
+    List<String> downloadedFiles,
+    String localPath,
+  ) async {
+    if (_archiveStorage == null) {
+      debugPrint('Archive storage not set, skipping save');
+      return;
+    }
+
+    try {
+      final metadata = _downloadMetadata[identifier];
+      if (metadata == null) {
+        debugPrint('No metadata found for $identifier, cannot save to archive');
+        return;
+      }
+
+      final archive = DownloadedArchive.fromMetadata(
+        metadata: metadata,
+        localPath: localPath,
+        downloadedFileNames: downloadedFiles,
+      );
+
+      await _archiveStorage!.saveArchive(archive);
+      debugPrint('Saved archive $identifier to local storage');
+
+      // Clean up metadata cache
+      _downloadMetadata.remove(identifier);
+    } catch (e) {
+      debugPrint('Failed to save archive $identifier: $e');
+    }
   }
 }

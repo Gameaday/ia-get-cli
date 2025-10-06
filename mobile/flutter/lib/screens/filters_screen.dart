@@ -30,10 +30,10 @@ class _FiltersScreenState extends State<FiltersScreen> {
   late List<String> _selectedExcludeFormats;
   late String? _maxSize;
 
-  // Source type filtering
-  bool _includeOriginal = true;
-  bool _includeDerivative = true;
-  bool _includeMetadata = true;
+  // Source type filtering - start with none selected (no filter active)
+  bool _includeOriginal = false;
+  bool _includeDerivative = false;
+  bool _includeMetadata = false;
 
   // Will be populated from available formats in the archive
   List<String> _availableFormats = [];
@@ -396,13 +396,14 @@ class _FiltersScreenState extends State<FiltersScreen> {
   }
 
   bool _hasActiveFilters() {
-  // Active filters are: any include/exclude formats, a max size, or any source-type selected
-  return _selectedIncludeFormats.isNotEmpty ||
-    _selectedExcludeFormats.isNotEmpty ||
-    _maxSize != null ||
-    _includeOriginal ||
-    _includeDerivative ||
-    _includeMetadata;
+    // Active filters are: any include/exclude formats, a max size, or at least one source-type selected
+    // Note: when NO source types are selected, that means "no filter" (show all)
+    return _selectedIncludeFormats.isNotEmpty ||
+        _selectedExcludeFormats.isNotEmpty ||
+        _maxSize != null ||
+        _includeOriginal ||
+        _includeDerivative ||
+        _includeMetadata;
   }
 
   int _getActiveFilterCount() {
@@ -429,6 +430,11 @@ class _FiltersScreenState extends State<FiltersScreen> {
 
   void _applyFilters() {
     final service = context.read<ArchiveService>();
+
+    // When no source types are selected, pass all as true (no filter)
+    final bool hasSourceTypeFilter =
+        _includeOriginal || _includeDerivative || _includeMetadata;
+
     service.filterFiles(
       includeFormats: _selectedIncludeFormats.isNotEmpty
           ? _selectedIncludeFormats
@@ -437,9 +443,9 @@ class _FiltersScreenState extends State<FiltersScreen> {
           ? _selectedExcludeFormats
           : null,
       maxSize: _maxSize,
-      includeOriginal: _includeOriginal,
-      includeDerivative: _includeDerivative,
-      includeMetadata: _includeMetadata,
+      includeOriginal: hasSourceTypeFilter ? _includeOriginal : true,
+      includeDerivative: hasSourceTypeFilter ? _includeDerivative : true,
+      includeMetadata: hasSourceTypeFilter ? _includeMetadata : true,
     );
 
     // Return the filter state to the caller
