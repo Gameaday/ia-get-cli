@@ -6,5 +6,6 @@
     "rust": true,
     "toml": true,
     "markdown": true
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "automatic"
 }

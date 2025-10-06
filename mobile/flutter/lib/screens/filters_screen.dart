@@ -15,9 +15,10 @@ class FiltersScreen extends StatefulWidget {
     this.initialIncludeFormats = const [],
     this.initialExcludeFormats = const [],
     this.initialMaxSize,
-    this.initialIncludeOriginal = true,
-    this.initialIncludeDerivative = true,
-    this.initialIncludeMetadata = true,
+    // Start with no content source filters selected by default (means "no filter")
+    this.initialIncludeOriginal = false,
+    this.initialIncludeDerivative = false,
+    this.initialIncludeMetadata = false,
   });
 
   @override
@@ -395,12 +396,13 @@ class _FiltersScreenState extends State<FiltersScreen> {
   }
 
   bool _hasActiveFilters() {
-    return _selectedIncludeFormats.isNotEmpty ||
-        _selectedExcludeFormats.isNotEmpty ||
-        _maxSize != null ||
-        !_includeOriginal ||
-        !_includeDerivative ||
-        !_includeMetadata;
+  // Active filters are: any include/exclude formats, a max size, or any source-type selected
+  return _selectedIncludeFormats.isNotEmpty ||
+    _selectedExcludeFormats.isNotEmpty ||
+    _maxSize != null ||
+    _includeOriginal ||
+    _includeDerivative ||
+    _includeMetadata;
   }
 
   int _getActiveFilterCount() {
@@ -408,7 +410,8 @@ class _FiltersScreenState extends State<FiltersScreen> {
     if (_selectedIncludeFormats.isNotEmpty) count++;
     if (_selectedExcludeFormats.isNotEmpty) count++;
     if (_maxSize != null) count++;
-    if (!_includeOriginal || !_includeDerivative || !_includeMetadata) count++;
+    // Count source-type as a single active filter when any source type is selected
+    if (_includeOriginal || _includeDerivative || _includeMetadata) count++;
     return count;
   }
 
@@ -417,9 +420,10 @@ class _FiltersScreenState extends State<FiltersScreen> {
       _selectedIncludeFormats.clear();
       _selectedExcludeFormats.clear();
       _maxSize = null;
-      _includeOriginal = true;
-      _includeDerivative = true;
-      _includeMetadata = true;
+      // Reset source-type selections to 'no filter' (none selected)
+      _includeOriginal = false;
+      _includeDerivative = false;
+      _includeMetadata = false;
     });
   }
 
