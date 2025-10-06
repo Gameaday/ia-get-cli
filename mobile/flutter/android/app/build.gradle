@@ -75,12 +75,12 @@ android {
     // ndkVersion can be omitted to use the side-by-side NDK from Android SDK
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     sourceSets {
@@ -133,7 +133,7 @@ android {
 
     defaultConfig {
         applicationId "com.gameaday.internet_archive_helper"
-        minSdkVersion 21
+        minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -247,7 +247,7 @@ android {
             // Disable debugging
             debuggable false
             jniDebuggable false
-            renderscriptDebuggable false
+            // renderscriptDebuggable removed (obsolete since AGP 7.0+)
             
             // Additional optimizations for Play Store
             zipAlignEnabled true

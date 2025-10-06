@@ -1,33 +1,66 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     
-    <!-- Internet permission for downloading files -->
+    <!-- 
+        ============================================================================
+        REQUIRED PERMISSIONS - Internet Archive Helper
+        ============================================================================
+        This app downloads files from the Internet Archive and saves them locally.
+        Permissions are requested at runtime following Android best practices.
+    -->
+    
+    <!-- INTERNET: Required for downloading files from archive.org -->
     <uses-permission android:name="android.permission.INTERNET" />
     
-    <!-- Storage permissions for saving files -->
+    <!-- 
+        STORAGE PERMISSIONS - Android Version-Specific Strategy:
+        
+        Android 5-9 (API 21-28): Uses WRITE_EXTERNAL_STORAGE
+        Android 10-12 (API 29-32): Uses READ_EXTERNAL_STORAGE + Scoped Storage
+        Android 13+ (API 33+): Uses granular media permissions (photos, videos, audio)
+    -->
+    
+    <!-- Legacy storage: Android 5-9 (API 21-28) only -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
         android:maxSdkVersion="28" />
+    
+    <!-- Scoped storage: Android 10-12 (API 29-32) only -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
         android:maxSdkVersion="32" />
     
-    <!-- Storage permissions for Android 13+ (API 33+) -->
+    <!-- Modern storage: Android 13+ (API 33+) - Granular media access -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    
+    <!-- Partial access: Allows user to select specific media on Android 14+ (API 34+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     
-    <!-- Network state permission for connection monitoring -->
+    <!-- 
+        OPTIONAL PERMISSIONS
+    -->
+    
+    <!-- Network state: Allows app to detect connection type and status -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- Post notifications permission for Android 13+ (API 33+) -->
+    <!-- Notifications: Android 13+ (API 33+) - For download progress notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
-    <!-- Optional: Full storage access for Android 11+ (API 30+) -->
+    <!-- 
+        All Files Access: Android 11+ (API 30+) - Optional full storage access
+        Requires special Google Play Store approval and strong justification.
+        User must grant manually in system settings.
+    -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" 
         android:minSdkVersion="30"
         tools:ignore="ScopedStorage" />
 
-    <!-- Hardware requirements (not required to allow installation on more devices) -->
+    <!-- 
+        ============================================================================
+        HARDWARE FEATURES (Optional)
+        ============================================================================
+        Marking as not required allows installation on more device types
+    -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 

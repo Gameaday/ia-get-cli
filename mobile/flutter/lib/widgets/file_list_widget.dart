@@ -5,9 +5,11 @@ import 'package:crypto/crypto.dart';
 import 'package:open_file/open_file.dart';
 import '../models/archive_metadata.dart';
 import '../services/archive_service.dart';
+import '../services/file_preview_service.dart';
 import '../screens/file_preview_screen.dart';
 import '../screens/filters_screen.dart';
 import '../utils/permission_utils.dart';
+import 'preview_dialog.dart';
 
 // File download state enum
 enum _FileState { notDownloaded, downloaded, outdated, checking }
@@ -357,6 +359,9 @@ class _FileListWidgetState extends State<FileListWidget> {
       secondary: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Preview button (if file is previewable)
+          if (FilePreviewService().canPreview(file.name))
+            _buildPreviewButton(file),
           // Contextual action button based on file state
           _buildActionButton(file, fileState),
           // Overflow menu
@@ -793,6 +798,56 @@ class _FileListWidgetState extends State<FileListWidget> {
     }
   }
 
+  /// Build preview button with cache status indicator
+  Widget _buildPreviewButton(ArchiveFile file) {
+    if (_currentArchiveId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<bool>(
+      future: FilePreviewService().isPreviewCached(_currentArchiveId!, file.name),
+      builder: (context, snapshot) {
+        final isCached = snapshot.data ?? false;
+        
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.visibility_outlined),
+              tooltip: isCached 
+                  ? 'Preview file (cached offline)' 
+                  : 'Preview file',
+              onPressed: () => _showPreview(file),
+              iconSize: 20,
+            ),
+            // Cache badge
+            if (isCached)
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade700,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.offline_pin,
+                    size: 10,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   IconData _getFileTypeIcon(String? format) {
     if (format == null) return Icons.insert_drive_file;
     final fmt = format.toLowerCase();
@@ -945,5 +1000,35 @@ class _FileListWidgetState extends State<FileListWidget> {
         ),
       );
     }
+  }
+
+  /// Show preview dialog for a file
+  void _showPreview(ArchiveFile file) {
+    if (_currentArchiveId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Archive not loaded')),
+      );
+      return;
+    }
+
+    // Get filtered and sorted files (same list as displayed)
+    final displayedFiles = _getSortedFiles();
+    
+    // Find the index of the current file
+    final fileIndex = displayedFiles.indexWhere((f) => f.name == file.name);
+    
+    if (fileIndex == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File not found')),
+      );
+      return;
+    }
+
+    PreviewDialog.show(
+      context,
+      _currentArchiveId!,
+      displayedFiles,
+      fileIndex,
+    );
   }
 }

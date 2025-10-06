@@ -3,13 +3,14 @@ import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
 
 /// Database helper for managing SQLite database operations
-/// Used for metadata caching with versioning and migrations
+/// Used for metadata caching and file preview caching with versioning and migrations
 class DatabaseHelper {
   static const String _databaseName = 'ia_get.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Table names
   static const String tableCachedMetadata = 'cached_metadata';
+  static const String tablePreviewCache = 'preview_cache';
   
   // Singleton pattern
   DatabaseHelper._privateConstructor();
@@ -90,6 +91,36 @@ class DatabaseHelper {
       ON $tableCachedMetadata(cached_at DESC)
     ''');
 
+    // File preview cache table
+    await db.execute('''
+      CREATE TABLE $tablePreviewCache (
+        identifier TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        preview_type TEXT NOT NULL,
+        text_content TEXT,
+        preview_data BLOB,
+        cached_at INTEGER NOT NULL,
+        file_size INTEGER,
+        PRIMARY KEY (identifier, file_name)
+      )
+    ''');
+
+    // Create indexes for preview cache
+    await db.execute('''
+      CREATE INDEX idx_preview_cache_identifier 
+      ON $tablePreviewCache(identifier)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_preview_cache_cached_at 
+      ON $tablePreviewCache(cached_at DESC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_preview_cache_type 
+      ON $tablePreviewCache(preview_type)
+    ''');
+
     debugPrint('Database schema created successfully');
   }
 
@@ -97,10 +128,39 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     debugPrint('Upgrading database from version $oldVersion to $newVersion');
 
-    // Migration logic for future schema changes
+    // Migration from version 1 to version 2: Add preview cache table
     if (oldVersion < 2) {
-      // Example migration for version 2
-      // await db.execute('ALTER TABLE ...');
+      debugPrint('Migrating to version 2: Adding preview_cache table');
+      
+      await db.execute('''
+        CREATE TABLE $tablePreviewCache (
+          identifier TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          preview_type TEXT NOT NULL,
+          text_content TEXT,
+          preview_data BLOB,
+          cached_at INTEGER NOT NULL,
+          file_size INTEGER,
+          PRIMARY KEY (identifier, file_name)
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_preview_cache_identifier 
+        ON $tablePreviewCache(identifier)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_preview_cache_cached_at 
+        ON $tablePreviewCache(cached_at DESC)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_preview_cache_type 
+        ON $tablePreviewCache(preview_type)
+      ''');
+
+      debugPrint('Migration to version 2 completed successfully');
     }
   }
 
@@ -129,18 +189,28 @@ class DatabaseHelper {
   /// Get database size in bytes
   Future<int> getDatabaseSize() async {
     try {
-      final databasesPath = await getDatabasesPath();
-      final path = join(databasesPath, _databaseName);
-      final file = await databaseFactory.getDatabasePath(path);
-      // File size retrieval would require dart:io which may not be available in web
-      // For now, return estimate based on row count
+      // Since we can't easily get file size in Flutter without dart:io,
+      // estimate based on row count
       final db = await database;
-      final result = await db.rawQuery(
+      
+      // Count cached metadata
+      final metadataResult = await db.rawQuery(
         'SELECT COUNT(*) as count FROM $tableCachedMetadata',
       );
-      final count = Sqflite.firstIntValue(result) ?? 0;
-      // Rough estimate: ~50KB per cached archive
-      return count * 50 * 1024;
+      final metadataCount = Sqflite.firstIntValue(metadataResult) ?? 0;
+      
+      // Count preview cache and sum data sizes
+      final previewResult = await db.rawQuery('''
+        SELECT 
+          SUM(LENGTH(text_content)) as text_size,
+          SUM(LENGTH(preview_data)) as blob_size
+        FROM $tablePreviewCache
+      ''');
+      final textSize = previewResult.first['text_size'] as int? ?? 0;
+      final blobSize = previewResult.first['blob_size'] as int? ?? 0;
+      
+      // Rough estimate: ~50KB per cached archive + actual preview sizes
+      return (metadataCount * 50 * 1024) + textSize + blobSize;
     } catch (e) {
       debugPrint('Error getting database size: $e');
       return 0;

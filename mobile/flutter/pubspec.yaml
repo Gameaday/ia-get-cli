@@ -30,6 +30,19 @@ dependencies:
   flutter_spinkit: ^5.2.2
   percent_indicator: ^4.2.5
   
+  # File preview support
+  cached_network_image: ^3.3.1  # Image caching and display
+  photo_view: ^0.15.0  # Image zoom and pan
+  flutter_highlight: ^0.7.0  # Syntax highlighting
+  flutter_markdown: ^0.7.7  # Markdown rendering
+  pdfx: ^2.7.0  # PDF document rendering (Phase 3)
+  just_audio: ^0.10.5  # Audio playback (Phase 3)
+  chewie: ^1.13.0  # Video player with controls (Phase 3)
+  video_player: ^2.9.2  # Video playback support (Phase 3)
+  mime: ^2.0.0  # MIME type detection
+  image: ^4.3.0  # Image processing and resizing
+  share_plus: ^12.0.0  # Cross-platform sharing
+  
   # Utilities
   intl: ^0.20.2
   shared_preferences: ^2.5.3
@@ -38,7 +51,7 @@ dependencies:
   path: ^1.9.0
   
   # Archive decompression
-  archive: 4.0.7
+  archive: ^4.0.7  # Allow patch updates
   
   # Code generation support
   freezed_annotation: ^3.1.0

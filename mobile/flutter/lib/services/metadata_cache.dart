@@ -163,9 +163,12 @@ class MetadataCache {
   /// Purge stale cache entries (LRU with exceptions)
   /// Does NOT purge:
   /// - Pinned archives
-  /// - Archives in saved list (requires integration with LocalArchiveStorage)
+  /// - Archives in protectedIdentifiers list (downloaded archives, saved archives, etc.)
   /// - Archives in recent history (requires integration with history service)
   /// - Archives currently displayed in UI (not implemented yet)
+  ///
+  /// Note: The caller (typically ArchiveService) should automatically include
+  /// downloaded archives in the protectedIdentifiers list.
   Future<int> purgeStaleCaches({
     List<String>? protectedIdentifiers,
     Duration? retentionPeriod,

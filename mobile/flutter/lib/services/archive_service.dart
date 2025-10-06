@@ -5,6 +5,8 @@ import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
 import 'internet_archive_api.dart';
 import 'history_service.dart';
+import 'metadata_cache.dart';
+import 'local_archive_storage.dart';
 import '../core/constants/internet_archive_constants.dart';
 
 /// Archive Service - Pure Dart/Flutter implementation
@@ -22,9 +24,14 @@ import '../core/constants/internet_archive_constants.dart';
 class ArchiveService extends ChangeNotifier {
   final InternetArchiveApi _api = InternetArchiveApi();
   final HistoryService? _historyService;
+  final LocalArchiveStorage? _localArchiveStorage;
+  final MetadataCache _cache = MetadataCache();
 
-  ArchiveService({HistoryService? historyService})
-      : _historyService = historyService;
+  ArchiveService({
+    HistoryService? historyService,
+    LocalArchiveStorage? localArchiveStorage,
+  }) : _historyService = historyService,
+       _localArchiveStorage = localArchiveStorage;
 
   // State
   bool _isInitialized = true; // No initialization needed for pure Dart
@@ -56,8 +63,11 @@ class ArchiveService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetch metadata for an archive
-  Future<ArchiveMetadata> fetchMetadata(String identifier) async {
+  /// Fetch metadata for an archive (cache-first strategy)
+  Future<ArchiveMetadata> fetchMetadata(
+    String identifier, {
+    bool forceRefresh = false,
+  }) async {
     final trimmedIdentifier = identifier.trim();
     if (trimmedIdentifier.isEmpty) {
       _error = 'Invalid identifier: cannot be empty';
@@ -73,46 +83,86 @@ class ArchiveService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Use pure Dart API to fetch metadata
-      final metadata = await _api.fetchMetadata(trimmedIdentifier);
-      
+      ArchiveMetadata metadata;
+
+      // Try to get from cache first (unless force refresh)
+      if (!forceRefresh) {
+        final cached = await _cache.getCachedMetadata(trimmedIdentifier);
+        if (cached != null) {
+          // Check if cache is stale
+          final syncFrequency = await _cache.getSyncFrequency();
+          if (!cached.isStale(syncFrequency)) {
+            // Use cached metadata (cache hit)
+            metadata = cached.metadata;
+            _currentMetadata = metadata;
+            _filteredFiles = metadata.files;
+
+            // Apply current filters if any
+            if (_includeFormats != null ||
+                _excludeFormats != null ||
+                _maxSize != null ||
+                _sourceTypes != null) {
+              await _applyFilters();
+            }
+
+            _error = null;
+            _isLoading = false;
+            notifyListeners();
+
+            return metadata;
+          }
+        }
+      }
+
+      // Cache miss or stale - fetch from API
+      metadata = await _api.fetchMetadata(trimmedIdentifier);
+
+      // Cache the fetched metadata
+      await _cache.cacheMetadata(metadata);
+
       _currentMetadata = metadata;
       _filteredFiles = metadata.files;
-      
+
       // Apply current filters if any
-      if (_includeFormats != null || _excludeFormats != null || 
-          _maxSize != null || _sourceTypes != null) {
+      if (_includeFormats != null ||
+          _excludeFormats != null ||
+          _maxSize != null ||
+          _sourceTypes != null) {
         await _applyFilters();
       }
 
       // Add to history if history service is available
       if (_historyService != null) {
-        _historyService.addToHistory(HistoryEntry(
-          identifier: metadata.identifier,
-          title: metadata.title ?? metadata.identifier,
-          description: metadata.description,
-          creator: metadata.creator,
-          totalFiles: metadata.totalFiles,
-          totalSize: metadata.totalSize,
-          visitedAt: DateTime.now(),
-        ));
+        _historyService.addToHistory(
+          HistoryEntry(
+            identifier: metadata.identifier,
+            title: metadata.title ?? metadata.identifier,
+            description: metadata.description,
+            creator: metadata.creator,
+            totalFiles: metadata.totalFiles,
+            totalSize: metadata.totalSize,
+            visitedAt: DateTime.now(),
+          ),
+        );
       }
 
       _error = null;
       _isLoading = false;
       notifyListeners();
-      
+
       return metadata;
     } catch (e, stackTrace) {
       _error = 'Failed to fetch metadata: ${e.toString()}';
       _currentMetadata = null;
       _filteredFiles = [];
       _isLoading = false;
-      
+
       // If it's a NotFoundException, try to get suggestions
       if (e.toString().contains('not found') || e.toString().contains('404')) {
         try {
-          final suggestions = await _api.suggestAlternativeIdentifiers(trimmedIdentifier);
+          final suggestions = await _api.suggestAlternativeIdentifiers(
+            trimmedIdentifier,
+          );
           _suggestions = suggestions;
         } catch (suggestionError) {
           if (kDebugMode) {
@@ -120,12 +170,12 @@ class ArchiveService extends ChangeNotifier {
           }
         }
       }
-      
+
       if (kDebugMode) {
         print('Error fetching metadata: $e');
         print('Stack trace: $stackTrace');
       }
-      
+
       notifyListeners();
       rethrow;
     }
@@ -191,7 +241,10 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply include formats filter
       if (_includeFormats != null && _includeFormats!.isNotEmpty) {
-        final formats = _includeFormats!.split(',').map((f) => f.trim().toLowerCase()).toList();
+        final formats = _includeFormats!
+            .split(',')
+            .map((f) => f.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final ext = file.name.split('.').last.toLowerCase();
           return formats.contains(ext);
@@ -200,7 +253,10 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply exclude formats filter
       if (_excludeFormats != null && _excludeFormats!.isNotEmpty) {
-        final formats = _excludeFormats!.split(',').map((f) => f.trim().toLowerCase()).toList();
+        final formats = _excludeFormats!
+            .split(',')
+            .map((f) => f.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final ext = file.name.split('.').last.toLowerCase();
           return !formats.contains(ext);
@@ -219,7 +275,10 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply source types filter (original vs derivative)
       if (_sourceTypes != null && _sourceTypes!.isNotEmpty) {
-        final types = _sourceTypes!.split(',').map((t) => t.trim().toLowerCase()).toList();
+        final types = _sourceTypes!
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final source = file.source?.toLowerCase() ?? '';
           return types.any((type) => source.contains(type));
@@ -248,7 +307,10 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply include formats filter
       if (_includeFormats != null && _includeFormats!.isNotEmpty) {
-        final formats = _includeFormats!.split(',').map((f) => f.trim().toLowerCase()).toList();
+        final formats = _includeFormats!
+            .split(',')
+            .map((f) => f.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final ext = file.name.split('.').last.toLowerCase();
           final format = file.format?.toLowerCase() ?? '';
@@ -258,7 +320,10 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply exclude formats filter
       if (_excludeFormats != null && _excludeFormats!.isNotEmpty) {
-        final formats = _excludeFormats!.split(',').map((f) => f.trim().toLowerCase()).toList();
+        final formats = _excludeFormats!
+            .split(',')
+            .map((f) => f.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final ext = file.name.split('.').last.toLowerCase();
           final format = file.format?.toLowerCase() ?? '';
@@ -278,13 +343,19 @@ class ArchiveService extends ChangeNotifier {
 
       // Apply source types filter (original vs derivative)
       if (_sourceTypes != null && _sourceTypes!.isNotEmpty) {
-        final types = _sourceTypes!.split(',').map((t) => t.trim().toLowerCase()).toList();
+        final types = _sourceTypes!
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .toList();
         files = files.where((file) {
           final source = file.source?.toLowerCase() ?? '';
           // If no source types are specified, include all
           if (types.isEmpty) return true;
           // Check if file source matches any of the allowed types
-          return types.any((type) => source.contains(type) || (source.isEmpty && type == 'original'));
+          return types.any(
+            (type) =>
+                source.contains(type) || (source.isEmpty && type == 'original'),
+          );
         }).toList();
       }
 
@@ -304,14 +375,17 @@ class ArchiveService extends ChangeNotifier {
 
   /// Parse size string (e.g., "10MB", "1GB") to bytes
   int _parseSize(String sizeStr) {
-    final regex = RegExp(r'(\d+(?:\.\d+)?)\s*([KMGT]?B?)', caseSensitive: false);
+    final regex = RegExp(
+      r'(\d+(?:\.\d+)?)\s*([KMGT]?B?)',
+      caseSensitive: false,
+    );
     final match = regex.firstMatch(sizeStr.trim());
-    
+
     if (match == null) return 0;
-    
+
     final value = double.tryParse(match.group(1) ?? '0') ?? 0;
     final unit = (match.group(2) ?? '').toUpperCase();
-    
+
     switch (unit) {
       case 'KB':
       case 'K':
@@ -349,7 +423,7 @@ class ArchiveService extends ChangeNotifier {
     _excludeFormats = null;
     _maxSize = null;
     _sourceTypes = null;
-    
+
     if (_currentMetadata != null) {
       _filteredFiles = _currentMetadata!.files;
       notifyListeners();
@@ -379,13 +453,13 @@ class ArchiveService extends ChangeNotifier {
         rows: IASearchParams.defaultRows,
         fields: IASearchParams.defaultFields,
       );
-      
+
       final response = await http.get(Uri.parse(searchUrl));
-      
+
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
-        
+
         _suggestions = docs
             .map((doc) => SearchResult.fromJson(doc as Map<String, dynamic>))
             .toList();
@@ -395,7 +469,7 @@ class ArchiveService extends ChangeNotifier {
         }
         _suggestions = [];
       }
-      
+
       notifyListeners();
     } catch (e) {
       if (kDebugMode) {
@@ -442,7 +516,7 @@ class ArchiveService extends ChangeNotifier {
   }
 
   /// Download a file from the given URL to the specified output path
-  /// 
+  ///
   /// [url] - The URL to download from
   /// [outputPath] - The local file path where the file will be saved
   /// [onProgress] - Optional callback for download progress updates (downloaded bytes, total bytes)
@@ -462,11 +536,11 @@ class ArchiveService extends ChangeNotifier {
   }
 
   /// Validate file checksum
-  /// 
+  ///
   /// [filePath] - Path to the file to validate
   /// [expectedHash] - The expected hash value
   /// [hashType] - Type of hash (md5, sha1, sha256, etc.)
-  /// 
+  ///
   /// Returns true if the checksum matches, false otherwise
   Future<bool> validateChecksum(
     String filePath,
@@ -484,10 +558,10 @@ class ArchiveService extends ChangeNotifier {
   }
 
   /// Decompress/extract an archive file
-  /// 
+  ///
   /// [archivePath] - Path to the archive file
   /// [outputDir] - Directory where files will be extracted
-  /// 
+  ///
   /// Returns a list of extracted file paths
   Future<List<String>> decompressFile(
     String archivePath,
@@ -501,6 +575,80 @@ class ArchiveService extends ChangeNotifier {
       }
       rethrow;
     }
+  }
+
+  // Cache management methods
+
+  /// Check if an archive is cached offline
+  Future<bool> isCached(String identifier) async {
+    return await _cache.isCached(identifier);
+  }
+
+  /// Check if an archive has been downloaded
+  bool isDownloaded(String identifier) {
+    return _localArchiveStorage?.hasArchive(identifier) ?? false;
+  }
+
+  /// Get cached metadata without fetching from API
+  Future<ArchiveMetadata?> getCachedMetadata(String identifier) async {
+    final cached = await _cache.getCachedMetadata(identifier);
+    return cached?.metadata;
+  }
+
+  /// Pin an archive to prevent auto-purge
+  Future<void> pinArchive(String identifier) async {
+    await _cache.pinArchive(identifier);
+    notifyListeners();
+  }
+
+  /// Unpin an archive to allow auto-purge
+  Future<void> unpinArchive(String identifier) async {
+    await _cache.unpinArchive(identifier);
+    notifyListeners();
+  }
+
+  /// Toggle pin status for an archive
+  Future<void> togglePin(String identifier) async {
+    await _cache.togglePin(identifier);
+    notifyListeners();
+  }
+
+  /// Manually sync metadata from API (force refresh)
+  Future<ArchiveMetadata> syncMetadata(String identifier) async {
+    return await fetchMetadata(identifier, forceRefresh: true);
+  }
+
+  /// Purge stale cache entries
+  /// Automatically protects downloaded archives from purging
+  Future<int> purgeStaleCaches({List<String>? protectedIdentifiers}) async {
+    // Build list of protected identifiers
+    final protected = <String>{};
+
+    // Add user-provided protected identifiers
+    if (protectedIdentifiers != null) {
+      protected.addAll(protectedIdentifiers);
+    }
+
+    // Add downloaded archives (they should never be purged)
+    if (_localArchiveStorage != null) {
+      final downloadedIdentifiers = _localArchiveStorage.archives.keys;
+      protected.addAll(downloadedIdentifiers);
+    }
+
+    return await _cache.purgeStaleCaches(
+      protectedIdentifiers: protected.toList(),
+    );
+  }
+
+  /// Get cache statistics
+  Future<CacheStats> getCacheStats() async {
+    return await _cache.getCacheStats();
+  }
+
+  /// Clear all cache
+  Future<void> clearAllCache() async {
+    await _cache.clearAllCache();
+    notifyListeners();
   }
 
   @override

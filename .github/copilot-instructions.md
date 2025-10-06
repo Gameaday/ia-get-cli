@@ -39,6 +39,26 @@ This is a Rust CLI tool for downloading files from the Internet Archive, built w
 - Include examples in help text and documentation
 - Document any Internet Archive API specifics or limitations
 
+### Documentation Organization
+- **All documentation files MUST go in the `docs/` directory** with proper hierarchy and organization
+- **EXCEPTION**: Only `PRIVACY_POLICY.md` stays at the repository root level
+- Use subdirectories for organization:
+  - `docs/features/` - Feature implementation documentation and completion reports
+  - `docs/guides/` - User guides and how-to documents
+  - `docs/architecture/` - System design, architecture decisions, and technical specs
+  - `docs/development/` - Development workflows, setup guides, and contributing docs
+  - `docs/mobile/` - Mobile app specific documentation (Flutter/Android/iOS)
+- **Naming conventions**:
+  - Use descriptive names: `cache-implementation.md` not `doc1.md`
+  - Use lowercase with hyphens: `feature-name-guide.md`
+  - Include completion status in feature docs: `FEATURE_NAME_COMPLETE.md`
+- **Long-term management**:
+  - Phase completion summaries → `docs/features/phase-N-complete.md`
+  - Task completion reports → `docs/features/phase-N-task-M-complete.md`
+  - Implementation plans → `docs/features/feature-name-plan.md`
+  - Progress tracking → `docs/features/feature-name-progress.md`
+- **DO NOT** create top-level documentation files except for standard files like README.md, CHANGELOG.md, CONTRIBUTING.md, LICENSE, and PRIVACY_POLICY.md
+
 ## Flutter Mobile App Guidelines
 
 ### Environment Setup

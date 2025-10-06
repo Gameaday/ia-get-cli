@@ -7,5 +7,8 @@
     "toml": true,
     "markdown": true
   },
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.project.sourcePaths": [
+    "docs"
+  ]
 }

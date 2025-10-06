@@ -48,7 +48,7 @@ class PermissionUtils {
         }
 
         debugPrint('Storage permission denied on Android 10-12');
-        return false;
+        return status.isGranted;
       } else {
         // Android 9 and below - Legacy storage permissions
         final status = await Permission.storage.request();
@@ -141,6 +141,8 @@ class PermissionUtils {
 
         // On Android 11+, this permission requires ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
         // Show dialog explaining why we need this
+        if (!context.mounted) return false;
+        
         final shouldRequest = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -169,10 +171,9 @@ class PermissionUtils {
         // Request permission - this will open system settings on Android 11+
         final result = await Permission.manageExternalStorage.request();
 
-        if (!result.isGranted) {
+        if (!result.isGranted && context.mounted) {
           // User didn't grant permission, show how to do it manually
-          if (context.mounted) {
-            await showDialog(
+          await showDialog(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Permission Not Granted'),
@@ -197,7 +198,6 @@ class PermissionUtils {
                 ],
               ),
             );
-          }
           return false;
         }
 

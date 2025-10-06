@@ -54,11 +54,22 @@ class IAGetMobileApp extends StatelessWidget {
           lazy: false, // Initialize eagerly to load saved archives
         ),
         // Core services - lazy loaded to optimize startup time
-        ChangeNotifierProxyProvider<HistoryService, ArchiveService>(
-          create: (context) =>
-              ArchiveService(historyService: context.read<HistoryService>()),
-          update: (context, historyService, previous) =>
-              previous ?? ArchiveService(historyService: historyService),
+        // ArchiveService depends on both HistoryService and LocalArchiveStorage
+        ChangeNotifierProxyProvider2<
+          HistoryService,
+          LocalArchiveStorage,
+          ArchiveService
+        >(
+          create: (context) => ArchiveService(
+            historyService: context.read<HistoryService>(),
+            localArchiveStorage: context.read<LocalArchiveStorage>(),
+          ),
+          update: (context, historyService, localArchiveStorage, previous) =>
+              previous ??
+              ArchiveService(
+                historyService: historyService,
+                localArchiveStorage: localArchiveStorage,
+              ),
           lazy: true,
         ),
         ChangeNotifierProvider<DownloadProvider>(

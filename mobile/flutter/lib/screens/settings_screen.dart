@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/metadata_cache.dart';
+import '../services/archive_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -50,6 +53,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _verifyChecksums = true;
   bool _showHiddenFiles = false;
 
+  // Cache settings values
+  int _cacheRetentionDays = 7;
+  int _cacheSyncFrequencyDays = 30;
+  int _cacheMaxSizeMB = 0;
+  bool _cacheAutoSync = true;
+  CacheStats? _cacheStats;
+
   // Settings keys
   static const String _keyDownloadPath = 'download_path';
   static const String _keyConcurrentDownloads = 'concurrent_downloads';
@@ -65,6 +75,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
+
+    // Load cache settings
+    final cache = MetadataCache();
+    final retentionDays = await cache.getRetentionPeriod();
+    final syncFrequency = await cache.getSyncFrequency();
+    final maxSizeMB = await cache.getMaxCacheSizeMB();
+    final autoSync = await cache.isAutoSyncEnabled();
+    final stats = await cache.getCacheStats();
+
     setState(() {
       _downloadPath = _prefs.getString(_keyDownloadPath) ?? _downloadPath;
       _concurrentDownloads =
@@ -74,6 +93,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _prefs.getBool(_keyVerifyChecksums) ?? _verifyChecksums;
       _showHiddenFiles =
           _prefs.getBool(_keyShowHiddenFiles) ?? _showHiddenFiles;
+
+      // Cache settings
+      _cacheRetentionDays = retentionDays.inDays;
+      _cacheSyncFrequencyDays = syncFrequency.inDays;
+      _cacheMaxSizeMB = maxSizeMB;
+      _cacheAutoSync = autoSync;
+      _cacheStats = stats;
+
       _isLoading = false;
     });
   }
@@ -198,6 +225,154 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const Divider(),
 
+                // Cache Settings Section
+                _buildSectionHeader('Offline Cache'),
+
+                // Cache Statistics Card
+                if (_cacheStats != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Cache Statistics',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildStatRow(
+                              Icons.archive,
+                              'Total Archives',
+                              '${_cacheStats!.totalArchives}',
+                            ),
+                            _buildStatRow(
+                              Icons.push_pin,
+                              'Pinned Archives',
+                              '${_cacheStats!.pinnedArchives}',
+                            ),
+                            _buildStatRow(
+                              Icons.storage,
+                              'Cache Size',
+                              _cacheStats!.formattedDataSize,
+                            ),
+                            _buildStatRow(
+                              Icons.dns,
+                              'Database Size',
+                              _cacheStats!.formattedDbSize,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ListTile(
+                  leading: const Icon(Icons.schedule_outlined),
+                  title: const Text('Cache Retention Period'),
+                  subtitle: Text('$_cacheRetentionDays days'),
+                  trailing: const Icon(Icons.edit),
+                  onTap: _showRetentionPeriodDialog,
+                ),
+
+                ListTile(
+                  leading: const Icon(Icons.sync),
+                  title: const Text('Sync Frequency'),
+                  subtitle: Text(
+                    _getSyncFrequencyLabel(_cacheSyncFrequencyDays),
+                  ),
+                  trailing: const Icon(Icons.edit),
+                  onTap: _showSyncFrequencyDialog,
+                ),
+
+                ListTile(
+                  leading: const Icon(Icons.data_usage),
+                  title: const Text('Max Cache Size'),
+                  subtitle: Text(
+                    _cacheMaxSizeMB == 0 ? 'Unlimited' : '$_cacheMaxSizeMB MB',
+                  ),
+                  trailing: const Icon(Icons.edit),
+                  onTap: _showMaxCacheSizeDialog,
+                ),
+
+                SwitchListTile(
+                  secondary: const Icon(Icons.cloud_sync),
+                  title: const Text('Auto-Sync'),
+                  subtitle: const Text('Automatically sync stale metadata'),
+                  value: _cacheAutoSync,
+                  onChanged: _saveCacheAutoSync,
+                ),
+
+                const SizedBox(height: 8),
+
+                // Cache Management Buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _refreshCacheStats,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Refresh Stats'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _purgeStaleCaches,
+                              icon: const Icon(Icons.cleaning_services),
+                              label: const Text('Purge Stale'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _clearUnpinnedCache,
+                              icon: const Icon(Icons.delete_sweep),
+                              label: const Text('Clear Unpinned'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _vacuumDatabase,
+                              icon: const Icon(Icons.compress),
+                              label: const Text('Vacuum DB'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _showClearAllCacheDialog,
+                          icon: const Icon(Icons.delete_forever),
+                          label: const Text('Clear All Cache'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(),
+
                 // Reset Settings
                 const SizedBox(height: 16),
                 Padding(
@@ -292,7 +467,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Capture context-dependent objects before async operations
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
-              
+
               // Clear all preferences
               await _prefs.clear();
 
@@ -306,13 +481,570 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
 
               if (!mounted) return;
-              
+
               navigator.pop();
               messenger.showSnackBar(
                 const SnackBar(content: Text('Settings reset to defaults')),
               );
             },
             child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cache Settings Methods
+
+  Widget _buildStatRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getSyncFrequencyLabel(int days) {
+    if (days == 1) return 'Daily';
+    if (days == 7) return 'Weekly';
+    if (days == 30) return 'Monthly';
+    if (days == 0) return 'Manual only';
+    return '$days days';
+  }
+
+  Future<void> _saveCacheAutoSync(bool value) async {
+    final cache = MetadataCache();
+    await cache.setAutoSyncEnabled(value);
+    setState(() {
+      _cacheAutoSync = value;
+    });
+  }
+
+  Future<void> _refreshCacheStats() async {
+    final cache = MetadataCache();
+    final stats = await cache.getCacheStats();
+    setState(() {
+      _cacheStats = stats;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cache: ${stats.totalArchives} archives, ${stats.formattedDataSize}',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _purgeStaleCaches() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Purging stale caches...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final archiveService = Provider.of<ArchiveService>(
+        context,
+        listen: false,
+      );
+      final purgedCount = await archiveService.purgeStaleCaches();
+
+      // Refresh stats
+      await _refreshCacheStats();
+
+      if (!mounted) return;
+      navigator.pop(); // Close progress dialog
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('Purged $purgedCount stale cache entries')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      navigator.pop(); // Close progress dialog
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error purging cache: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearUnpinnedCache() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Unpinned Cache'),
+        content: const Text(
+          'Remove all unpinned cache entries. Pinned and downloaded archives will be preserved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              navigator.pop(); // Close dialog
+
+              // Show progress
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const AlertDialog(
+                  content: Row(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 16),
+                      Text('Clearing unpinned cache...'),
+                    ],
+                  ),
+                ),
+              );
+
+              try {
+                final cache = MetadataCache();
+                final count = await cache.clearUnpinnedCache();
+
+                // Refresh stats
+                await _refreshCacheStats();
+
+                if (!mounted) return;
+                navigator.pop(); // Close progress dialog
+
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Cleared $count unpinned cache entries'),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                navigator.pop(); // Close progress dialog
+
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Error clearing cache: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _vacuumDatabase() async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Show progress
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Vacuuming database...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final cache = MetadataCache();
+      await cache.vacuum();
+
+      // Refresh stats
+      await _refreshCacheStats();
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Database vacuumed successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close progress dialog
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error vacuuming database: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showClearAllCacheDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All Cache'),
+        content: const Text(
+          'This will remove ALL cached metadata including pinned archives. '
+          'Downloaded files will NOT be affected.\n\n'
+          'Are you sure you want to continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              navigator.pop(); // Close dialog
+
+              // Show progress
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const AlertDialog(
+                  content: Row(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 16),
+                      Text('Clearing all cache...'),
+                    ],
+                  ),
+                ),
+              );
+
+              try {
+                final archiveService = Provider.of<ArchiveService>(
+                  context,
+                  listen: false,
+                );
+                await archiveService.clearAllCache();
+
+                // Refresh stats
+                await _refreshCacheStats();
+
+                if (!mounted) return;
+                navigator.pop(); // Close progress dialog
+
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('All cache cleared successfully'),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                navigator.pop(); // Close progress dialog
+
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Error clearing cache: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRetentionPeriodDialog() {
+    int selectedDays = _cacheRetentionDays;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Cache Retention Period'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Unpinned and non-downloaded archives will be purged after $selectedDays days of inactivity.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: selectedDays.toDouble(),
+                      min: 1,
+                      max: 90,
+                      divisions: 89,
+                      label: '$selectedDays days',
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedDays = value.toInt();
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      '$selectedDays days',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('1 day'),
+                    selected: selectedDays == 1,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 1;
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    label: const Text('7 days'),
+                    selected: selectedDays == 7,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 7;
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    label: const Text('30 days'),
+                    selected: selectedDays == 30,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 30;
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    label: const Text('90 days'),
+                    selected: selectedDays == 90,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 90;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final cache = MetadataCache();
+                await cache.setRetentionPeriod(selectedDays);
+                setState(() {
+                  _cacheRetentionDays = selectedDays;
+                });
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSyncFrequencyDialog() {
+    int selectedDays = _cacheSyncFrequencyDays;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Sync Frequency'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Cached metadata will be synced from the Internet Archive after $selectedDays days.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Manual only'),
+                    selected: selectedDays == 0,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 0;
+                      });
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Daily'),
+                    selected: selectedDays == 1,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 1;
+                      });
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Weekly'),
+                    selected: selectedDays == 7,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 7;
+                      });
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Monthly'),
+                    selected: selectedDays == 30,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 30;
+                      });
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Quarterly'),
+                    selected: selectedDays == 90,
+                    onSelected: (selected) {
+                      setDialogState(() {
+                        selectedDays = 90;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final cache = MetadataCache();
+                await cache.setSyncFrequency(selectedDays);
+                setState(() {
+                  _cacheSyncFrequencyDays = selectedDays;
+                });
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMaxCacheSizeDialog() {
+    final controller = TextEditingController(
+      text: _cacheMaxSizeMB == 0 ? '' : _cacheMaxSizeMB.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Max Cache Size'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Size in MB (0 = unlimited)',
+                hintText: '0',
+                border: OutlineInputBorder(),
+                suffixText: 'MB',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Set to 0 for unlimited cache size. When limit is reached, '
+              'oldest unpinned entries will be purged.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final text = controller.text.trim();
+              final sizeMB = int.tryParse(text) ?? 0;
+              if (sizeMB >= 0) {
+                final cache = MetadataCache();
+                await cache.setMaxCacheSizeMB(sizeMB);
+                setState(() {
+                  _cacheMaxSizeMB = sizeMB;
+                });
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
