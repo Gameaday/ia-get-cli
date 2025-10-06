@@ -52,6 +52,8 @@ check_rust_target() {
 }
 
 # Function to setup Android NDK environment
+# DEPRECATED: Not needed for Flutter mobile app (pure Dart implementation)
+# Only kept for reference or if Rust native libraries are needed in the future
 setup_android_ndk() {
     # Check for Android NDK
     if [[ -z "$ANDROID_NDK_HOME" ]]; then
@@ -177,6 +179,8 @@ get_android_abi() {
 }
 
 # Function to configure Android cross-compilation environment
+# DEPRECATED: Not needed for Flutter mobile app (pure Dart implementation)
+# Only kept for reference or if Rust native libraries are needed in the future
 configure_android_environment() {
     setup_android_ndk
 

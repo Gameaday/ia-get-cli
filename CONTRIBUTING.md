@@ -20,7 +20,6 @@ We welcome contributions from developers, researchers, and Internet Archive enth
 - **Flutter**: 3.35.0 or higher (for mobile development)
 - **Dart**: 3.8.0 or higher (included with Flutter 3.35.0+)
 - **Android SDK**: API 33+ (for mobile development)
-- **Android NDK**: 26.1.10909125 or compatible (for mobile development)
 - **Java**: JDK 17 (for Android builds)
 
 **Need help with setup?** See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** for detailed instructions.
@@ -60,8 +59,8 @@ cargo clippy --no-default-features --features cli -- -D warnings
 # Install Flutter SDK (version 3.35.0 or higher required)
 # See: https://flutter.dev/docs/get-started/install
 
-# Install Android SDK and NDK
-# Set ANDROID_HOME and ANDROID_NDK_HOME environment variables
+# Install Android SDK (NDK not required - pure Dart implementation)
+# Set ANDROID_HOME environment variable
 
 # Navigate to Flutter app
 cd mobile/flutter
