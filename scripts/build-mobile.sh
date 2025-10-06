@@ -48,15 +48,19 @@ while [[ $# -gt 0 ]]; do
             echo "OPTIONS:"
             echo "  --appbundle              Build App Bundle instead of APK"
             echo "  --store-ready            Build with store-ready optimizations"
-            echo "  --dev, --development     Build development variant"
+            echo "  --dev, --development     Build development variant (faster builds)"
             echo "  --staging                Build staging variant"
             echo "  --production, --prod     Build production variant (default)"
             echo "  --environment=ENV        Set environment (development|staging|production)"
             echo ""
+            echo "BUILD OPTIMIZATIONS:"
+            echo "  Development builds automatically skip icon tree shaking for faster build times"
+            echo "  Production builds include full optimizations and tree shaking"
+            echo ""
             echo "EXAMPLES:"
             echo "  $0                       # Build production APK"
             echo "  $0 --appbundle          # Build production App Bundle"
-            echo "  $0 --dev                # Build development APK"
+            echo "  $0 --dev                # Build development APK (faster)"
             echo "  $0 --store-ready        # Build store-ready production App Bundle"
             exit 0
             ;;
@@ -155,6 +159,12 @@ fi
 # Store-ready optimizations
 if [[ "$STORE_READY" == "true" ]]; then
     BUILD_ARGS+=(--obfuscate --split-debug-info=build/app/outputs/symbols)
+fi
+
+# Development build optimizations - skip tree shaking icons for faster builds
+if [[ "$ENVIRONMENT" == "development" || "$ENVIRONMENT" == "staging" ]]; then
+    BUILD_ARGS+=(--no-tree-shake-icons)
+    info "Development/Staging build: Skipping icon tree shaking for faster build times"
 fi
 
 # Build based on type
