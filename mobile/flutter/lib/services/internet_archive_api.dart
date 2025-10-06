@@ -92,6 +92,11 @@ class InternetArchiveApi {
           // If we've exhausted retries, throw with the information
           throw RateLimitException(retryAfter);
         } else if (response.statusCode == 404) {
+          // Item not found - suggest alternatives
+          final suggestion = await _suggestAlternativeIdentifier(identifier);
+          if (suggestion != null) {
+            throw Exception('${IAErrorMessages.notFound}. $suggestion');
+          }
           throw Exception(IAErrorMessages.notFound);
         } else if (response.statusCode == 403) {
           throw Exception(IAErrorMessages.forbidden);
@@ -483,6 +488,70 @@ class InternetArchiveApi {
     }
 
     return extractedFiles;
+  }
+
+  /// Suggest alternative identifier if the original one is not found
+  ///
+  /// Checks:
+  /// 1. If identifier has uppercase letters, try lowercase version
+  /// 2. Search for similar identifiers
+  ///
+  /// Returns a suggestion message or null
+  Future<String?> _suggestAlternativeIdentifier(String identifier) async {
+    // Check if identifier has uppercase letters
+    if (identifier != identifier.toLowerCase()) {
+      final lowercaseId = identifier.toLowerCase();
+      
+      try {
+        // Try to fetch metadata with lowercase identifier
+        final testUrl = _getMetadataUrl(lowercaseId);
+        final testResponse = await _client
+            .get(
+              Uri.parse(testUrl),
+              headers: IAHeaders.standard(_appVersion),
+            )
+            .timeout(const Duration(seconds: 5));
+        
+        if (testResponse.statusCode == 200) {
+          return 'Did you mean "$lowercaseId"? (identifiers are case-sensitive)';
+        }
+      } catch (_) {
+        // Lowercase version doesn't exist either, continue with search
+      }
+    }
+    
+    // Try to find similar identifiers using search
+    try {
+      final searchUrl = IAUtils.buildSearchUrl(
+        query: identifier,
+        rows: 5,
+        fields: ['identifier', 'title'],
+      );
+      
+      final searchResponse = await _client
+          .get(
+            Uri.parse(searchUrl),
+            headers: IAHeaders.standard(_appVersion),
+          )
+          .timeout(const Duration(seconds: 5));
+      
+      if (searchResponse.statusCode == 200) {
+        final jsonData = json.decode(searchResponse.body);
+        final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
+        
+        if (docs.isNotEmpty) {
+          final suggestions = docs
+              .take(3)
+              .map((doc) => '"${doc['identifier']}"')
+              .join(', ');
+          return 'Did you mean one of these: $suggestions?';
+        }
+      }
+    } catch (_) {
+      // Search failed, return null
+    }
+    
+    return null;
   }
 
   /// Convert various input formats to metadata URL

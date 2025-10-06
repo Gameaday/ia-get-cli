@@ -64,9 +64,20 @@ class ArchiveMetadata {
       creator: json['metadata']?['creator'],
       date: json['metadata']?['date'],
       totalFiles: files.length,
-      totalSize: json['item_size'] ?? 0,
+      totalSize: _parseIntField(json['item_size']) ?? 0,
       files: files,
     );
+  }
+  
+  /// Parse a field that could be either a String or an int
+  static int? _parseIntField(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -155,7 +166,7 @@ class ArchiveFile {
   factory ArchiveFile.fromJson(Map<String, dynamic> json) {
     return ArchiveFile(
       name: json['name'] ?? '',
-      size: json['size'],
+      size: _parseIntField(json['size']),
       format: json['format'],
       source: json['source'],
       downloadUrl: json['download_url'],
@@ -163,6 +174,17 @@ class ArchiveFile {
       sha1: json['sha1'],
       selected: json['selected'] ?? false,
     );
+  }
+  
+  /// Parse a field that could be either a String or an int
+  static int? _parseIntField(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
