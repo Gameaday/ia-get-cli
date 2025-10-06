@@ -59,3 +59,9 @@ mobile/flutter/pubspec.lock
 # Rust mobile build artifacts
 mobile/rust-ffi/target/
 mobile/rust-ffi/Cargo.lock
+
+# Local secrets (code signing certificates and passwords)
+.secrets/
+*.pfx
+*cert-base64.txt
+CERTIFICATE_INFO.txt
