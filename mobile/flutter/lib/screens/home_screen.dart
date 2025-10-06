@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/archive_service.dart';
+import '../services/history_service.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/search_suggestion_card.dart';
 import '../widgets/download_manager_widget.dart';
 import 'archive_detail_screen.dart';
 import 'download_screen.dart';
 import 'help_screen.dart';
+import 'history_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -75,6 +77,18 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Search'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HistoryScreen(),
+                  settings: const RouteSettings(name: HistoryScreen.routeName),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {

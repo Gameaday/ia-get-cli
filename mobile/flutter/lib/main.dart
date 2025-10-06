@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/archive_service.dart';
+import 'services/history_service.dart';
 import 'services/background_download_service.dart';
 import 'services/deep_link_service.dart';
 import 'providers/download_provider.dart';
@@ -41,9 +42,18 @@ class IAGetMobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // History service - needs to be created first
+        ChangeNotifierProvider<HistoryService>(
+          create: (_) => HistoryService(),
+          lazy: true,
+        ),
         // Core services - lazy loaded to optimize startup time
-        ChangeNotifierProvider<ArchiveService>(
-          create: (_) => ArchiveService(),
+        ChangeNotifierProxyProvider<HistoryService, ArchiveService>(
+          create: (context) => ArchiveService(
+            historyService: context.read<HistoryService>(),
+          ),
+          update: (context, historyService, previous) =>
+              previous ?? ArchiveService(historyService: historyService),
           lazy: true,
         ),
         ChangeNotifierProvider<DownloadProvider>(
