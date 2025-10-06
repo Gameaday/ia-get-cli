@@ -524,9 +524,8 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                // Capture context and navigator before async operations
+                // Capture navigator before async operations
                 final navigator = Navigator.of(context);
-                final localContext = context;
 
                 navigator.pop();
                 // Retry after checking permissions again
@@ -536,10 +535,10 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
 
                 if (!hasPermission) {
                   if (!mounted) return;
-                  // Safe: localContext captured before async, mounted checked immediately before use
+                  // Use current context since we verified mounted
                   PermissionUtils.showSettingsDialog(
-                    context:
-                        localContext, // ignore: use_build_context_synchronously
+                    // ignore: use_build_context_synchronously
+                    context: context,
                     message:
                         'Storage permission is required. Please enable it in Settings.',
                   );
