@@ -29,10 +29,15 @@ class MetadataCache {
   Future<void> cacheMetadata(
     ArchiveMetadata metadata, {
     bool isPinned = false,
+    String? etag,
   }) async {
     final db = await _db;
 
-    final cached = CachedMetadata.fromMetadata(metadata, isPinned: isPinned);
+    final cached = CachedMetadata.fromMetadata(
+      metadata,
+      isPinned: isPinned,
+      etag: etag,
+    );
 
     await db.insert(
       'cached_metadata',
@@ -74,6 +79,59 @@ class MetadataCache {
     );
 
     return (count ?? 0) > 0;
+  }
+
+  /// Get ETag for cached archive (for conditional GET requests)
+  Future<String?> getETag(String identifier) async {
+    final db = await _db;
+
+    final maps = await db.query(
+      'cached_metadata',
+      columns: ['etag'],
+      where: 'identifier = ?',
+      whereArgs: [identifier],
+      limit: 1,
+    );
+
+    if (maps.isEmpty) return null;
+    return maps.first['etag'] as String?;
+  }
+
+  /// Update ETag for cached archive (after successful fetch)
+  Future<void> updateETag(String identifier, String? etag) async {
+    final db = await _db;
+
+    await db.update(
+      'cached_metadata',
+      {
+        'etag': etag,
+        'last_synced': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'identifier = ?',
+      whereArgs: [identifier],
+    );
+  }
+
+  /// Validate cache freshness using ETag
+  /// Returns true if cache is still valid (304 Not Modified)
+  /// Returns false if cache needs update (200 OK with new data)
+  Future<bool> validateCacheWithETag(
+    String identifier,
+    String? serverETag,
+  ) async {
+    if (serverETag == null) return false;
+
+    final cachedETag = await getETag(identifier);
+    if (cachedETag == null) return false;
+
+    // ETags match - cache is still valid
+    if (cachedETag == serverETag) {
+      // Update last_synced timestamp
+      await updateETag(identifier, serverETag);
+      return true;
+    }
+
+    return false;
   }
 
   /// Update last accessed timestamp (for LRU tracking)

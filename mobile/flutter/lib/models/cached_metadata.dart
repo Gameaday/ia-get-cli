@@ -32,6 +32,10 @@ class CachedMetadata {
   /// Cached total size in bytes for quick access
   final int totalSize;
 
+  /// ETag from last HTTP response (for cache validation)
+  /// Used with If-None-Match header to check if resource changed
+  final String? etag;
+
   const CachedMetadata({
     required this.identifier,
     required this.metadata,
@@ -42,12 +46,14 @@ class CachedMetadata {
     this.isPinned = false,
     required this.fileCount,
     required this.totalSize,
+    this.etag,
   });
 
   /// Create from ArchiveMetadata
   factory CachedMetadata.fromMetadata(
     ArchiveMetadata metadata, {
     bool isPinned = false,
+    String? etag,
   }) {
     final now = DateTime.now();
 
@@ -67,6 +73,7 @@ class CachedMetadata {
       isPinned: isPinned,
       fileCount: metadata.files.length,
       totalSize: totalSize,
+      etag: etag,
     );
   }
 
@@ -88,6 +95,7 @@ class CachedMetadata {
       isPinned: (map['is_pinned'] as int) == 1,
       fileCount: map['file_count'] as int,
       totalSize: map['total_size'] as int,
+      etag: map['etag'] as String?,
     );
   }
 
@@ -107,6 +115,7 @@ class CachedMetadata {
       'title': metadata.title,
       'media_type': metadata
           .creator, // Using creator as fallback since mediatype doesn't exist
+      'etag': etag,
     };
   }
 
@@ -121,6 +130,7 @@ class CachedMetadata {
     bool? isPinned,
     int? fileCount,
     int? totalSize,
+    String? etag,
   }) {
     return CachedMetadata(
       identifier: identifier ?? this.identifier,
@@ -132,6 +142,7 @@ class CachedMetadata {
       isPinned: isPinned ?? this.isPinned,
       fileCount: fileCount ?? this.fileCount,
       totalSize: totalSize ?? this.totalSize,
+      etag: etag ?? this.etag,
     );
   }
 

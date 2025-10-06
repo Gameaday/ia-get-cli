@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// Used for metadata caching and file preview caching with versioning and migrations
 class DatabaseHelper {
   static const String _databaseName = 'ia_get.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   // Table names
   static const String tableCachedMetadata = 'cached_metadata';
@@ -71,6 +71,7 @@ class DatabaseHelper {
         creator TEXT,
         title TEXT,
         media_type TEXT,
+        etag TEXT,
         UNIQUE(identifier)
       )
     ''');
@@ -161,6 +162,17 @@ class DatabaseHelper {
       ''');
 
       debugPrint('Migration to version 2 completed successfully');
+    }
+
+    // Migration from version 2 to version 3: Add etag column to cached_metadata
+    if (oldVersion < 3) {
+      debugPrint('Migrating to version 3: Adding etag column');
+      
+      await db.execute('''
+        ALTER TABLE $tableCachedMetadata ADD COLUMN etag TEXT
+      ''');
+
+      debugPrint('Migration to version 3 completed successfully');
     }
   }
 
