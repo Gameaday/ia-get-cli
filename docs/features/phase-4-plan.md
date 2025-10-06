@@ -1,18 +1,29 @@
-# Phase 4: User Experience & Data Management
+# Phase 4: Core Features & Foundation
 
 ## Overview
-Phase 4 focuses on enhancing user experience, improving data management, and adding quality-of-life features that make the ia-get mobile app more powerful and user-friendly.
+Phase 4 focuses on completing core download features, implementing proper data persistence with shared_preferences, and ensuring all essential functionality from Phases 1-3 is production-ready.
+### Week 1: Favorites & Search
+1. Task 1: Favorites & Collections System (3-4 hours)
+2. Task 2: Advanced Search & Filters (4-5 hours)
 
-**Status**: 📋 Planning  
-**Created**: 2025-01-XX  
-**Target Completion**: TBD
+### Week 2: Downloads & Settings
+3. Task 3: Download Queue + Resume + Retry (6-8 hours)
+4. Task 4: Settings & Customization + shared_preferences (3-4 hours)
+
+### Week 3: Testing & Documentation
+5. Comprehensive testing (2-3 hours)
+6. Documentation updates (1-2 hours)
+
+**Total Estimated Effort**: 16-21 hours (revised, statistics moved to Phase 6) 📋 Planning  
+**Created**: 2025-10-06  
+**Target Completion**: Q1 2025 (3-4 weeks)
 
 ## Phase Goals
 1. **Favorites & Collections**: Let users organize and bookmark their favorite archives
 2. **Advanced Search**: Enhanced search with filters, sorting, and saved searches  
-3. **Offline Mode Improvements**: Better offline experience with download queue management
-4. **App Settings & Customization**: Theme customization, data usage controls, and preferences
-5. **User Statistics & Insights**: Track usage, storage, and download statistics
+3. **Download Queue + Resume + Retry**: Complete download management with reliability
+4. **Settings & Customization**: Theme customization, data usage controls, shared_preferences integration
+5. **~~Statistics & Insights~~**: ❌ MOVED to Phase 6 (post-release feature)
 
 ---
 
@@ -209,65 +220,9 @@ class SettingsService extends ChangeNotifier {
 
 ---
 
-### Task 5: Statistics & Insights 📊
-**Priority**: Low  
-**Estimated Effort**: 2-3 hours
-
-#### Features
-- **Download Statistics**: Total downloads, successful/failed counts, data usage
-- **Storage Overview**: Visual breakdown of cached data by type
-- **Usage Trends**: Charts showing download activity over time
-- **Top Archives**: Most accessed/downloaded archives
-- **Format Statistics**: Breakdown of file types downloaded
-- **Export Data**: Export statistics as CSV/JSON
-
-#### Technical Approach
-```dart
-// New service: lib/services/statistics_service.dart
-class StatisticsService {
-  Future<DownloadStats> getDownloadStatistics();
-  Future<StorageStats> getStorageStatistics();
-  Future<List<UsageTrend>> getUsageTrends({int days = 30});
-  Future<List<TopArchive>> getTopArchives({int limit = 10});
-  Future<Map<String, int>> getFormatBreakdown();
-  Future<String> exportStatistics({String format = 'json'});
-}
-
-class DownloadStats {
-  int totalDownloads;
-  int successfulDownloads;
-  int failedDownloads;
-  int totalBytes;
-  Duration totalTime;
-}
-
-class StorageStats {
-  int metadataCount;
-  int cachedFilesCount;
-  int totalBytes;
-  Map<String, int> bytesByType; // 'images': 1234, 'videos': 5678, etc.
-}
-
-class UsageTrend {
-  DateTime date;
-  int downloads;
-  int bytes;
-}
-
-class TopArchive {
-  String identifier;
-  String title;
-  int accessCount;
-  int downloadCount;
-}
-```
-
-#### UI Components
-- Statistics screen with tabs (Downloads, Storage, Trends)
-- Pie charts for storage breakdown
-- Line charts for usage trends
-- Top archives list with ranking
-- Export button with format selector
+### ~~Task 5: Statistics & Insights~~ ❌ REMOVED
+**Status**: Moved to Phase 6 (post-release feature)  
+**Reason**: Not critical for initial Play Store release. Focus on core functionality, polish, and stability first.
 
 ---
 
@@ -276,22 +231,18 @@ class TopArchive {
 ### New Packages
 ```yaml
 dependencies:
-  # For statistics charts
-  fl_chart: ^0.68.0
-  
-  # For local database (if not using shared_preferences)
+  # For local database (favorites, collections)
   sqflite: ^2.3.0
   path_provider: ^2.1.1
+  
+  # For simple settings/preferences (CRITICAL)
+  shared_preferences: ^2.2.2
   
   # For date/time pickers
   intl: ^0.19.0
   
   # For drag-and-drop reordering
   reorderable_grid_view: ^2.2.8
-  
-  # For export functionality
-  csv: ^6.0.0
-  share_plus: ^7.2.1
 ```
 
 ### Existing Packages to Leverage
@@ -315,7 +266,7 @@ dependencies:
 5. Task 5: Statistics & Insights (2-3 hours)
 6. Testing, bug fixes, and documentation (2-3 hours)
 
-**Total Estimated Effort**: 17-23 hours
+**Total Estimated Effort**: 16-21 hours (revised from 20-27h, removed statistics)
 
 ---
 
@@ -367,11 +318,8 @@ dependencies:
 - ✅ Cache limits are enforced
 - ✅ Settings persist across app restarts
 
-### Task 5 (Statistics)
-- ✅ Statistics display accurately
-- ✅ Charts render correctly and are readable
-- ✅ Top archives list shows most accessed items
-- ✅ Export functionality generates valid files
+### ~~Task 5 (Statistics)~~ - REMOVED
+- Moved to Phase 6 (post-release enhancement)
 
 ---
 
@@ -485,12 +433,14 @@ Before starting Phase 4 implementation, please confirm:
 
 ## Notes
 
-- Phase 4 builds upon existing architecture from Phases 1-3
+- Phase 4 completes core download functionality from Phases 1-3
 - All features designed to work offline-first
 - Minimal new dependencies to keep app size manageable
-- Focus on quality-of-life improvements vs. flashy features
+- **shared_preferences integration is CRITICAL** - proper data persistence
+- Focus on essential features for Play Store release
 - Maintains consistency with existing Internet Archive branding
 - Code follows Flutter best practices and project conventions
+- Statistics moved to Phase 6 (post-release)
 
 ---
 
