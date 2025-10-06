@@ -187,7 +187,7 @@ class BackgroundDownloadService extends ChangeNotifier {
     }
   }
 
-  /// Start a background download
+  /// Start a background download using pure Dart implementation
   Future<String?> startBackgroundDownload({
     required String identifier,
     required List<String> selectedFiles,
@@ -197,39 +197,121 @@ class BackgroundDownloadService extends ChangeNotifier {
     String? maxSize,
   }) async {
     try {
-      // Convert selectedFiles list to JSON string
-      final filesJson = jsonEncode(selectedFiles);
+      // Use identifier as downloadId
+      final downloadId = identifier;
       
-      // Create config JSON
-      final configJson = jsonEncode({
-        'includeFormats': includeFormats,
-        'excludeFormats': excludeFormats,
-        'maxSize': maxSize,
-      });
+      // Create download progress entry
+      _activeDownloads[downloadId] = DownloadProgress(
+        downloadId: downloadId,
+        identifier: identifier,
+        totalFiles: selectedFiles.length,
+        status: DownloadStatus.queued,
+      );
+      notifyListeners();
       
-      final success = await _platform.invokeMethod('startDownloadService', {
-        'identifier': identifier,
-        'outputDir': downloadPath,
-        'configJson': configJson,
-        'filesJson': filesJson,
-      });
-
-      if (success == true) {
-        final downloadId = identifier; // Use identifier as downloadId
-        _activeDownloads[downloadId] = DownloadProgress(
-          downloadId: downloadId,
-          identifier: identifier,
-          totalFiles: selectedFiles.length,
-          status: DownloadStatus.queued,
-        );
-        notifyListeners();
-        return downloadId;
-      }
-
-      return null;
+      // Start download in background using Dart isolate
+      _startDartDownload(
+        downloadId: downloadId,
+        identifier: identifier,
+        selectedFiles: selectedFiles,
+        downloadPath: downloadPath,
+        includeFormats: includeFormats,
+        excludeFormats: excludeFormats,
+        maxSize: maxSize,
+      );
+      
+      return downloadId;
     } catch (e) {
       debugPrint('Failed to start background download: $e');
       return null;
+    }
+  }
+  
+  /// Start download using pure Dart (no native code needed)
+  Future<void> _startDartDownload({
+    required String downloadId,
+    required String identifier,
+    required List<String> selectedFiles,
+    required String downloadPath,
+    String? includeFormats,
+    String? excludeFormats,
+    String? maxSize,
+  }) async {
+    try {
+      // Update status to downloading
+      if (_activeDownloads.containsKey(downloadId)) {
+        _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
+          status: DownloadStatus.downloading,
+        );
+        notifyListeners();
+      }
+      
+      // Use the InternetArchiveApi to download files
+      final api = InternetArchiveApi();
+      int completedFiles = 0;
+      
+      for (final fileName in selectedFiles) {
+        try {
+          final fileUrl = 'https://archive.org/download/$identifier/$fileName';
+          final filePath = '$downloadPath/$fileName';
+          
+          // Download file using the API
+          await api.downloadFile(
+            fileUrl,
+            filePath,
+            onProgress: (received, total) {
+              // Update progress
+              if (_activeDownloads.containsKey(downloadId)) {
+                final progress = (received / total * 100).round();
+                _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
+                  completedFiles: completedFiles,
+                  currentFileProgress: progress,
+                  status: DownloadStatus.downloading,
+                );
+                notifyListeners();
+              }
+            },
+          );
+          
+          completedFiles++;
+          
+          // Update completed count
+          if (_activeDownloads.containsKey(downloadId)) {
+            _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
+              completedFiles: completedFiles,
+              currentFileProgress: 0,
+            );
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('Failed to download file $fileName: $e');
+          // Continue with next file even if one fails
+        }
+      }
+      
+      // Mark as complete
+      if (_activeDownloads.containsKey(downloadId)) {
+        final download = _activeDownloads.remove(downloadId)!;
+        _completedDownloads[downloadId] = download.copyWith(
+          status: DownloadStatus.completed,
+          completedFiles: completedFiles,
+        );
+        
+        // Update statistics
+        _totalFilesDownloaded += completedFiles;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Download error for $downloadId: $e');
+      
+      // Mark as failed
+      if (_activeDownloads.containsKey(downloadId)) {
+        _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
+          status: DownloadStatus.failed,
+          error: e.toString(),
+        );
+        notifyListeners();
+      }
     }
   }
 

@@ -51,8 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onServiceChanged() {
     final service = context.read<ArchiveService>();
 
-    // Navigate to detail screen when metadata is loaded (only once)
-    if (service.currentMetadata != null && mounted && !_hasNavigated) {
+    // Navigate to detail screen only when metadata is successfully loaded
+    // Check that we have metadata AND no error AND not currently loading
+    if (service.currentMetadata != null && 
+        service.error == null && 
+        !service.isLoading &&
+        mounted && 
+        !_hasNavigated) {
       _hasNavigated = true;
 
       Navigator.of(context)
