@@ -69,7 +69,10 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace 'com.gameaday.internet_archive_helper'
     compileSdkVersion 36
-    ndkVersion "27.0.12077973"
+    // NDK version - Flutter may use side-by-side NDK from Android SDK automatically
+    // Not explicitly required for pure Dart implementation
+    // If you have build issues, ensure Android SDK includes side-by-side NDK
+    // ndkVersion can be omitted to use the side-by-side NDK from Android SDK
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
