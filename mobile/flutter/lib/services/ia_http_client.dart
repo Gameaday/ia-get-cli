@@ -13,13 +13,24 @@ import 'rate_limiter.dart';
 /// 4. Automatic rate limiting integration
 /// 5. Request timeout handling
 /// 6. Cancellation support
+/// 7. ETag support for conditional GET requests (If-None-Match/304)
 ///
 /// Usage:
 /// ```dart
 /// final client = IAHttpClient();
 /// try {
+///   // Simple GET request
 ///   final response = await client.get(Uri.parse('https://archive.org/...'));
-///   // Handle response
+///
+///   // Conditional GET with ETag (returns 304 if not modified)
+///   final etag = IAHttpClient.extractETag(response);
+///   final response2 = await client.get(
+///     Uri.parse('https://archive.org/...'),
+///     ifNoneMatch: etag,
+///   );
+///   if (response2.statusCode == 304) {
+///     // Cache is still valid, no need to re-download
+///   }
 /// } on IAHttpException catch (e) {
 ///   // Handle error
 /// } finally {
@@ -65,13 +76,19 @@ class IAHttpClient {
             ];
 
   /// GET request with automatic retry and rate limiting.
+  ///
+  /// [ifNoneMatch]: Optional ETag for conditional GET (304 Not Modified support)
   Future<http.Response> get(
     Uri url, {
     Map<String, String>? headers,
     Duration? timeout,
+    String? ifNoneMatch,
   }) async {
     return _executeWithRetry(
-      () => _innerClient.get(url, headers: _mergeHeaders(headers)),
+      () => _innerClient.get(
+        url,
+        headers: _mergeHeaders(headers, ifNoneMatch: ifNoneMatch),
+      ),
       timeout: timeout,
     );
   }
@@ -263,9 +280,16 @@ class IAHttpClient {
   }
 
   /// Merge custom headers with required headers.
-  Map<String, String> _mergeHeaders(Map<String, String>? headers) {
+  ///
+  /// Always includes User-Agent header.
+  /// Optionally includes If-None-Match header for conditional GET requests.
+  Map<String, String> _mergeHeaders(
+    Map<String, String>? headers, {
+    String? ifNoneMatch,
+  }) {
     return {
       'User-Agent': userAgent,
+      if (ifNoneMatch != null) 'If-None-Match': ifNoneMatch,
       if (headers != null) ...headers,
     };
   }
@@ -297,6 +321,17 @@ class IAHttpClient {
     if (statusCode == 404) return IAHttpExceptionType.notFound;
     if (statusCode >= 400) return IAHttpExceptionType.clientError;
     return IAHttpExceptionType.unknown;
+  }
+
+  /// Extract ETag from response headers (for cache validation).
+  ///
+  /// Returns the ETag value if present, null otherwise.
+  /// Archive.org typically returns ETags in the format: `"w/<hash>"` or `"<hash>"`
+  static String? extractETag(http.Response response) {
+    // Check both 'etag' and 'ETag' (case-insensitive)
+    return response.headers['etag'] ??
+        response.headers['ETag'] ??
+        response.headers['ETAG'];
   }
 
   /// Get Flutter version for User-Agent.
