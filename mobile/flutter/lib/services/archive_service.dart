@@ -91,6 +91,18 @@ class ArchiveService extends ChangeNotifier {
       _filteredFiles = [];
       _isLoading = false;
       
+      // If it's a NotFoundException, try to get suggestions
+      if (e.toString().contains('not found') || e.toString().contains('404')) {
+        try {
+          final suggestions = await _api.suggestAlternativeIdentifiers(trimmedIdentifier);
+          _suggestions = suggestions;
+        } catch (suggestionError) {
+          if (kDebugMode) {
+            print('Failed to get suggestions: $suggestionError');
+          }
+        }
+      }
+      
       if (kDebugMode) {
         print('Error fetching metadata: $e');
         print('Stack trace: $stackTrace');

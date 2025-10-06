@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/archive_service.dart';
 import '../widgets/search_bar_widget.dart';
+import '../widgets/search_suggestion_card.dart';
 import '../widgets/download_manager_widget.dart';
 import 'archive_detail_screen.dart';
 import 'download_screen.dart';
@@ -217,48 +218,32 @@ class _HomeScreenState extends State<HomeScreen> {
               // Search suggestions
               if (service.suggestions.isNotEmpty)
                 Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Did you mean:',
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: Text(
+                          'Suggestions:',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
+                            color: Colors.grey.shade800,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: service.suggestions.length,
-                            itemBuilder: (context, index) {
-                              final suggestion = service.suggestions[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  leading: const Icon(Icons.archive),
-                                  title: Text(suggestion.title),
-                                  subtitle: Text(suggestion.identifier),
-                                  trailing: const Icon(Icons.arrow_forward),
-                                  onTap: () {
-                                    // Fetch metadata for the suggested archive
-                                    service.fetchMetadata(
-                                      suggestion.identifier,
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      ...service.suggestions.map((suggestion) {
+                        return SearchSuggestionCard(
+                          suggestion: suggestion,
+                          onTap: () {
+                            // Clear error and suggestions before fetching
+                            service.clearMetadata();
+                            // Fetch metadata for the suggested archive
+                            service.fetchMetadata(suggestion.identifier);
+                          },
+                        );
+                      }),
+                    ],
                   ),
                 ),
 

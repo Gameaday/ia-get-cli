@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import '../models/archive_metadata.dart';
+import '../models/search_result.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../core/errors/ia_exceptions.dart';
 
@@ -92,12 +93,9 @@ class InternetArchiveApi {
           // If we've exhausted retries, throw with the information
           throw RateLimitException(retryAfter);
         } else if (response.statusCode == 404) {
-          // Item not found - suggest alternatives
-          final suggestion = await _suggestAlternativeIdentifier(identifier);
-          if (suggestion != null) {
-            throw Exception('${IAErrorMessages.notFound}. $suggestion');
-          }
-          throw Exception(IAErrorMessages.notFound);
+          // Item not found - throw a special exception that can be caught
+          // to populate suggestions separately
+          throw NotFoundException(identifier);
         } else if (response.statusCode == 403) {
           throw Exception(IAErrorMessages.forbidden);
         } else if (response.statusCode >= 500) {
@@ -490,14 +488,16 @@ class InternetArchiveApi {
     return extractedFiles;
   }
 
-  /// Suggest alternative identifier if the original one is not found
+  /// Suggest alternative identifiers when the original one is not found
   ///
   /// Checks:
   /// 1. If identifier has uppercase letters, try lowercase version
   /// 2. Search for similar identifiers
   ///
-  /// Returns a suggestion message or null
-  Future<String?> _suggestAlternativeIdentifier(String identifier) async {
+  /// Returns a list of SearchResult suggestions
+  Future<List<SearchResult>> suggestAlternativeIdentifiers(String identifier) async {
+    final suggestions = <SearchResult>[];
+    
     // Check if identifier has uppercase letters
     if (identifier != identifier.toLowerCase()) {
       final lowercaseId = identifier.toLowerCase();
@@ -513,7 +513,28 @@ class InternetArchiveApi {
             .timeout(const Duration(seconds: 5));
         
         if (testResponse.statusCode == 200) {
-          return 'Did you mean "$lowercaseId"? (identifiers are case-sensitive)';
+          // Parse the response to get title
+          try {
+            final jsonData = json.decode(testResponse.body);
+            final title = jsonData['metadata']?['title'] ?? 'Untitled';
+            final titleStr = title is List ? (title.isNotEmpty ? title.first.toString() : 'Untitled') : title.toString();
+            
+            suggestions.add(SearchResult(
+              identifier: lowercaseId,
+              title: titleStr,
+              description: 'Did you mean this? (identifiers are case-sensitive)',
+            ));
+          } catch (_) {
+            // If parsing fails, still add a basic suggestion
+            suggestions.add(SearchResult(
+              identifier: lowercaseId,
+              title: lowercaseId,
+              description: 'Did you mean this? (identifiers are case-sensitive)',
+            ));
+          }
+          
+          // Return early with just the lowercase suggestion
+          return suggestions;
         }
       } catch (_) {
         // Lowercase version doesn't exist either, continue with search
@@ -525,7 +546,7 @@ class InternetArchiveApi {
       final searchUrl = IAUtils.buildSearchUrl(
         query: identifier,
         rows: 5,
-        fields: ['identifier', 'title'],
+        fields: ['identifier', 'title', 'description'],
       );
       
       final searchResponse = await _client
@@ -539,19 +560,20 @@ class InternetArchiveApi {
         final jsonData = json.decode(searchResponse.body);
         final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
         
-        if (docs.isNotEmpty) {
-          final suggestions = docs
-              .take(3)
-              .map((doc) => '"${doc['identifier']}"')
-              .join(', ');
-          return 'Did you mean one of these: $suggestions?';
+        for (final doc in docs.take(5)) {
+          try {
+            suggestions.add(SearchResult.fromJson(doc as Map<String, dynamic>));
+          } catch (_) {
+            // Skip if parsing fails
+            continue;
+          }
         }
       }
     } catch (_) {
-      // Search failed, return null
+      // Search failed, return what we have
     }
     
-    return null;
+    return suggestions;
   }
 
   /// Convert various input formats to metadata URL
@@ -636,4 +658,14 @@ class CancellationToken {
   void cancel() {
     _isCancelled = true;
   }
+}
+
+/// Exception thrown when an archive item is not found
+class NotFoundException implements Exception {
+  final String identifier;
+  
+  NotFoundException(this.identifier);
+  
+  @override
+  String toString() => 'Archive item "$identifier" not found (404)';
 }
