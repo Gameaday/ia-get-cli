@@ -27,8 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       
-      // Initialize the service
+      // Initialize the services
       context.read<ArchiveService>().initialize();
+      context.read<HistoryService>().loadHistory();
 
       // Listen for metadata changes to navigate to detail screen
       context.read<ArchiveService>().addListener(_onServiceChanged);

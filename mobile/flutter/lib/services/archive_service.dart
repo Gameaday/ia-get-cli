@@ -87,7 +87,7 @@ class ArchiveService extends ChangeNotifier {
 
       // Add to history if history service is available
       if (_historyService != null) {
-        _historyService!.addToHistory(HistoryEntry(
+        _historyService.addToHistory(HistoryEntry(
           identifier: metadata.identifier,
           title: metadata.title ?? metadata.identifier,
           description: metadata.description,
