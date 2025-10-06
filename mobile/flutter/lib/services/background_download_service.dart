@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -262,7 +261,7 @@ class BackgroundDownloadService extends ChangeNotifier {
             onProgress: (received, total) {
               // Update progress
               if (_activeDownloads.containsKey(downloadId)) {
-                final progress = (received / total * 100).round();
+                final progress = (received / total * 100).toDouble();
                 _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
                   completedFiles: completedFiles,
                   currentFileProgress: progress,
@@ -307,8 +306,8 @@ class BackgroundDownloadService extends ChangeNotifier {
       // Mark as failed
       if (_activeDownloads.containsKey(downloadId)) {
         _activeDownloads[downloadId] = _activeDownloads[downloadId]!.copyWith(
-          status: DownloadStatus.failed,
-          error: e.toString(),
+          status: DownloadStatus.error,
+          errorMessage: e.toString(),
         );
         notifyListeners();
       }
