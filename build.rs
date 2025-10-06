@@ -7,15 +7,19 @@ fn main() {
     embed_windows_manifest();
 
     // Check if we're building for Android and provide guidance
+    // Note: Flutter mobile app uses pure Dart - no Rust native libraries needed
     if let Ok(target) = std::env::var("TARGET")
         && target.contains("android")
     {
-        println!("cargo:warning=Building for Android target: {}", target);
+        println!("cargo:warning=Building Rust for Android target: {}", target);
         println!(
-            "cargo:warning=For complete Android APK/AAB builds: ./scripts/build-mobile.sh [--development|--production] [--appbundle]"
+            "cargo:warning=Note: The Flutter mobile app uses pure Dart and does NOT need Rust native libraries."
         );
         println!(
-            "cargo:warning=For native libraries only, use: ./scripts/build-android-libs-only.sh"
+            "cargo:warning=For Flutter Android APK/AAB builds: ./scripts/build-mobile.sh [--development|--production] [--appbundle]"
+        );
+        println!(
+            "cargo:warning=This Rust Android target build is only needed if you plan to use Rust via FFI in the future."
         );
     }
 

@@ -43,6 +43,8 @@ command_exists() {
 }
 
 # Function to check if a Rust target is installed
+# DEPRECATED: Not currently used by any active scripts
+# Only kept for reference or future Rust cross-compilation needs
 check_rust_target() {
     local target="$1"
     if ! rustup target list --installed | grep -q "$target"; then
@@ -110,6 +112,8 @@ EOF
 }
 
 # Function to get compiler prefix for target
+# DEPRECATED: Not needed for Flutter mobile app (pure Dart implementation)
+# Only kept for reference or if Rust native libraries are needed in the future
 get_compiler_prefix() {
     local target="$1"
     case "$target" in
@@ -133,6 +137,8 @@ get_compiler_prefix() {
 }
 
 # Function to get Rust target from target name
+# DEPRECATED: Not needed for Flutter mobile app (pure Dart implementation)
+# Only kept for reference or if Rust native libraries are needed in the future
 get_rust_target() {
     local target="$1"
     case "$target" in
@@ -156,6 +162,8 @@ get_rust_target() {
 }
 
 # Function to get Android ABI name from target name
+# DEPRECATED: Not needed for Flutter mobile app (pure Dart implementation)
+# Only kept for reference or if Rust native libraries are needed in the future
 get_android_abi() {
     local target="$1"
     case "$target" in
