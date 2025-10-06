@@ -6,8 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import '../models/archive_metadata.dart';
+import '../models/search_result.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../core/errors/ia_exceptions.dart';
+import '../utils/identifier_validator.dart';
 
 /// Pure Dart/Flutter implementation of Internet Archive API client
 ///
@@ -46,6 +48,19 @@ class InternetArchiveApi {
   /// Returns the parsed [ArchiveMetadata] or throws an exception on error
   Future<ArchiveMetadata> fetchMetadata(String identifier) async {
     final metadataUrl = _getMetadataUrl(identifier);
+    
+    // Validate identifier format early
+    final extractedId = _extractIdentifier(identifier);
+    final validationError = IdentifierValidator.validate(extractedId);
+    if (validationError != null) {
+      // Suggest a correction if possible
+      final suggestion = IdentifierValidator.suggestCorrection(extractedId);
+      if (suggestion != null) {
+        throw FormatException(
+            '$validationError. Did you mean "$suggestion"?');
+      }
+      throw FormatException(validationError);
+    }
     
     if (kDebugMode) {
       print('Fetching metadata from: $metadataUrl');
@@ -92,9 +107,43 @@ class InternetArchiveApi {
           // If we've exhausted retries, throw with the information
           throw RateLimitException(retryAfter);
         } else if (response.statusCode == 404) {
-          throw Exception(IAErrorMessages.notFound);
+          // Item not found - throw a special exception that can be caught
+          // to populate suggestions separately
+          throw NotFoundException(identifier);
         } else if (response.statusCode == 403) {
-          throw Exception(IAErrorMessages.forbidden);
+          throw ForbiddenException(
+              'Access forbidden. This item may be restricted or require authentication.');
+        } else if (response.statusCode == 503) {
+          // Service unavailable - check for Retry-After header first
+          if (retries < IARateLimits.maxRetries - 1) {
+            final serverRetryAfter = int.tryParse(response.headers['retry-after'] ?? '');
+            final waitTime = serverRetryAfter != null 
+                ? Duration(seconds: serverRetryAfter)
+                : retryDelay;
+            
+            if (kDebugMode) {
+              if (serverRetryAfter != null) {
+                print('Service unavailable, retrying in ${waitTime.inSeconds}s (as requested by server)...');
+              } else {
+                print('Service unavailable, retrying in ${waitTime.inSeconds}s (exponential backoff)...');
+              }
+            }
+            
+            await Future.delayed(waitTime);
+            retries++;
+            
+            // Only apply exponential backoff if server didn't specify retry-after
+            if (serverRetryAfter == null) {
+              retryDelay = Duration(
+                  seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
+              if (retryDelay.inSeconds > IARateLimits.maxBackoffDelaySecs) {
+                retryDelay = const Duration(seconds: IARateLimits.maxBackoffDelaySecs);
+              }
+            }
+            continue;
+          }
+          throw ServiceUnavailableException(
+              'Archive.org service temporarily unavailable. This is likely temporary.');
         } else if (response.statusCode >= 500) {
           // Server error - check for Retry-After header first, then use exponential backoff
           if (retries < IARateLimits.maxRetries - 1) {
@@ -485,6 +534,94 @@ class InternetArchiveApi {
     return extractedFiles;
   }
 
+  /// Suggest alternative identifiers when the original one is not found
+  ///
+  /// Checks:
+  /// 1. If identifier has uppercase letters, try lowercase version
+  /// 2. Search for similar identifiers
+  ///
+  /// Returns a list of SearchResult suggestions
+  Future<List<SearchResult>> suggestAlternativeIdentifiers(String identifier) async {
+    final suggestions = <SearchResult>[];
+    
+    // Check if identifier has uppercase letters
+    if (identifier != identifier.toLowerCase()) {
+      final lowercaseId = identifier.toLowerCase();
+      
+      try {
+        // Try to fetch metadata with lowercase identifier
+        final testUrl = _getMetadataUrl(lowercaseId);
+        final testResponse = await _client
+            .get(
+              Uri.parse(testUrl),
+              headers: IAHeaders.standard(_appVersion),
+            )
+            .timeout(const Duration(seconds: 5));
+        
+        if (testResponse.statusCode == 200) {
+          // Parse the response to get title
+          try {
+            final jsonData = json.decode(testResponse.body);
+            final title = jsonData['metadata']?['title'] ?? 'Untitled';
+            final titleStr = title is List ? (title.isNotEmpty ? title.first.toString() : 'Untitled') : title.toString();
+            
+            suggestions.add(SearchResult(
+              identifier: lowercaseId,
+              title: titleStr,
+              description: 'Did you mean this? (identifiers are case-sensitive)',
+            ));
+          } catch (_) {
+            // If parsing fails, still add a basic suggestion
+            suggestions.add(SearchResult(
+              identifier: lowercaseId,
+              title: lowercaseId,
+              description: 'Did you mean this? (identifiers are case-sensitive)',
+            ));
+          }
+          
+          // Return early with just the lowercase suggestion
+          return suggestions;
+        }
+      } catch (_) {
+        // Lowercase version doesn't exist either, continue with search
+      }
+    }
+    
+    // Try to find similar identifiers using search
+    try {
+      final searchUrl = IAUtils.buildSearchUrl(
+        query: identifier,
+        rows: 5,
+        fields: ['identifier', 'title', 'description'],
+      );
+      
+      final searchResponse = await _client
+          .get(
+            Uri.parse(searchUrl),
+            headers: IAHeaders.standard(_appVersion),
+          )
+          .timeout(const Duration(seconds: 5));
+      
+      if (searchResponse.statusCode == 200) {
+        final jsonData = json.decode(searchResponse.body);
+        final docs = jsonData['response']?['docs'] as List<dynamic>? ?? [];
+        
+        for (final doc in docs.take(5)) {
+          try {
+            suggestions.add(SearchResult.fromJson(doc as Map<String, dynamic>));
+          } catch (_) {
+            // Skip if parsing fails
+            continue;
+          }
+        }
+      }
+    } catch (_) {
+      // Search failed, return what we have
+    }
+    
+    return suggestions;
+  }
+
   /// Convert various input formats to metadata URL
   ///
   /// Handles:
@@ -514,6 +651,42 @@ class InternetArchiveApi {
       }
       return IAUtils.buildMetadataUrl(trimmed);
     }
+  }
+
+  /// Extract identifier from various input formats
+  ///
+  /// Handles:
+  /// - Details URL: https://archive.org/details/identifier -> identifier
+  /// - Metadata URL: https://archive.org/metadata/identifier -> identifier
+  /// - Simple identifier: identifier -> identifier
+  String _extractIdentifier(String input) {
+    final trimmed = input.trim();
+
+    if (trimmed.contains('/details/')) {
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      final detailsIndex = segments.indexOf('details');
+      if (detailsIndex >= 0 && detailsIndex < segments.length - 1) {
+        return segments[detailsIndex + 1];
+      }
+    } else if (trimmed.contains('/metadata/')) {
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      final metadataIndex = segments.indexOf('metadata');
+      if (metadataIndex >= 0 && metadataIndex < segments.length - 1) {
+        return segments[metadataIndex + 1];
+      }
+    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      // It's a URL but not a details or metadata URL - extract last segment
+      final uri = Uri.parse(trimmed);
+      final segments = uri.pathSegments;
+      if (segments.isNotEmpty) {
+        return segments.last;
+      }
+    }
+    
+    // Assume it's a bare identifier
+    return trimmed;
   }
 
   /// Enforce rate limiting between requests
@@ -567,4 +740,34 @@ class CancellationToken {
   void cancel() {
     _isCancelled = true;
   }
+}
+
+/// Exception thrown when an archive item is not found
+class NotFoundException implements Exception {
+  final String identifier;
+  
+  NotFoundException(this.identifier);
+  
+  @override
+  String toString() => 'Archive item "$identifier" not found (404)';
+}
+
+/// Exception thrown when access is forbidden
+class ForbiddenException implements Exception {
+  final String message;
+  
+  ForbiddenException(this.message);
+  
+  @override
+  String toString() => 'Access forbidden (403): $message';
+}
+
+/// Exception thrown when the service is unavailable
+class ServiceUnavailableException implements Exception {
+  final String message;
+  
+  ServiceUnavailableException(this.message);
+  
+  @override
+  String toString() => 'Service unavailable (503): $message';
 }

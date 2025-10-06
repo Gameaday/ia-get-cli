@@ -7,6 +7,8 @@ class ArchiveMetadata {
   final String? date;
   final int totalFiles;
   final int totalSize;
+  final int? filesCount;
+  final int? itemLastUpdated;
   final List<ArchiveFile> files;
 
   ArchiveMetadata({
@@ -17,6 +19,8 @@ class ArchiveMetadata {
     this.date,
     required this.totalFiles,
     required this.totalSize,
+    this.filesCount,
+    this.itemLastUpdated,
     required this.files,
   });
 
@@ -64,9 +68,22 @@ class ArchiveMetadata {
       creator: json['metadata']?['creator'],
       date: json['metadata']?['date'],
       totalFiles: files.length,
-      totalSize: json['item_size'] ?? 0,
+      totalSize: _parseIntField(json['item_size']) ?? 0,
+      filesCount: _parseIntField(json['files_count']),
+      itemLastUpdated: _parseIntField(json['item_last_updated']),
       files: files,
     );
+  }
+  
+  /// Parse a field that could be either a String or an int
+  static int? _parseIntField(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -79,6 +96,8 @@ class ArchiveMetadata {
         'date': date,
       },
       'item_size': totalSize,
+      'files_count': filesCount,
+      'item_last_updated': itemLastUpdated,
       'files': files.map((f) => f.toJson()).toList(),
     };
   }
@@ -93,6 +112,12 @@ class ArchiveFile {
   final String? downloadUrl;
   final String? md5;
   final String? sha1;
+  final String? crc32;
+  final String? btih;
+  final String? summation;
+  final int? mtime;
+  final int? rotation;
+  final String? original;
   bool selected;
 
   ArchiveFile({
@@ -103,6 +128,12 @@ class ArchiveFile {
     this.downloadUrl,
     this.md5,
     this.sha1,
+    this.crc32,
+    this.btih,
+    this.summation,
+    this.mtime,
+    this.rotation,
+    this.original,
     this.selected = false,
   });
   
@@ -155,14 +186,31 @@ class ArchiveFile {
   factory ArchiveFile.fromJson(Map<String, dynamic> json) {
     return ArchiveFile(
       name: json['name'] ?? '',
-      size: json['size'],
+      size: _parseIntField(json['size']),
       format: json['format'],
       source: json['source'],
       downloadUrl: json['download_url'],
       md5: json['md5'],
       sha1: json['sha1'],
+      crc32: json['crc32'],
+      btih: json['btih'],
+      summation: json['summation'],
+      mtime: _parseIntField(json['mtime']),
+      rotation: _parseIntField(json['rotation']),
+      original: json['original'],
       selected: json['selected'] ?? false,
     );
+  }
+  
+  /// Parse a field that could be either a String or an int
+  static int? _parseIntField(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      if (value.isEmpty) return null;
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -174,6 +222,12 @@ class ArchiveFile {
       'download_url': downloadUrl,
       'md5': md5,
       'sha1': sha1,
+      'crc32': crc32,
+      'btih': btih,
+      'summation': summation,
+      'mtime': mtime,
+      'rotation': rotation,
+      'original': original,
       'selected': selected,
     };
   }

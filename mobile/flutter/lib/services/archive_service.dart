@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
 import 'internet_archive_api.dart';
+import 'history_service.dart';
 import '../core/constants/internet_archive_constants.dart';
 
 /// Archive Service - Pure Dart/Flutter implementation
@@ -20,6 +21,10 @@ import '../core/constants/internet_archive_constants.dart';
 
 class ArchiveService extends ChangeNotifier {
   final InternetArchiveApi _api = InternetArchiveApi();
+  final HistoryService? _historyService;
+
+  ArchiveService({HistoryService? historyService})
+      : _historyService = historyService;
 
   // State
   bool _isInitialized = true; // No initialization needed for pure Dart
@@ -80,6 +85,19 @@ class ArchiveService extends ChangeNotifier {
         await _applyFilters();
       }
 
+      // Add to history if history service is available
+      if (_historyService != null) {
+        _historyService!.addToHistory(HistoryEntry(
+          identifier: metadata.identifier,
+          title: metadata.title ?? metadata.identifier,
+          description: metadata.description,
+          creator: metadata.creator,
+          totalFiles: metadata.totalFiles,
+          totalSize: metadata.totalSize,
+          visitedAt: DateTime.now(),
+        ));
+      }
+
       _error = null;
       _isLoading = false;
       notifyListeners();
@@ -90,6 +108,18 @@ class ArchiveService extends ChangeNotifier {
       _currentMetadata = null;
       _filteredFiles = [];
       _isLoading = false;
+      
+      // If it's a NotFoundException, try to get suggestions
+      if (e.toString().contains('not found') || e.toString().contains('404')) {
+        try {
+          final suggestions = await _api.suggestAlternativeIdentifiers(trimmedIdentifier);
+          _suggestions = suggestions;
+        } catch (suggestionError) {
+          if (kDebugMode) {
+            print('Failed to get suggestions: $suggestionError');
+          }
+        }
+      }
       
       if (kDebugMode) {
         print('Error fetching metadata: $e');
