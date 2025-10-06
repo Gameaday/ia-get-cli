@@ -196,8 +196,12 @@ class _AppInitializerState extends State<AppInitializer> {
     if (!mounted) return;
 
     try {
-      // Initialize LocalArchiveStorage first (loads saved archives)
+      // Capture services before any await operations
       final archiveStorage = context.read<LocalArchiveStorage>();
+      final bgService = context.read<BackgroundDownloadService>();
+      final deepLinkService = context.read<DeepLinkService>();
+
+      // Initialize LocalArchiveStorage first (loads saved archives)
       await archiveStorage.initialize().timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -206,9 +210,6 @@ class _AppInitializerState extends State<AppInitializer> {
       );
 
       // Initialize BackgroundDownloadService (needs early setup for notifications)
-      final bgService = context.read<BackgroundDownloadService>();
-      // Initialize DeepLinkService (needs early setup for app links)
-      final deepLinkService = context.read<DeepLinkService>();
 
       await bgService.initialize().timeout(
         const Duration(seconds: 10),

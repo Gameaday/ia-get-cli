@@ -126,7 +126,7 @@ class DownloadedArchive {
       downloadedBytes: downloadedBytes,
       localPath: localPath,
       fileStates: fileStates,
-      tags: [],
+      tags: const [],
       notes: null,
     );
   }
