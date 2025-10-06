@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Represents a visited archive in history
 class HistoryEntry {
@@ -83,9 +86,15 @@ class HistoryEntry {
 class HistoryService extends ChangeNotifier {
   final List<HistoryEntry> _history = [];
   static const int _maxHistorySize = 100;
+  static const String _historyKey = 'archive_history';
+  
+  bool _isLoaded = false;
 
   /// Get all history entries
   List<HistoryEntry> get history => List.unmodifiable(_history);
+  
+  /// Check if history has been loaded from storage
+  bool get isLoaded => _isLoaded;
 
   /// Add an archive to history (or update if already exists)
   void addToHistory(HistoryEntry entry) {
@@ -118,19 +127,57 @@ class HistoryService extends ChangeNotifier {
     _saveHistory();
   }
 
-  /// Save history to persistent storage (placeholder)
-  void _saveHistory() {
-    // TODO: Implement persistent storage using shared_preferences
-    if (kDebugMode) {
-      print('History saved: ${_history.length} entries');
+  /// Save history to persistent storage
+  Future<void> _saveHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = _history.map((e) => e.toJson()).toList();
+      final jsonString = jsonEncode(jsonList);
+      await prefs.setString(_historyKey, jsonString);
+      
+      if (kDebugMode) {
+        print('History saved: ${_history.length} entries');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error saving history: $e');
+      }
     }
   }
 
-  /// Load history from persistent storage (placeholder)
+  /// Load history from persistent storage
   Future<void> loadHistory() async {
-    // TODO: Implement persistent storage loading using shared_preferences
-    if (kDebugMode) {
-      print('History loaded');
+    if (_isLoaded) {
+      return; // Already loaded
+    }
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_historyKey);
+      
+      if (jsonString != null && jsonString.isNotEmpty) {
+        final jsonList = jsonDecode(jsonString) as List<dynamic>;
+        _history.clear();
+        _history.addAll(
+          jsonList.map((json) => HistoryEntry.fromJson(json as Map<String, dynamic>)),
+        );
+        
+        if (kDebugMode) {
+          print('History loaded: ${_history.length} entries');
+        }
+      } else {
+        if (kDebugMode) {
+          print('No saved history found');
+        }
+      }
+      
+      _isLoaded = true;
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading history: $e');
+      }
+      _isLoaded = true; // Mark as loaded even on error to prevent repeated attempts
     }
   }
 }
