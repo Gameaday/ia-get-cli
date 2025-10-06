@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
+import 'package:path/path.dart' as path;
 import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
 import '../core/constants/internet_archive_constants.dart';
@@ -439,7 +440,7 @@ class InternetArchiveApi {
     }
 
     // Get just the filename without path
-    final fileName = file.path.split(Platform.pathSeparator).last.toLowerCase();
+    final fileName = path.basename(file.path).toLowerCase();
     final bytes = await file.readAsBytes();
     
     if (kDebugMode) {
@@ -471,16 +472,8 @@ class InternetArchiveApi {
         // Handle single GZIP files
         final decompressed = const GZipDecoder().decodeBytes(bytes);
         // Extract just the filename without the .gz extension
-        // Handle both forward slashes and backslashes in path
         String baseFileName = fileName.substring(0, fileName.length - 3);
-        // Remove any directory path components (handle / and \)
-        if (baseFileName.contains('/')) {
-          baseFileName = baseFileName.split('/').last;
-        }
-        if (baseFileName.contains('\\')) {
-          baseFileName = baseFileName.split('\\').last;
-        }
-        final outputPath = '$outputDir${Platform.pathSeparator}$baseFileName';
+        final outputPath = path.join(outputDir, baseFileName);
         
         final outputFile = File(outputPath);
         await outputFile.writeAsBytes(decompressed);
@@ -513,7 +506,7 @@ class InternetArchiveApi {
 
     for (final file in archive) {
       if (file.isFile) {
-        final outputPath = '$outputDir${Platform.pathSeparator}${file.name}';
+        final outputPath = path.join(outputDir, file.name);
         
         // Create parent directories if needed
         final outputFile = File(outputPath);

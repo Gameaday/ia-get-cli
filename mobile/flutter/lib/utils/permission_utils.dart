@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -6,7 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 class PermissionUtils {
   /// Check and request storage permissions based on Android version
   static Future<bool> requestStoragePermissions() async {
-    if (!Platform.isAndroid) {
+    if (defaultTargetPlatform != TargetPlatform.android) {
       return true; // iOS handles permissions differently
     }
 
@@ -68,7 +68,7 @@ class PermissionUtils {
 
   /// Check if storage permissions are currently granted
   static Future<bool> hasStoragePermissions() async {
-    if (!Platform.isAndroid) {
+    if (defaultTargetPlatform != TargetPlatform.android) {
       return true;
     }
 
@@ -104,7 +104,7 @@ class PermissionUtils {
 
   /// Request notification permissions (Android 13+)
   static Future<bool> requestNotificationPermissions() async {
-    if (!Platform.isAndroid) {
+    if (defaultTargetPlatform != TargetPlatform.android) {
       return true;
     }
 
@@ -124,7 +124,7 @@ class PermissionUtils {
 
   /// Check if notification permissions are granted
   static Future<bool> hasNotificationPermissions() async {
-    if (!Platform.isAndroid) {
+    if (defaultTargetPlatform != TargetPlatform.android) {
       return true;
     }
 
