@@ -102,6 +102,116 @@ class PermissionUtils {
     }
   }
 
+  /// Check if MANAGE_EXTERNAL_STORAGE permission is granted (Android 11+)
+  /// This is needed for full file system access including opening folders
+  static Future<bool> hasManageStoragePermission() async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+
+    try {
+      if (await _isAndroid10OrHigher()) {
+        final status = await Permission.manageExternalStorage.status;
+        return status.isGranted;
+      }
+      // On Android 9 and below, regular storage permission is sufficient
+      return await hasStoragePermissions();
+    } catch (e) {
+      debugPrint('Error checking manage storage permission: $e');
+      return false;
+    }
+  }
+
+  /// Request MANAGE_EXTERNAL_STORAGE permission (Android 11+)
+  /// This requires special handling - on Android 11+, users must grant it in system settings
+  static Future<bool> requestManageStoragePermission(
+    BuildContext context,
+  ) async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+
+    try {
+      if (await _isAndroid10OrHigher()) {
+        final status = await Permission.manageExternalStorage.status;
+
+        if (status.isGranted) {
+          return true;
+        }
+
+        // On Android 11+, this permission requires ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION
+        // Show dialog explaining why we need this
+        final shouldRequest = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Storage Access Required'),
+            content: const Text(
+              'To open folders and manage downloaded files, this app needs full storage access.\n\n'
+              'You will be taken to system settings where you can grant "All files access" permission.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldRequest != true) {
+          return false;
+        }
+
+        // Request permission - this will open system settings on Android 11+
+        final result = await Permission.manageExternalStorage.request();
+
+        if (!result.isGranted) {
+          // User didn't grant permission, show how to do it manually
+          if (context.mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Permission Not Granted'),
+                content: const Text(
+                  'To enable folder access:\n'
+                  '1. Open Settings\n'
+                  '2. Find this app\n'
+                  '3. Enable "All files access"',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      openAppSettings();
+                    },
+                    child: const Text('Open Settings'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return false;
+        }
+
+        return result.isGranted;
+      }
+
+      // On Android 9 and below, regular storage permission is sufficient
+      return await requestStoragePermissions();
+    } catch (e) {
+      debugPrint('Error requesting manage storage permission: $e');
+      return false;
+    }
+  }
+
   /// Request notification permissions (Android 13+)
   static Future<bool> requestNotificationPermissions() async {
     if (defaultTargetPlatform != TargetPlatform.android) {

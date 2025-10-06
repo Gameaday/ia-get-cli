@@ -7,6 +7,7 @@ import '../models/archive_metadata.dart';
 import '../services/archive_service.dart';
 import '../screens/file_preview_screen.dart';
 import '../screens/filters_screen.dart';
+import '../utils/permission_utils.dart';
 
 // File download state enum
 enum _FileState { notDownloaded, downloaded, outdated, checking }
@@ -839,6 +840,33 @@ class _FileListWidgetState extends State<FileListWidget> {
   // File action methods
   Future<void> _openLocalFile(ArchiveFile file) async {
     if (_currentArchiveId == null) return;
+
+    // Check if we have permission to access files
+    final hasPermission = await PermissionUtils.hasManageStoragePermission();
+
+    if (!hasPermission) {
+      if (!mounted) return;
+
+      // Request permission with explanation
+      final granted = await PermissionUtils.requestManageStoragePermission(
+        context,
+      );
+
+      if (!granted) {
+        // User denied permission
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Storage access permission is required to open files',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+    }
 
     final filePath = _getLocalFilePath(_currentArchiveId!, file.filename);
     final result = await OpenFile.open(filePath);

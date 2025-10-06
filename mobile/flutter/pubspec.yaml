@@ -17,6 +17,7 @@ dependencies:
   path_provider: ^2.1.5
   permission_handler: ^12.0.1  # Latest available for Flutter 3.32
   open_file: ^3.5.9
+  sqflite: ^2.4.1  # SQLite for metadata caching
   
   # Network and download
   http: ^1.5.0

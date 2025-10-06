@@ -6,6 +6,7 @@ import '../providers/download_provider.dart';
 import '../services/background_download_service.dart';
 import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
+import '../utils/permission_utils.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -306,6 +307,33 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   void _openDownloadFolderForProgress(String identifier) async {
+    // Check if we have permission to access folders
+    final hasPermission = await PermissionUtils.hasManageStoragePermission();
+
+    if (!hasPermission) {
+      if (!mounted) return;
+
+      // Request permission with explanation
+      final granted = await PermissionUtils.requestManageStoragePermission(
+        context,
+      );
+
+      if (!granted) {
+        // User denied permission
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Storage access permission is required to open folders',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     final downloadPath = '/storage/emulated/0/Download/ia-get/$identifier';
     try {
       final result = await OpenFile.open(downloadPath);
@@ -480,6 +508,33 @@ class _DownloadScreenState extends State<DownloadScreen> {
   }
 
   void _openDownloadFolder(String identifier) async {
+    // Check if we have permission to access folders
+    final hasPermission = await PermissionUtils.hasManageStoragePermission();
+
+    if (!hasPermission) {
+      if (!mounted) return;
+
+      // Request permission with explanation
+      final granted = await PermissionUtils.requestManageStoragePermission(
+        context,
+      );
+
+      if (!granted) {
+        // User denied permission
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Storage access permission is required to open folders',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     // Try to open the download folder
     final downloadPath = '/storage/emulated/0/Download/ia-get/$identifier';
 
