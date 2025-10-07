@@ -8,6 +8,7 @@ import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
 import '../widgets/bandwidth_controls_widget.dart';
+import '../widgets/priority_selector.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -383,6 +384,15 @@ class _DownloadScreenState extends State<DownloadScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // Compact priority selector
+                PrioritySelector(
+                  priority: downloadState.priority,
+                  onChanged: (newPriority) {
+                    provider.changePriority(identifier, newPriority);
+                  },
+                  compact: true,
+                ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.stop),
                   tooltip: 'Cancel download',

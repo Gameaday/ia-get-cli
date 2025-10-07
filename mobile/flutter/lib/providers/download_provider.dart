@@ -3,6 +3,7 @@ import '../models/archive_metadata.dart';
 import '../models/download_progress.dart' hide DownloadStatus;
 import '../models/download_progress.dart' as progress_model show DownloadStatus;
 import '../models/file_filter.dart';
+import '../models/download_priority.dart';
 import '../services/archive_service.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../providers/bandwidth_manager_provider.dart';
@@ -69,6 +70,7 @@ class DownloadState {
   final ArchiveMetadata? metadata;
   final Map<String, DownloadProgress> fileProgress;
   final DownloadStatus downloadStatus;
+  final DownloadPriority priority;
   final String? error;
   final DateTime? startTime;
   final DateTime? endTime;
@@ -78,6 +80,7 @@ class DownloadState {
     this.metadata,
     Map<String, DownloadProgress>? fileProgress,
     this.downloadStatus = DownloadStatus.idle,
+    this.priority = DownloadPriority.normal,
     this.error,
     this.startTime,
     this.endTime,
@@ -91,6 +94,7 @@ class DownloadState {
     ArchiveMetadata? metadata,
     Map<String, DownloadProgress>? fileProgress,
     DownloadStatus? downloadStatus,
+    DownloadPriority? priority,
     String? status,  // Deprecated, use downloadStatus
     String? error,
     DateTime? startTime,
@@ -102,6 +106,7 @@ class DownloadState {
       fileProgress: fileProgress ?? this.fileProgress,
       downloadStatus: downloadStatus ?? 
                       (status != null ? _parseStatus(status) : this.downloadStatus),
+      priority: priority ?? this.priority,
       error: error ?? this.error,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -253,11 +258,13 @@ class DownloadProvider extends ChangeNotifier {
   /// 
   /// [fileFilters] (deprecated): Use [filter] parameter instead for advanced filtering
   /// [filter]: Advanced FileFilter object supporting subfolders, regex, size ranges, etc.
+  /// [priority]: Download priority (low/normal/high) affects queue order and server priority
   Future<void> startDownload(
     String identifier, {
     String? outputDir,
     List<String>? fileFilters,
     FileFilter? filter,
+    DownloadPriority priority = DownloadPriority.normal,
   }) async {
     if (_downloads.containsKey(identifier)) {
       if (_downloads[identifier]!.downloadStatus.isActive) {
@@ -273,12 +280,17 @@ class DownloadProvider extends ChangeNotifier {
         outputDir: outputDir,
         fileFilters: fileFilters,
         filter: filter,
+        priority: priority,
       ));
+      
+      // Sort queue by priority (high priority first)
+      _downloadQueue.sort((a, b) => b.priority.queueWeight.compareTo(a.priority.queueWeight));
       
       // Initialize as queued state
       _downloads[identifier] = DownloadState(
         identifier: identifier,
         downloadStatus: DownloadStatus.idle,
+        priority: priority,
         startTime: DateTime.now(),
       );
       notifyListeners();
@@ -289,7 +301,7 @@ class DownloadProvider extends ChangeNotifier {
       return;
     }
 
-    await _executeDownload(identifier, outputDir, fileFilters, filter);
+    await _executeDownload(identifier, outputDir, fileFilters, filter, priority);
   }
 
   /// Execute a download
@@ -298,12 +310,14 @@ class DownloadProvider extends ChangeNotifier {
     String? outputDir,
     List<String>? fileFilters,
     FileFilter? filter,
+    DownloadPriority priority,
   ) async {
 
     // Initialize download state
     _downloads[identifier] = DownloadState(
       identifier: identifier,
       downloadStatus: DownloadStatus.fetchingMetadata,
+      priority: priority,
       startTime: DateTime.now(),
     );
     _totalDownloadsStarted++;
@@ -557,7 +571,7 @@ class DownloadProvider extends ChangeNotifier {
         final queued = _downloadQueue.removeAt(0);
         
         if (kDebugMode) {
-          print('Processing queued download: ${queued.identifier}');
+          print('Processing queued download: ${queued.identifier} (priority: ${queued.priority.displayName})');
         }
 
         // Execute the queued download (fire and forget to allow queue processing)
@@ -566,6 +580,7 @@ class DownloadProvider extends ChangeNotifier {
           queued.outputDir,
           queued.fileFilters,
           queued.filter,
+          queued.priority,
         ).catchError((error) {
           if (kDebugMode) {
             print('Queued download failed: ${queued.identifier} - $error');
@@ -733,6 +748,42 @@ class DownloadProvider extends ChangeNotifier {
     }
   }
 
+  /// Change priority of a download
+  /// 
+  /// If download is active, priority change takes effect immediately.
+  /// If download is queued, it will be re-sorted in the queue.
+  void changePriority(String identifier, DownloadPriority newPriority) {
+    final download = _downloads[identifier];
+    if (download == null) {
+      return;
+    }
+
+    // Update download state
+    _downloads[identifier] = download.copyWith(priority: newPriority);
+
+    // If download is queued, update queue and re-sort
+    final queueIndex = _downloadQueue.indexWhere((q) => q.identifier == identifier);
+    if (queueIndex != -1) {
+      final queued = _downloadQueue[queueIndex];
+      _downloadQueue[queueIndex] = _QueuedDownload(
+        identifier: queued.identifier,
+        outputDir: queued.outputDir,
+        fileFilters: queued.fileFilters,
+        filter: queued.filter,
+        priority: newPriority,
+      );
+      
+      // Re-sort queue by priority
+      _downloadQueue.sort((a, b) => b.priority.queueWeight.compareTo(a.priority.queueWeight));
+      
+      if (kDebugMode) {
+        print('Download priority changed: $identifier -> ${newPriority.displayName}');
+      }
+    }
+
+    notifyListeners();
+  }
+
   /// Check if file is an archive
   bool _isArchive(String filename) {
     final lowercaseName = filename.toLowerCase();
@@ -756,12 +807,14 @@ class _QueuedDownload {
   final String? outputDir;
   final List<String>? fileFilters;
   final FileFilter? filter;
+  final DownloadPriority priority;
 
   _QueuedDownload({
     required this.identifier,
     this.outputDir,
     this.fileFilters,
     this.filter,
+    this.priority = DownloadPriority.normal,
   });
 }
 
