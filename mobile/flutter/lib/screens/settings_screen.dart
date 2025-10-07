@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/metadata_cache.dart';
 import '../services/archive_service.dart';
+import '../widgets/cache_statistics_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -228,47 +229,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Cache Settings Section
                 _buildSectionHeader('Offline Cache'),
 
-                // Cache Statistics Card
+                // Cache Statistics Card with enhanced widget
                 if (_cacheStats != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cache Statistics',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildStatRow(
-                              Icons.archive,
-                              'Total Archives',
-                              '${_cacheStats!.totalArchives}',
-                            ),
-                            _buildStatRow(
-                              Icons.push_pin,
-                              'Pinned Archives',
-                              '${_cacheStats!.pinnedArchives}',
-                            ),
-                            _buildStatRow(
-                              Icons.storage,
-                              'Cache Size',
-                              _cacheStats!.formattedDataSize,
-                            ),
-                            _buildStatRow(
-                              Icons.dns,
-                              'Database Size',
-                              _cacheStats!.formattedDbSize,
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: CacheStatisticsWidget(
+                      stats: _cacheStats!,
+                      onClearCache: _showClearAllCacheDialog,
+                      onPurgeStale: _purgeStaleCaches,
                     ),
                   ),
 
@@ -495,28 +466,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Cache Settings Methods
-
-  Widget _buildStatRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _getSyncFrequencyLabel(int days) {
     if (days == 1) return 'Daily';
