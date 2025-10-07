@@ -4,6 +4,7 @@ import '../models/download_progress.dart' hide DownloadStatus;
 import '../models/download_progress.dart' as progress_model show DownloadStatus;
 import '../models/file_filter.dart';
 import '../models/download_priority.dart';
+import '../models/download_progress_info.dart';
 import '../services/archive_service.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../providers/bandwidth_manager_provider.dart';
@@ -155,6 +156,27 @@ class DownloadState {
     return fileProgress.values
         .map((p) => p.total)
         .fold(0, (a, b) => a + b);
+  }
+
+  /// Calculate enhanced progress info for UI display
+  DownloadProgressInfo getProgressInfo() {
+    if (startTime == null || !downloadStatus.isActive) {
+      return DownloadProgressInfo.initial();
+    }
+
+    // Count completed files
+    final filesCompleted = fileProgress.values
+        .where((p) => p.status == progress_model.DownloadStatus.completed)
+        .length;
+
+    return DownloadProgressInfo.calculate(
+      bytesDownloaded: totalDownloaded,
+      totalBytes: totalSize,
+      filesCompleted: filesCompleted,
+      totalFiles: fileProgress.length,
+      startTime: startTime!,
+      isThrottled: false, // Updated by bandwidth manager if needed
+    );
   }
 }
 

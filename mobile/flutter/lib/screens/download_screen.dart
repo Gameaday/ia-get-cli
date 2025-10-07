@@ -9,6 +9,7 @@ import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
 import '../widgets/bandwidth_controls_widget.dart';
 import '../widgets/priority_selector.dart';
+import '../widgets/enhanced_progress_card.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -24,6 +25,9 @@ class DownloadScreen extends StatefulWidget {
 }
 
 class _DownloadScreenState extends State<DownloadScreen> {
+  // Track expanded state for each download
+  final Map<String, bool> _expandedDownloads = {};
+
   @override
   Widget build(BuildContext context) {
     // Show background service downloads or provider downloads based on flag
@@ -428,6 +432,17 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // Enhanced progress info
+            EnhancedProgressCard(
+              progressInfo: downloadState.getProgressInfo(),
+              isExpanded: _expandedDownloads[identifier] ?? false,
+              onToggleExpanded: () {
+                setState(() {
+                  _expandedDownloads[identifier] = !(_expandedDownloads[identifier] ?? false);
+                });
+              },
             ),
           ],
         ),
