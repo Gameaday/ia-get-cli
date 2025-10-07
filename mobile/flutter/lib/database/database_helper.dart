@@ -6,11 +6,14 @@ import 'package:flutter/foundation.dart';
 /// Used for metadata caching and file preview caching with versioning and migrations
 class DatabaseHelper {
   static const String _databaseName = 'ia_get.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   // Table names
   static const String tableCachedMetadata = 'cached_metadata';
   static const String tablePreviewCache = 'preview_cache';
+  static const String tableFavorites = 'favorites';
+  static const String tableCollections = 'collections';
+  static const String tableCollectionItems = 'collection_items';
   
   // Singleton pattern
   DatabaseHelper._privateConstructor();
@@ -122,6 +125,69 @@ class DatabaseHelper {
       ON $tablePreviewCache(preview_type)
     ''');
 
+    // Favorites table (Phase 4 Task 1)
+    await db.execute('''
+      CREATE TABLE $tableFavorites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        identifier TEXT UNIQUE NOT NULL,
+        title TEXT,
+        mediatype TEXT,
+        added_at INTEGER NOT NULL,
+        metadata_json TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_favorites_mediatype 
+      ON $tableFavorites(mediatype)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_favorites_added_at 
+      ON $tableFavorites(added_at DESC)
+    ''');
+
+    // Collections table (Phase 4 Task 1)
+    await db.execute('''
+      CREATE TABLE $tableCollections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        color INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        is_smart INTEGER DEFAULT 0,
+        smart_rules_json TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_collections_created_at 
+      ON $tableCollections(created_at DESC)
+    ''');
+
+    // Collection items table (Phase 4 Task 1)
+    await db.execute('''
+      CREATE TABLE $tableCollectionItems (
+        collection_id INTEGER NOT NULL,
+        identifier TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (collection_id, identifier),
+        FOREIGN KEY (collection_id) REFERENCES $tableCollections(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_collection_items_identifier 
+      ON $tableCollectionItems(identifier)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_collection_items_collection_id 
+      ON $tableCollectionItems(collection_id)
+    ''');
+
     debugPrint('Database schema created successfully');
   }
 
@@ -173,6 +239,76 @@ class DatabaseHelper {
       ''');
 
       debugPrint('Migration to version 3 completed successfully');
+    }
+
+    // Migration from version 3 to version 4: Add favorites and collections tables
+    if (oldVersion < 4) {
+      debugPrint('Migrating to version 4: Adding favorites and collections tables');
+      
+      // Favorites table
+      await db.execute('''
+        CREATE TABLE $tableFavorites (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          identifier TEXT UNIQUE NOT NULL,
+          title TEXT,
+          mediatype TEXT,
+          added_at INTEGER NOT NULL,
+          metadata_json TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_favorites_mediatype 
+        ON $tableFavorites(mediatype)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_favorites_added_at 
+        ON $tableFavorites(added_at DESC)
+      ''');
+
+      // Collections table
+      await db.execute('''
+        CREATE TABLE $tableCollections (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          icon TEXT,
+          color INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          is_smart INTEGER DEFAULT 0,
+          smart_rules_json TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_collections_created_at 
+        ON $tableCollections(created_at DESC)
+      ''');
+
+      // Collection items table
+      await db.execute('''
+        CREATE TABLE $tableCollectionItems (
+          collection_id INTEGER NOT NULL,
+          identifier TEXT NOT NULL,
+          added_at INTEGER NOT NULL,
+          PRIMARY KEY (collection_id, identifier),
+          FOREIGN KEY (collection_id) REFERENCES $tableCollections(id) ON DELETE CASCADE
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_collection_items_identifier 
+        ON $tableCollectionItems(identifier)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_collection_items_collection_id 
+        ON $tableCollectionItems(collection_id)
+      ''');
+
+      debugPrint('Migration to version 4 completed successfully');
     }
   }
 

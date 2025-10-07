@@ -61,6 +61,32 @@ This is a Rust CLI tool for downloading files from the Internet Archive, built w
 
 ## Flutter Mobile App Guidelines
 
+### 🎯 Design Philosophy - PARAMOUNT PRINCIPLES
+
+**Material Design 3 (MD3) compliance and Android framework guidelines are PARAMOUNT for all Flutter development.**
+
+#### Material Design 3 Excellence (Top Priority)
+- **All UI components MUST follow Material Design 3 specifications**
+- Use MD3 color system, typography, spacing, and elevation
+- Implement MD3 motion system (emphasized, standard, decelerate, accelerate curves)
+- Follow MD3 component guidelines (buttons, cards, dialogs, navigation)
+- Maintain ~98%+ MD3 compliance at all times
+- Reference: https://m3.material.io/
+
+#### Android Framework Guidelines
+- Follow Android design principles and patterns
+- Respect platform conventions (back button behavior, navigation, etc.)
+- Use adaptive layouts for tablets and large screens
+- Implement proper accessibility (TalkBack, font scaling, contrast)
+- Follow Android best practices for performance and battery usage
+
+#### Dark Mode & Accessibility
+- **100% WCAG AA+ compliance required**
+- Proper contrast ratios for all text and interactive elements
+- Dark mode MUST work flawlessly with all features
+- Support dynamic color schemes where possible
+- Test with TalkBack and other accessibility tools
+
 ### Environment Setup
 - Flutter may not be available in the Copilot environment
 - When Flutter is not available, focus on Dart code correctness and syntax
@@ -68,10 +94,19 @@ This is a Rust CLI tool for downloading files from the Internet Archive, built w
 - Verify against Dart language specifications and Flutter best practices
 
 ### Flutter Standards
-- Follow Flutter and Dart best practices
+- **Material Design 3 is the primary design system - follow it strictly**
 - Use `flutter analyze` for static analysis (when available)
 - Prefer explicit types over `var` for better code clarity
 - Use proper null safety with `?` and `!` operators
+- Follow Flutter performance best practices (const constructors, efficient rebuilds)
+
+### MD3 Implementation Guidelines
+- **Animations**: Use `MD3Curves` and `MD3Durations` from `animation_constants.dart`
+- **Colors**: Use theme colors, never hardcoded colors
+- **Typography**: Use `Theme.of(context).textTheme` with MD3 text styles
+- **Spacing**: Follow 4dp grid system (4, 8, 12, 16, 24, 32, 48, 64)
+- **Elevation**: Use MD3 elevation levels (0, 1, 2, 3, 4, 5)
+- **Shapes**: Use MD3 shape system (small: 8dp, medium: 12dp, large: 16dp, extra-large: 28dp)
 
 ### Common Flutter/Dart Issues to Avoid
 - **Type mismatches**: Ensure `int` vs `double` compatibility (use `.toDouble()` when needed)
@@ -79,15 +114,22 @@ This is a Rust CLI tool for downloading files from the Internet Archive, built w
 - **Named parameters**: Verify parameter names in `copyWith` and other methods match the model definition
 - **Unused imports**: Remove imports that are not used in the file
 - **Platform-specific code**: Use `path` package for paths, `defaultTargetPlatform` for platform checks
+- **Hardcoded colors**: NEVER use hardcoded colors, always use theme colors
+- **Non-MD3 animations**: Always use MD3 curves and durations
 
 ### Mobile App Structure
 - `lib/models/` - Data models with proper serialization
 - `lib/services/` - Business logic and API clients
-- `lib/screens/` - UI screens and widgets
+- `lib/screens/` - UI screens and widgets (all MD3 compliant)
+- `lib/widgets/` - Reusable widgets (all MD3 compliant)
 - `lib/utils/` - Helper functions and utilities
+- `lib/utils/animation_constants.dart` - MD3 animation curves and durations
 
 ### Testing Mobile App
 - When Flutter is available: `flutter test` and `flutter analyze`
 - When Flutter is not available: Review code manually for common issues
 - Always verify enum values, parameter names, and type compatibility
 - Check that imports are used and necessary
+- **Verify MD3 compliance**: Check colors, animations, spacing, typography
+- **Test dark mode**: Ensure all features work in dark mode
+- **Test accessibility**: Verify contrast ratios and screen reader support
