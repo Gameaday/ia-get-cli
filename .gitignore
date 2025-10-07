@@ -1,7 +1,9 @@
 .direnv/
 /target
 result*
-test/
+# Only ignore Rust integration test outputs, not Flutter test directory
+/tests/output/
+/tests/fixtures/downloaded/
 artifacts/
 build_times.csv
 
