@@ -4,6 +4,7 @@ import '../models/download_progress.dart';
 import '../services/background_download_service.dart';
 import '../services/notification_service.dart';
 import '../utils/file_utils.dart';
+import '../utils/semantic_colors.dart';
 
 /// Widget for managing and displaying active downloads
 class DownloadManagerWidget extends StatefulWidget {
@@ -91,6 +92,21 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // "See All" button to navigate to full downloads screen
+        TextButton.icon(
+          icon: const Icon(Icons.open_in_full, size: 16),
+          label: const Text('See All'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: () {
+            Navigator.pushNamed(context, '/downloads');
+          },
+        ),
+        const SizedBox(width: 4),
+
         // Minimize/Expand button
         IconButton(
           icon: const Icon(Icons.minimize_rounded, size: 20),
@@ -288,15 +304,15 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
         break;
       case DownloadStatus.completed:
         icon = Icons.check_circle_rounded;
-        color = Colors.green;
+        color = SemanticColors.success;
         break;
       case DownloadStatus.error:
         icon = Icons.error_rounded;
-        color = Colors.red;
+        color = SemanticColors.error(context);
         break;
       case DownloadStatus.cancelled:
         icon = Icons.cancel_rounded;
-        color = Colors.orange;
+        color = SemanticColors.warning;
         break;
       default:
         icon = Icons.schedule_rounded;
@@ -362,7 +378,7 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
       info.join(' • '),
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
         color: download.status == DownloadStatus.error
-            ? Colors.red
+            ? SemanticColors.error(context)
             : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       maxLines: 2,
@@ -409,7 +425,7 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
             icon: Icons.close_rounded,
             label: 'Cancel',
             onPressed: () => _cancelDownload(context, service, download),
-            color: Colors.red,
+            color: SemanticColors.error(context),
           ),
 
         const Spacer(),
@@ -457,11 +473,11 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
       case DownloadStatus.paused:
         return Theme.of(context).colorScheme.secondary;
       case DownloadStatus.completed:
-        return Colors.green;
+        return SemanticColors.success;
       case DownloadStatus.error:
-        return Colors.red;
+        return SemanticColors.error(context);
       case DownloadStatus.cancelled:
-        return Colors.orange;
+        return SemanticColors.warning;
       default:
         return Theme.of(context).colorScheme.outline;
     }

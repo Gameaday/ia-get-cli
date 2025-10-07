@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/metadata_cache.dart';
 import '../services/archive_service.dart';
+import '../utils/semantic_colors.dart';
 import '../widgets/cache_statistics_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -213,6 +214,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const Divider(),
 
+                // Bandwidth Settings Section
+                _buildSectionHeader('Bandwidth & Speed'),
+
+                ListTile(
+                  leading: const Icon(Icons.speed),
+                  title: Row(
+                    children: [
+                      const Text('Bandwidth Limit'),
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: 'Control download speed to save data and be a good citizen',
+                        child: Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: const Text('Configure speed limits on Downloads screen'),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    // Navigate to downloads screen where bandwidth controls are
+                    Navigator.pushNamed(context, '/downloads');
+                  },
+                ),
+
+                const Divider(),
+
                 // File Browser Settings Section
                 _buildSectionHeader('File Browser'),
 
@@ -333,8 +363,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: const Icon(Icons.delete_forever),
                           label: const Text('Clear All Cache'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.error,
+                            foregroundColor: Theme.of(context).colorScheme.onError,
                           ),
                         ),
                       ),
@@ -396,7 +426,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               'Downloads will be saved to this directory',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: SemanticColors.hint(context)),
             ),
           ],
         ),
@@ -543,7 +573,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text('Error purging cache: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: SemanticColors.error(context),
         ),
       );
     }
@@ -566,6 +596,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
+              final errorColor = SemanticColors.error(context);
 
               navigator.pop(); // Close dialog
 
@@ -606,7 +637,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text('Error clearing cache: $e'),
-                    backgroundColor: Colors.red,
+                    backgroundColor: errorColor,
                   ),
                 );
               }
@@ -656,7 +687,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text('Error vacuuming database: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: SemanticColors.error(context),
         ),
       );
     }
@@ -681,6 +712,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
+              final errorColor = SemanticColors.error(context);
 
               navigator.pop(); // Close dialog
 
@@ -724,14 +756,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text('Error clearing cache: $e'),
-                    backgroundColor: Colors.red,
+                    backgroundColor: errorColor,
                   ),
                 );
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Clear All'),
           ),
@@ -753,7 +785,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 'Unpinned and non-downloaded archives will be purged after $selectedDays days of inactivity.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: SemanticColors.subtitle(context)),
               ),
               const SizedBox(height: 16),
               Row(
@@ -863,7 +895,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 'Cached metadata will be synced from the Internet Archive after $selectedDays days.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 13, color: SemanticColors.subtitle(context)),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -969,7 +1001,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               'Set to 0 for unlimited cache size. When limit is reached, '
               'oldest unpinned entries will be purged.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: SemanticColors.hint(context)),
             ),
           ],
         ),

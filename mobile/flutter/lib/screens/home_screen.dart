@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/archive_service.dart';
 import '../services/history_service.dart';
+import '../utils/semantic_colors.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/search_suggestion_card.dart';
 import '../widgets/download_manager_widget.dart';
@@ -125,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const DownloadScreen(),
+                  builder: (_) => const DownloadScreen(useBackground: true),
                   settings: const RouteSettings(name: DownloadScreen.routeName),
                 ),
               );
@@ -144,9 +145,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.error_outline,
-                        color: Colors.red,
+                        color: SemanticColors.error(context),
                         size: 64,
                       ),
                       const SizedBox(height: 24),
@@ -212,21 +213,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(16),
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade100,
+                    color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade300),
+                    border: Border.all(color: Theme.of(context).colorScheme.error),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade700),
+                          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               service.error!,
-                              style: TextStyle(color: Colors.red.shade700),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
                             ),
                           ),
                         ],
@@ -248,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -283,14 +284,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         Icon(
                           Icons.search,
                           size: 64,
-                          color: Colors.grey.shade400,
+                          color: SemanticColors.disabled(context),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'Search for an Internet Archive identifier',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey.shade600,
+                            color: SemanticColors.subtitle(context),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -298,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           'e.g., "commute_test" or "nasa_images"',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade500,
+                            color: SemanticColors.hint(context),
                           ),
                         ),
                       ],

@@ -8,6 +8,7 @@ import '../services/archive_service.dart';
 import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
+import '../utils/semantic_colors.dart';
 import '../widgets/bandwidth_controls_widget.dart';
 import '../widgets/priority_selector.dart';
 import '../widgets/enhanced_progress_card.dart';
@@ -61,7 +62,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                         '(${downloadProvider.activeDownloadCount} active'
                         '${downloadProvider.queuedDownloadCount > 0 ? ', ${downloadProvider.queuedDownloadCount} queued' : ''})',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade300,
+                          color: SemanticColors.subtitle(context),
                         ),
                       ),
                     ),
@@ -76,20 +77,20 @@ class _DownloadScreenState extends State<DownloadScreen> {
               ],
             ),
             body: downloads.isEmpty
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.download_done, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(Icons.download_done, size: 64, color: SemanticColors.disabled(context)),
+                        const SizedBox(height: 16),
                         Text(
                           'No downloads yet',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          style: TextStyle(fontSize: 16, color: SemanticColors.subtitle(context)),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Start downloading files from the main screen',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                          style: TextStyle(fontSize: 14, color: SemanticColors.hint(context)),
                         ),
                       ],
                     ),
@@ -177,20 +178,20 @@ class _DownloadScreenState extends State<DownloadScreen> {
             ],
           ),
           body: bgService.totalDownloadCount == 0
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.download_done, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
+                      Icon(Icons.download_done, size: 64, color: SemanticColors.disabled(context)),
+                      const SizedBox(height: 16),
                       Text(
                         'No downloads yet',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        style: TextStyle(fontSize: 16, color: SemanticColors.subtitle(context)),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         'Start downloading files from the main screen',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(fontSize: 14, color: SemanticColors.hint(context)),
                       ),
                     ],
                   ),
@@ -270,12 +271,12 @@ class _DownloadScreenState extends State<DownloadScreen> {
             const SizedBox(height: 8),
             Text(
               'Downloading ${p.completedFiles ?? 0}/${p.totalFiles} files',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: SemanticColors.subtitle(context)),
             ),
             const SizedBox(height: 12),
             LinearPercentIndicator(
               percent: prog,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               progressColor: Theme.of(context).primaryColor,
               lineHeight: 8,
               barRadius: const Radius.circular(4),
@@ -301,7 +302,8 @@ class _DownloadScreenState extends State<DownloadScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 24),
+            // ignore: prefer_const_constructors
+            Icon(Icons.check_circle, color: SemanticColors.success, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -314,7 +316,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   ),
                   Text(
                     '${p.totalFiles} files • ${FileUtils.formatBytes(p.totalBytes ?? 0)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: SemanticColors.subtitle(context)),
                   ),
                 ],
               ),
@@ -423,12 +425,12 @@ class _DownloadScreenState extends State<DownloadScreen> {
               downloadState.downloadStatus == DownloadStatus.fetchingMetadata
                   ? 'Fetching metadata...'
                   : 'Downloading ${downloadState.fileProgress.length} files',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: SemanticColors.subtitle(context)),
             ),
             const SizedBox(height: 12),
             LinearPercentIndicator(
               percent: overallProgress,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               progressColor: Theme.of(context).primaryColor,
               lineHeight: 8,
               barRadius: const Radius.circular(4),
@@ -443,7 +445,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 ),
                 Text(
                   '${FileUtils.formatSize(downloadState.totalDownloaded)} / ${FileUtils.formatSize(downloadState.totalSize)}',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: SemanticColors.subtitle(context)),
                 ),
               ],
             ),
@@ -477,7 +479,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 24),
+            const Icon(Icons.check_circle, color: SemanticColors.success, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -490,7 +492,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   ),
                   Text(
                     '$fileCount files • ${FileUtils.formatSize(downloadState.totalSize)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: SemanticColors.subtitle(context)),
                   ),
                 ],
               ),

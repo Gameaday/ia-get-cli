@@ -231,11 +231,26 @@ class BackgroundDownloadService extends ChangeNotifier {
       }
       _downloadFiles[downloadId] = selectedFiles;
 
-      // Create download progress entry
+      // Calculate total bytes from selected files
+      int totalBytes = 0;
+      if (metadata != null) {
+        for (final fileName in selectedFiles) {
+          final file = metadata.files.firstWhere(
+            (f) => f.name == fileName,
+            orElse: () => ArchiveFile(name: fileName),
+          );
+          totalBytes += file.size ?? 0;
+        }
+      }
+
+      // Create download progress entry with total bytes
       _activeDownloads[downloadId] = DownloadProgress(
         downloadId: downloadId,
         identifier: identifier,
         totalFiles: selectedFiles.length,
+        totalBytes: totalBytes > 0 ? totalBytes : null,
+        downloadedBytes: 0,
+        progress: 0.0,
         status: DownloadStatus.queued,
       );
       notifyListeners();
@@ -280,39 +295,79 @@ class BackgroundDownloadService extends ChangeNotifier {
       // Use the InternetArchiveApi to download files
       final api = InternetArchiveApi();
       int completedFiles = 0;
+      int totalDownloadedBytes = 0;
+      DateTime? lastUpdateTime;
+      int lastDownloadedBytes = 0;
 
       for (final fileName in selectedFiles) {
         try {
           final fileUrl = 'https://archive.org/download/$identifier/$fileName';
           final filePath = '$downloadPath/$fileName';
+          final fileStartBytes = totalDownloadedBytes;
 
           // Download file using the API
           await api.downloadFile(
             fileUrl,
             filePath,
             onProgress: (received, total) {
-              // Update progress
+              // Update progress with proper statistics
               if (_activeDownloads.containsKey(downloadId)) {
-                final progress = (received / total * 100).toDouble();
-                _activeDownloads[downloadId] = _activeDownloads[downloadId]!
-                    .copyWith(
-                      completedFiles: completedFiles,
-                      currentFileProgress: progress,
-                      status: DownloadStatus.downloading,
-                    );
+                final now = DateTime.now();
+                final currentTotalBytes = fileStartBytes + received;
+                
+                // Calculate transfer speed (bytes per second)
+                double? speed;
+                if (lastUpdateTime != null) {
+                  final timeDiff = now.difference(lastUpdateTime!).inMilliseconds / 1000.0;
+                  if (timeDiff > 0) {
+                    final bytesDiff = currentTotalBytes - lastDownloadedBytes;
+                    speed = bytesDiff / timeDiff;
+                  }
+                }
+                
+                lastUpdateTime = now;
+                lastDownloadedBytes = currentTotalBytes;
+                
+                // Calculate overall progress (across all files)
+                final download = _activeDownloads[downloadId]!;
+                final overallTotal = download.totalBytes ?? 0;
+                final overallProgress = overallTotal > 0 
+                    ? currentTotalBytes / overallTotal 
+                    : 0.0;
+                
+                // Calculate ETA if we have speed
+                int? eta;
+                if (speed != null && speed > 0 && overallTotal > 0) {
+                  final remainingBytes = overallTotal - currentTotalBytes;
+                  eta = (remainingBytes / speed).round();
+                }
+                
+                _activeDownloads[downloadId] = download.copyWith(
+                  completedFiles: completedFiles,
+                  currentFile: fileName,
+                  currentFileProgress: (received / total * 100).toDouble(),
+                  downloadedBytes: currentTotalBytes,
+                  progress: overallProgress,
+                  transferSpeed: speed,
+                  etaSeconds: eta,
+                  status: DownloadStatus.downloading,
+                );
                 notifyListeners();
               }
             },
           );
 
           completedFiles++;
-
+          // Update total bytes after file completes
+          // Note: We should get the actual file size, but for now use received bytes
+          
           // Update completed count
           if (_activeDownloads.containsKey(downloadId)) {
             _activeDownloads[downloadId] = _activeDownloads[downloadId]!
                 .copyWith(
                   completedFiles: completedFiles,
                   currentFileProgress: 0,
+                  currentFile: null,
                 );
             notifyListeners();
           }

@@ -93,16 +93,29 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             
-            <!-- Handle Internet Archive URLs -->
+            <!-- Handle Internet Archive URLs - /details/ pattern -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https"
-                      android:host="archive.org" />
+                <data
+                    android:scheme="https"
+                    android:host="archive.org"
+                    android:pathPrefix="/details/" />
             </intent-filter>
             
-            <!-- Handle custom deep links -->
+            <!-- Handle Internet Archive URLs - /download/ pattern -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="archive.org"
+                    android:pathPrefix="/download/" />
+            </intent-filter>
+            
+            <!-- Handle custom deep links (ia-get://identifier) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

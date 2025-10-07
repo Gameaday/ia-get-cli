@@ -13,6 +13,7 @@ import 'screens/home_screen.dart';
 import 'screens/archive_detail_screen.dart';
 import 'screens/download_screen.dart';
 import 'widgets/onboarding_widget.dart';
+import 'widgets/whats_new_dialog.dart';
 import 'utils/theme.dart';
 import 'utils/permission_utils.dart';
 
@@ -256,14 +257,84 @@ class _AppInitializerState extends State<AppInitializer> {
         if (!mounted) return;
 
         final archiveService = context.read<ArchiveService>();
-        archiveService.fetchMetadata(identifier);
+        
+        // Fetch metadata first
+        archiveService.fetchMetadata(identifier).then((_) {
+          // After metadata is fetched successfully, navigate to detail screen
+          if (!mounted) return;
+          
+          if (archiveService.currentMetadata != null && archiveService.error == null) {
+            // Navigate to detail screen
+            // Use pushReplacement if we're on home screen, otherwise push normally
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ArchiveDetailScreen(),
+                settings: const RouteSettings(name: ArchiveDetailScreen.routeName),
+              ),
+            );
+          } else if (archiveService.error != null) {
+            // Show error message if fetch failed
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to load archive: ${archiveService.error}'),
+                backgroundColor: Colors.red,
+                action: SnackBarAction(
+                  label: 'Retry',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    archiveService.fetchMetadata(identifier);
+                  },
+                ),
+              ),
+            );
+          }
+        }).catchError((error) {
+          if (!mounted) return;
+          
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to open link: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        });
       };
 
       // Request notification permissions (non-blocking)
       _requestNotificationPermissions();
+      
+      // Show What's New dialog if this is a new version
+      _showWhatsNewIfNeeded();
     } catch (e) {
       // Log but don't block app startup for service initialization failures
       debugPrint('Service initialization error: $e');
+    }
+  }
+
+  /// Show What's New dialog for new app versions (non-blocking)
+  Future<void> _showWhatsNewIfNeeded() async {
+    if (!mounted) return;
+    
+    try {
+      // Check if What's New should be shown
+      final shouldShow = await WhatsNewDialog.shouldShow();
+      
+      if (shouldShow && mounted) {
+        // Wait a moment for the home screen to settle
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const WhatsNewDialog(),
+          );
+        }
+      }
+    } catch (e) {
+      // Non-critical - just log and continue
+      debugPrint('Failed to show What\'s New dialog: $e');
     }
   }
 
