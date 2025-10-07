@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/rate_limit_status.dart';
+import '../utils/app_shapes.dart';
 
 /// Compact rate limit status indicator for mobile
 /// 
@@ -53,15 +54,13 @@ class RateLimitIndicator extends StatelessWidget {
       children: [
         Text(
           status.level.icon,
-          style: const TextStyle(fontSize: 16),
+          style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
             status.message,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: Color(status.level.colorValue),
             ),
             overflow: TextOverflow.ellipsis,
@@ -69,14 +68,14 @@ class RateLimitIndicator extends StatelessWidget {
         ),
         if (status.hasRetryAfter) ...[
           const SizedBox(width: 8),
-          _buildCountdown(),
+          _buildCountdown(context),
         ],
       ],
     );
   }
 
   /// Build countdown timer for retry-after
-  Widget _buildCountdown() {
+  Widget _buildCountdown(BuildContext context) {
     final remaining = status.retryAfterRemaining ?? 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -86,8 +85,7 @@ class RateLimitIndicator extends StatelessWidget {
       ),
       child: Text(
         '${remaining}s',
-        style: TextStyle(
-          fontSize: 11,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.bold,
           color: Color(status.level.colorValue),
         ),
@@ -101,18 +99,21 @@ class RateLimitIndicator extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDetailRow(
+          context,
           icon: Icons.play_arrow,
           label: 'Active',
           value: '${status.activeRequests}/${status.maxConcurrent}',
         ),
         const SizedBox(height: 4),
         _buildDetailRow(
+          context,
           icon: Icons.queue,
           label: 'Queued',
           value: '${status.queuedRequests}',
         ),
         const SizedBox(height: 4),
         _buildDetailRow(
+          context,
           icon: Icons.speed,
           label: 'Utilization',
           value: '${status.utilizationPercentage.toStringAsFixed(0)}%',
@@ -120,6 +121,7 @@ class RateLimitIndicator extends StatelessWidget {
         if (status.hasRetryAfter) ...[
           const SizedBox(height: 4),
           _buildDetailRow(
+            context,
             icon: Icons.timer,
             label: 'Server Delay',
             value: '${status.retryAfterSeconds}s',
@@ -130,28 +132,28 @@ class RateLimitIndicator extends StatelessWidget {
   }
 
   /// Build a detail row
-  Widget _buildDetailRow({
+  Widget _buildDetailRow(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
   }) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade600),
-        const SizedBox(width: 6),
+        Icon(icon, size: 14, 
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade700,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 11,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -180,7 +182,7 @@ class RateLimitBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Color(status.level.colorValue).withAlpha(25),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppShapes.medium,
         border: Border.all(
           color: Color(status.level.colorValue).withAlpha(76),
           width: 1,
@@ -191,14 +193,13 @@ class RateLimitBadge extends StatelessWidget {
         children: [
           Text(
             status.level.icon,
-            style: const TextStyle(fontSize: 10),
+            style: Theme.of(context).textTheme.labelSmall,
           ),
           if (status.queuedRequests > 0) ...[
-            const SizedBox(width: 3),
+            const SizedBox(width: 4),
             Text(
               '${status.queuedRequests}',
-              style: TextStyle(
-                fontSize: 9,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Color(status.level.colorValue),
               ),

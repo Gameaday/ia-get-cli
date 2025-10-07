@@ -47,10 +47,10 @@ class ImagePreviewWidget extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
                     size: 64,
-                    color: Colors.red,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -82,6 +82,7 @@ class ImagePreviewWidget extends StatelessWidget {
 
   /// Build info overlay with image details
   Widget _buildInfoOverlay(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -89,7 +90,7 @@ class ImagePreviewWidget extends StatelessWidget {
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.7),
+            colorScheme.surface.withValues(alpha: 0.9),
             Colors.transparent,
           ],
         ),
@@ -100,8 +101,8 @@ class ImagePreviewWidget extends StatelessWidget {
         children: [
           Text(
             preview.fileName,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -113,30 +114,30 @@ class ImagePreviewWidget extends StatelessWidget {
             children: [
               Text(
                 preview.formattedSize,
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 'Cached ${preview.cacheAge}',
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
               const Spacer(),
-              const Icon(
+              Icon(
                 Icons.gesture,
                 size: 16,
-                color: Colors.white70,
+                color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
-              const Text(
+              Text(
                 'Pinch to zoom',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),

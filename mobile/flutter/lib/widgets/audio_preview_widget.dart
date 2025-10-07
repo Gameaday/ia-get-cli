@@ -179,10 +179,10 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline,
                 size: 64,
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
               ),
               const SizedBox(height: 16),
               Text(
@@ -196,10 +196,10 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'This audio file may be corrupted or in an unsupported format.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -208,30 +208,32 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
     }
 
     return Container(
-      color: Colors.black,
+      color: Theme.of(context).colorScheme.surface,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Album art placeholder / Audio icon
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.purple.withValues(alpha: 0.3),
-                    Colors.blue.withValues(alpha: 0.3),
-                  ],
+            Builder(
+              builder: (context) => Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Theme.of(context).colorScheme.secondary.withValues(alpha: 0.3),
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.music_note,
-                size: 100,
-                color: Colors.white70,
+                child: Icon(
+                  Icons.music_note,
+                  size: 100,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -241,8 +243,8 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 widget.fileName,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -256,8 +258,8 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
             // Duration display
             Text(
               '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-              style: const TextStyle(
-                color: Colors.white70,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
               ),
             ),
@@ -283,8 +285,8 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
                   onChanged: (value) {
                     _seek(Duration(milliseconds: value.toInt()));
                   },
-                  activeColor: Colors.white,
-                  inactiveColor: Colors.white30,
+                  activeColor: Theme.of(context).colorScheme.onSurface,
+                  inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                 ),
               ),
             ),
@@ -296,7 +298,7 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
               children: [
                 // Skip backward
                 IconButton(
-                  icon: const Icon(Icons.replay_10, color: Colors.white),
+                  icon: Icon(Icons.replay_10, color: Theme.of(context).colorScheme.onSurface),
                   iconSize: 36,
                   onPressed: _skipBackward,
                   tooltip: 'Skip backward 10s',
@@ -304,26 +306,28 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
                 const SizedBox(width: 16),
 
                 // Play/Pause button
-                Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: Colors.black,
+                Builder(
+                  builder: (context) => Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.inverseSurface,
                     ),
-                    iconSize: 48,
-                    onPressed: _togglePlayPause,
-                    tooltip: _isPlaying ? 'Pause' : 'Play',
+                    child: IconButton(
+                      icon: Icon(
+                        _isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                      ),
+                      iconSize: 48,
+                      onPressed: _togglePlayPause,
+                      tooltip: _isPlaying ? 'Pause' : 'Play',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
 
                 // Skip forward
                 IconButton(
-                  icon: const Icon(Icons.forward_10, color: Colors.white),
+                  icon: Icon(Icons.forward_10, color: Theme.of(context).colorScheme.onSurface),
                   iconSize: 36,
                   onPressed: _skipForward,
                   tooltip: 'Skip forward 10s',
@@ -338,25 +342,27 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Speed',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
-                  DropdownButton<double>(
-                    value: _speed,
-                    dropdownColor: Colors.grey[900],
-                    style: const TextStyle(color: Colors.white),
-                    items: _speedOptions.map((speed) {
-                      return DropdownMenuItem(
-                        value: speed,
-                        child: Text('${speed}x'),
-                      );
-                    }).toList(),
-                    onChanged: (speed) {
-                      if (speed != null) {
-                        _setSpeed(speed);
-                      }
-                    },
+                  Builder(
+                    builder: (context) => DropdownButton<double>(
+                      value: _speed,
+                      dropdownColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      items: _speedOptions.map((speed) {
+                        return DropdownMenuItem(
+                          value: speed,
+                          child: Text('${speed}x'),
+                        );
+                      }).toList(),
+                      onChanged: (speed) {
+                        if (speed != null) {
+                          _setSpeed(speed);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -368,18 +374,18 @@ class _AudioPreviewWidgetState extends State<AudioPreviewWidget> {
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Row(
                 children: [
-                  const Icon(Icons.volume_down, color: Colors.white70),
+                  Icon(Icons.volume_down, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   Expanded(
                     child: Slider(
                       value: _volume,
                       min: 0.0,
                       max: 1.0,
                       onChanged: _setVolume,
-                      activeColor: Colors.white,
-                      inactiveColor: Colors.white30,
+                      activeColor: Theme.of(context).colorScheme.onSurface,
+                      inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                     ),
                   ),
-                  const Icon(Icons.volume_up, color: Colors.white70),
+                  Icon(Icons.volume_up, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ],
               ),
             ),

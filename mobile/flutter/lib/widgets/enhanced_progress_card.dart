@@ -34,6 +34,7 @@ class EnhancedProgressCard extends StatelessWidget {
 
   /// Build compact info row (always visible)
   Widget _buildCompactInfo(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         // Speed indicator
@@ -41,7 +42,7 @@ class EnhancedProgressCard extends StatelessWidget {
           Icon(
             progressInfo.isThrottled ? Icons.speed : Icons.bolt,
             size: 16,
-            color: progressInfo.isThrottled ? Colors.orange : Colors.blue,
+            color: progressInfo.isThrottled ? colorScheme.error : colorScheme.primary,
           ),
           const SizedBox(width: 4),
           Text(
@@ -56,26 +57,26 @@ class EnhancedProgressCard extends StatelessWidget {
         
         // ETA
         if (progressInfo.hasEta) ...[
-          const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
+          Icon(Icons.timer_outlined, size: 16, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
           Text(
             progressInfo.formattedEta,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade700,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 12),
         ],
         
         // File count
-        const Icon(Icons.insert_drive_file_outlined, size: 16, color: Colors.grey),
+        Icon(Icons.insert_drive_file_outlined, size: 16, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(
           progressInfo.formattedFileProgress,
           style: TextStyle(
             fontSize: 13,
-            color: Colors.grey.shade700,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         
@@ -98,33 +99,38 @@ class EnhancedProgressCard extends StatelessWidget {
 
   /// Build detailed info section (shown when expanded)
   Widget _buildDetailedInfo(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         children: [
           _buildDetailRow(
+            context,
             icon: Icons.speed,
             label: 'Current Speed',
             value: progressInfo.formattedCurrentSpeed,
           ),
           const SizedBox(height: 8),
           _buildDetailRow(
+            context,
             icon: Icons.show_chart,
             label: 'Average Speed',
             value: progressInfo.formattedAverageSpeed,
           ),
           const SizedBox(height: 8),
           _buildDetailRow(
+            context,
             icon: Icons.access_time,
             label: 'Elapsed',
             value: progressInfo.formattedElapsed,
           ),
           const SizedBox(height: 8),
           _buildDetailRow(
+            context,
             icon: Icons.data_usage,
             label: 'Downloaded',
             value: '${FileUtils.formatSize(progressInfo.bytesDownloaded)} / ${FileUtils.formatSize(progressInfo.totalBytes)}',
@@ -133,13 +139,13 @@ class EnhancedProgressCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange.shade700),
+                Icon(Icons.warning_amber_rounded, size: 16, color: colorScheme.error),
                 const SizedBox(width: 4),
                 Text(
                   'Bandwidth throttling active',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.orange.shade700,
+                    color: colorScheme.error,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -152,21 +158,23 @@ class EnhancedProgressCard extends StatelessWidget {
   }
 
   /// Build a detail row with icon, label, and value
-  Widget _buildDetailRow({
+  Widget _buildDetailRow(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
+        Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.shade700,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ),

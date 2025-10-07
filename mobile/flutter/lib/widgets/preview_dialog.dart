@@ -206,7 +206,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.orange.shade700,
+        backgroundColor: Theme.of(context).colorScheme.error,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -234,13 +234,17 @@ class _PreviewDialogState extends State<PreviewDialog> {
                 Text(
                   '${_currentIndex + 1} of ${widget.files.length}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimary
+                            .withValues(alpha: 0.7),
                       ),
                 ),
             ],
           ),
           leading: IconButton(
             icon: const Icon(Icons.close),
+            tooltip: 'Close preview',
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
@@ -352,7 +356,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
                 child: Text(
                   _currentFile.name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -367,18 +371,23 @@ class _PreviewDialogState extends State<PreviewDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'This may take a moment for large files',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.blue.shade900,
+                        color:
+                            Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                 ),
               ],
@@ -455,10 +464,13 @@ class _PreviewDialogState extends State<PreviewDialog> {
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
                             errorInfo.technicalDetails!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  fontFamily: 'monospace',
-                                  color: Colors.grey.shade700,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontFamily: 'monospace',
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
                           ),
                         ),
                       ],
@@ -480,7 +492,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
                     icon: const Icon(Icons.refresh),
                     label: const Text('Try Again'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
@@ -520,7 +532,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -528,31 +540,47 @@ class _PreviewDialogState extends State<PreviewDialog> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.lightbulb_outline,
-                          size: 18, color: Colors.blue.shade700),
+                      Icon(
+                        Icons.lightbulb_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Troubleshooting Tips',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade900,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
                             ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   ...errorInfo.tips.map((tip) => Padding(
-                        padding: const EdgeInsets.only(left: 26, top: 4),
+                        padding: const EdgeInsets.only(left: 24, top: 4),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('• ',
-                                style: TextStyle(color: Colors.blue.shade700)),
+                            Text(
+                              '• ',
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
+                              ),
+                            ),
                             Expanded(
                               child: Text(
                                 tip,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.blue.shade900,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
                                     ),
                               ),
                             ),
@@ -578,7 +606,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
         errorString.contains('connection')) {
       return _ErrorInfo(
         icon: Icons.wifi_off,
-        color: Colors.orange.shade700,
+        color: Theme.of(context).colorScheme.error,
         title: 'Connection Error',
         message: 'Unable to download file for preview. Please check your internet connection.',
         technicalDetails: error.toString(),
@@ -594,7 +622,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
     if (errorString.contains('timeout')) {
       return _ErrorInfo(
         icon: Icons.access_time,
-        color: Colors.orange.shade700,
+        color: Theme.of(context).colorScheme.error,
         title: 'Request Timeout',
         message: 'The preview is taking too long to generate. The file might be very large or the server is slow.',
         technicalDetails: error.toString(),
@@ -612,7 +640,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
         errorString.contains('decode')) {
       return _ErrorInfo(
         icon: Icons.broken_image,
-        color: Colors.red.shade700,
+        color: Theme.of(context).colorScheme.error,
         title: 'Invalid File Format',
         message: 'This file format is not supported for preview or the file is corrupted.',
         technicalDetails: error.toString(),
@@ -628,7 +656,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
     if (errorString.contains('unsupported')) {
       return _ErrorInfo(
         icon: Icons.visibility_off,
-        color: Colors.grey.shade700,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         title: 'Preview Not Available',
         message: 'Preview is not available for this file type.',
         technicalDetails: error.toString(),
@@ -643,7 +671,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
     // Generic error
     return _ErrorInfo(
       icon: Icons.error_outline,
-      color: Colors.red.shade700,
+      color: Theme.of(context).colorScheme.error,
       title: 'Preview Failed',
       message: 'An unexpected error occurred while generating the preview.',
       technicalDetails: error.toString(),
@@ -684,7 +712,7 @@ class _PreviewDialogState extends State<PreviewDialog> {
             Icon(
               Icons.warning_amber_rounded,
               size: 80,
-              color: Colors.orange.shade700,
+              color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: 24),
             
@@ -702,17 +730,22 @@ class _PreviewDialogState extends State<PreviewDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: Theme.of(context).colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.insert_drive_file,
-                          size: 20, color: Colors.orange.shade700),
+                      Icon(
+                        Icons.insert_drive_file,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -729,7 +762,8 @@ class _PreviewDialogState extends State<PreviewDialog> {
                   Text(
                     fileSize,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.orange.shade900,
+                          color:
+                              Theme.of(context).colorScheme.onErrorContainer,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
@@ -762,8 +796,8 @@ class _PreviewDialogState extends State<PreviewDialog> {
                     label: const Text('Download File'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.orange.shade700,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
                     ),
                   ),
                 ),
@@ -788,18 +822,24 @@ class _PreviewDialogState extends State<PreviewDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Files larger than 5MB require downloading before preview',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.blue.shade900,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
                           ),
                     ),
                   ),
@@ -907,10 +947,10 @@ class _PreviewDialogState extends State<PreviewDialog> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.visibility_off,
             size: 64,
-            color: Colors.grey,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(

@@ -6,6 +6,7 @@ import '../screens/download_screen.dart';
 import '../screens/settings_screen.dart';
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
+import '../utils/animation_constants.dart';
 
 class DownloadControlsWidget extends StatefulWidget {
   const DownloadControlsWidget({super.key});
@@ -56,7 +57,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             border: Border(
-              top: BorderSide(color: Colors.grey.shade300, width: 1),
+              top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1),
             ),
           ),
           child: Column(
@@ -68,7 +69,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(Icons.download, color: Colors.blue),
+                      Icon(Icons.download, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -84,14 +85,14 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                               'Total size: ${_formatSize(totalSize)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             Text(
                               'Location: $_outputPath',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade500,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -160,7 +161,7 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -354,49 +355,54 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
       if (!mounted) return;
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.warning, color: Colors.orange.shade700),
+              Icon(Icons.warning, color: Theme.of(dialogContext).colorScheme.error),
               const SizedBox(width: 8),
               const Text('Insufficient Disk Space'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Not enough disk space available for this download.',
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              _buildSpaceInfoRow(
-                'Required:',
-                _formatSize(requiredSpace),
-                color: Colors.red.shade700,
-              ),
-              _buildSpaceInfoRow(
-                'Available:',
-                availableSpace != null
-                    ? _formatSize(availableSpace)
-                    : 'Unknown',
-              ),
-              _buildSpaceInfoRow(
-                'Shortage:',
-                _formatSize(shortage),
-                color: Colors.orange.shade700,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Includes safety margin for temporary files',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+          content: Builder(
+            builder: (builderContext) {
+              final colorScheme = Theme.of(builderContext).colorScheme;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Not enough disk space available for this download.',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSpaceInfoRow(
+                    'Required:',
+                    _formatSize(requiredSpace),
+                    color: colorScheme.error,
+                  ),
+                  _buildSpaceInfoRow(
+                    'Available:',
+                    availableSpace != null
+                        ? _formatSize(availableSpace)
+                        : 'Unknown',
+                  ),
+                  _buildSpaceInfoRow(
+                    'Shortage:',
+                    _formatSize(shortage),
+                    color: colorScheme.error.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Includes safety margin for temporary files',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           actions: [
             TextButton(
@@ -434,8 +440,8 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
                 // Navigate to downloads screen with background service flag
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const DownloadScreen(useBackground: true),
+                  MD3PageTransitions.fadeThrough(
+                    page: const DownloadScreen(useBackground: true),
                   ),
                 );
               },
@@ -454,68 +460,73 @@ class _DownloadControlsWidgetState extends State<DownloadControlsWidget> {
       // Show more helpful error message with actionable steps
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Row(
+        builder: (dialogContext) => AlertDialog(
+          title: Row(
             children: [
-              Icon(Icons.error_outline, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Download Failed'),
+              Icon(Icons.error_outline, color: Theme.of(dialogContext).colorScheme.error),
+              const SizedBox(width: 8),
+              const Text('Download Failed'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Unable to start download. This could be due to:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '• Background download service not available\n'
-                '• Missing storage permissions (check Settings)\n'
-                '• Network connectivity issues\n'
-                '• Invalid download path',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: Colors.orange.shade700,
+          content: Builder(
+            builder: (builderContext) {
+              final colorScheme = Theme.of(builderContext).colorScheme;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Unable to start download. This could be due to:',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '• Background download service not available\n'
+                    '• Missing storage permissions (check Settings)\n'
+                    '• Network connectivity issues\n'
+                    '• Invalid download path',
+                    style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colorScheme.error.withValues(alpha: 0.5)),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Tip: Make sure storage permissions are enabled in app settings',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade900,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 20,
+                          color: colorScheme.error,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Tip: Make sure storage permissions are enabled in app settings',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Technical details: $e',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Technical details: $e',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           actions: [
             TextButton(

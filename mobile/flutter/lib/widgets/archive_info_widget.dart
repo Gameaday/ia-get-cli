@@ -22,7 +22,7 @@ class ArchiveInfoWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.archive, color: Colors.blue),
+                Icon(Icons.archive, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -48,34 +48,39 @@ class ArchiveInfoWidget extends StatelessWidget {
                         // Offline badge
                         Tooltip(
                           message: 'Available offline',
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.offline_pin,
-                                  size: 14,
-                                  color: Colors.green.shade700,
+                          child: Builder(
+                            builder: (builderContext) {
+                              final colorScheme = Theme.of(builderContext).colorScheme;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Offline',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade700,
-                                  ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.tertiaryContainer,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ],
-                            ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.offline_pin,
+                                      size: 14,
+                                      color: colorScheme.tertiary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Offline',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.tertiary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -97,7 +102,9 @@ class ArchiveInfoWidget extends StatelessWidget {
                                 isPinned
                                     ? Icons.push_pin
                                     : Icons.push_pin_outlined,
-                                color: isPinned ? Colors.orange : Colors.grey,
+                                color: isPinned 
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               tooltip: isPinned
                                   ? 'Unpin archive'
@@ -114,7 +121,7 @@ class ArchiveInfoWidget extends StatelessWidget {
                         ),
                         // Sync button
                         IconButton(
-                          icon: const Icon(Icons.sync, color: Colors.blue),
+                          icon: Icon(Icons.sync, color: Theme.of(context).colorScheme.primary),
                           tooltip: 'Sync metadata',
                           onPressed: () async {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -142,7 +149,7 @@ class ArchiveInfoWidget extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Sync failed: $e'),
-                                    backgroundColor: Colors.red,
+                                    backgroundColor: Theme.of(context).colorScheme.error,
                                   ),
                                 );
                               }
@@ -159,7 +166,7 @@ class ArchiveInfoWidget extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 metadata.description!,
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -168,14 +175,14 @@ class ArchiveInfoWidget extends StatelessWidget {
             Row(
               children: [
                 if (metadata.creator != null) ...[
-                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.person, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       metadata.creator!,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -186,12 +193,12 @@ class ArchiveInfoWidget extends StatelessWidget {
                   Icon(
                     Icons.calendar_today,
                     size: 16,
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     metadata.date!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ],
@@ -199,18 +206,18 @@ class ArchiveInfoWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.folder, size: 16, color: Colors.grey.shade600),
+                Icon(Icons.folder, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
                   '${metadata.totalFiles} files',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.storage, size: 16, color: Colors.grey.shade600),
+                Icon(Icons.storage, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
                   _formatSize(metadata.totalSize),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -227,34 +234,39 @@ class ArchiveInfoWidget extends StatelessWidget {
 
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.sync, size: 14, color: Colors.blue.shade400),
-                      const SizedBox(width: 4),
-                      Text(
-                        cachedMeta.syncStatusString,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.blue.shade600,
-                        ),
-                      ),
-                      if (cachedMeta.isPinned) ...[
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.push_pin,
-                          size: 14,
-                          color: Colors.orange.shade400,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Pinned',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.orange.shade600,
+                  child: Builder(
+                    builder: (builderContext) {
+                      final colorScheme = Theme.of(builderContext).colorScheme;
+                      return Row(
+                        children: [
+                          Icon(Icons.sync, size: 14, color: colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            cachedMeta.syncStatusString,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.primary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ],
+                          if (cachedMeta.isPinned) ...[
+                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.push_pin,
+                              size: 14,
+                              color: colorScheme.secondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Pinned',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.secondary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 );
               },

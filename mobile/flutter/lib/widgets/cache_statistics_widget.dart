@@ -61,33 +61,38 @@ class CacheStatisticsWidget extends StatelessWidget {
   }
 
   Widget _buildHealthIndicator() {
-    // Simple health indicator based on cache size
-    final isHealthy = stats.totalArchives < 100; // Arbitrary threshold
-    final color = isHealthy ? Colors.green : Colors.orange;
-    final icon = isHealthy ? Icons.check_circle : Icons.warning;
+    return Builder(
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        // Simple health indicator based on cache size
+        final isHealthy = stats.totalArchives < 100; // Arbitrary threshold
+        final color = isHealthy ? colorScheme.tertiary : colorScheme.error;
+        final icon = isHealthy ? Icons.check_circle : Icons.warning;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(76), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            isHealthy ? 'Healthy' : 'Check',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
           ),
-        ],
-      ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                isHealthy ? 'Healthy' : 'Check',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -125,49 +130,54 @@ class CacheStatisticsWidget extends StatelessWidget {
     required String value,
     String? subtitle,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Builder(
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 6),
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade700,
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -186,15 +196,20 @@ class CacheStatisticsWidget extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onClearCache,
-            icon: const Icon(Icons.delete_outline, size: 16),
-            label: const Text('Clear All'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
-            ),
+          child: Builder(
+            builder: (context) {
+              final colorScheme = Theme.of(context).colorScheme;
+              return OutlinedButton.icon(
+                onPressed: onClearCache,
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Clear All'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: colorScheme.error,
+                  side: BorderSide(color: colorScheme.error),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -213,24 +228,25 @@ class CacheStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blue.withAlpha(25),
+        color: colorScheme.primaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue.withAlpha(76), width: 1),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.storage, size: 12, color: Colors.blue),
+          Icon(Icons.storage, size: 12, color: colorScheme.primary),
           const SizedBox(width: 4),
           Text(
             '${stats.totalArchives} cached',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: Colors.blue,
+              color: colorScheme.primary,
             ),
           ),
         ],

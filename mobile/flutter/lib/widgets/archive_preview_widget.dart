@@ -187,7 +187,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Extracted ${_archive!.files.length} files to $extractPath'),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
       }
@@ -196,7 +196,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to extract archive: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -247,10 +247,10 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
 
   Widget _buildFileTree() {
     if (_archive == null || _archive!.files.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'Empty archive',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -312,7 +312,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
                   Icon(
                     isExpanded ? Icons.folder_open : Icons.folder,
                     size: 20,
-                    color: Colors.amber,
+                    color: Theme.of(context).colorScheme.tertiary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -348,7 +348,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
     return InkWell(
       onTap: () => _selectFile(file),
       child: Container(
-        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : null,
+        color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : null,
         padding: EdgeInsets.only(left: level * 16.0 + 8, top: 8, bottom: 8, right: 8),
         child: Row(
           children: [
@@ -369,16 +369,16 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
                   ),
                   Text(
                     _formatFileSize(file.size),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: Colors.blue, size: 20),
+              Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 20),
           ],
         ),
       ),
@@ -387,10 +387,10 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
 
   Widget _buildFilePreview() {
     if (_selectedFile == null) {
-      return const Center(
+      return Center(
         child: Text(
           'Select a file to preview',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
@@ -409,10 +409,10 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
     }
 
     if (_selectedFileContent == null) {
-      return const Center(
+      return Center(
         child: Text(
           'Failed to extract file',
-          style: TextStyle(color: Colors.red),
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       );
     }
@@ -430,9 +430,9 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
                 _selectedFileContent!,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  return const Text(
+                  return Text(
                     'Failed to load image',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                   );
                 },
               ),
@@ -440,7 +440,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
           ),
           Container(
             padding: const EdgeInsets.all(8),
-            color: Colors.black12,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -471,7 +471,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
             ),
             Container(
               padding: const EdgeInsets.all(8),
-              color: Colors.black12,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -489,7 +489,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
         return Center(
           child: Text(
             'Cannot preview as text: $e',
-            style: const TextStyle(color: Colors.red),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         );
       }
@@ -511,7 +511,7 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
           ),
           Container(
             padding: const EdgeInsets.all(8),
-            color: Colors.black12,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -526,9 +526,9 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Binary file (showing first 1KB as hex)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -558,12 +558,12 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 16),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -579,40 +579,42 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
     return Column(
       children: [
         // Archive info header
-        Container(
-          padding: const EdgeInsets.all(12),
-          color: Colors.blue.shade50,
-          child: Row(
-            children: [
-              const Icon(Icons.archive, color: Colors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.fileName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+        Builder(
+          builder: (context) => Container(
+            padding: const EdgeInsets.all(12),
+            color: Theme.of(context).colorScheme.primaryContainer,
+            child: Row(
+              children: [
+                Icon(Icons.archive, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.fileName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${_archive!.files.length} files • ${_formatFileSize(widget.fileSize ?? widget.archiveBytes.length)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
+                      Text(
+                        '${_archive!.files.length} files • ${_formatFileSize(widget.fileSize ?? widget.archiveBytes.length)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: _extractAll,
-                icon: const Icon(Icons.folder_zip),
-                tooltip: 'Extract all files',
-              ),
-            ],
+                IconButton(
+                  onPressed: _extractAll,
+                  icon: const Icon(Icons.folder_zip),
+                  tooltip: 'Extract all files',
+                ),
+              ],
+            ),
           ),
         ),
         
@@ -623,13 +625,15 @@ class _ArchivePreviewWidgetState extends State<ArchivePreviewWidget> {
               // File tree (left side)
               Expanded(
                 flex: 1,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(color: Colors.grey.shade300),
+                child: Builder(
+                  builder: (context) => Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                      ),
                     ),
+                    child: _buildFileTree(),
                   ),
-                  child: _buildFileTree(),
                 ),
               ),
               

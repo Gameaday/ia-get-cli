@@ -91,21 +91,28 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
             ),
           ),
           if (widget.error.retryCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withAlpha(76)),
-              ),
-              child: Text(
-                'Retry ${widget.error.retryCount}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange,
-                ),
-              ),
+            Builder(
+              builder: (context) {
+                final colorScheme = Theme.of(context).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.error.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    'Retry ${widget.error.retryCount}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                );
+              },
             ),
         ],
       ),
@@ -129,25 +136,36 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
           const SizedBox(height: 12),
 
           // Suggested action
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withAlpha(76)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.lightbulb_outline, size: 18, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.error.suggestedAction,
-                    style: const TextStyle(fontSize: 13),
+          Builder(
+            builder: (context) {
+              final colorScheme = Theme.of(context).colorScheme;
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.3),
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.error.suggestedAction,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
 
           // Technical details (expandable)
@@ -172,7 +190,7 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
                     _showTechnicalDetails ? 'Hide Details' : 'Show Details',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -181,21 +199,26 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
             ),
             if (_showTechnicalDetails) ...[
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Text(
-                  widget.error.technicalDetails!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: Colors.grey.shade800,
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final colorScheme = Theme.of(context).colorScheme;
+                  return Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: colorScheme.outlineVariant),
+                    ),
+                    child: Text(
+                      widget.error.technicalDetails!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ],
@@ -207,7 +230,7 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
               'Status Code: ${widget.error.statusCode}',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -238,23 +261,24 @@ class _EnhancedErrorDialogState extends State<EnhancedErrorDialog> {
   }
 
   Color _getCategoryColor(DownloadErrorCategory category) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (category) {
       case DownloadErrorCategory.network:
-        return Colors.orange;
+        return colorScheme.error;
       case DownloadErrorCategory.server:
-        return Colors.red;
+        return colorScheme.error;
       case DownloadErrorCategory.rateLimited:
-        return Colors.purple;
+        return colorScheme.secondary;
       case DownloadErrorCategory.storage:
-        return Colors.amber;
+        return colorScheme.tertiary;
       case DownloadErrorCategory.permission:
-        return Colors.red.shade900;
+        return colorScheme.error;
       case DownloadErrorCategory.corruption:
-        return Colors.red.shade700;
+        return colorScheme.error;
       case DownloadErrorCategory.cancelled:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
       case DownloadErrorCategory.unknown:
-        return Colors.blueGrey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 }
@@ -272,7 +296,7 @@ class ErrorBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _getCategoryColor(error.category);
+    final color = _getCategoryColor(context, error.category);
 
     return InkWell(
       onTap: onTap,
@@ -280,9 +304,9 @@ class ErrorBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withAlpha(25),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withAlpha(76), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -306,7 +330,7 @@ class ErrorBadge extends StatelessWidget {
                 '(${error.retryCount})',
                 style: TextStyle(
                   fontSize: 9,
-                  color: color.withAlpha(178),
+                  color: color.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -316,24 +340,25 @@ class ErrorBadge extends StatelessWidget {
     );
   }
 
-  Color _getCategoryColor(DownloadErrorCategory category) {
+  Color _getCategoryColor(BuildContext context, DownloadErrorCategory category) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (category) {
       case DownloadErrorCategory.network:
-        return Colors.orange;
+        return colorScheme.error;
       case DownloadErrorCategory.server:
-        return Colors.red;
+        return colorScheme.error;
       case DownloadErrorCategory.rateLimited:
-        return Colors.purple;
+        return colorScheme.secondary;
       case DownloadErrorCategory.storage:
-        return Colors.amber;
+        return colorScheme.tertiary;
       case DownloadErrorCategory.permission:
-        return Colors.red.shade900;
+        return colorScheme.error;
       case DownloadErrorCategory.corruption:
-        return Colors.red.shade700;
+        return colorScheme.error;
       case DownloadErrorCategory.cancelled:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
       case DownloadErrorCategory.unknown:
-        return Colors.blueGrey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 }

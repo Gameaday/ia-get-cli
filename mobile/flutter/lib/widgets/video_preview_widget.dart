@@ -65,6 +65,9 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
         _errorMessage = null;
       });
 
+      // Cache colorScheme before async gap
+      final colorScheme = Theme.of(context).colorScheme;
+
       // Create temporary file from bytes
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/${widget.fileName}');
@@ -86,13 +89,13 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
         allowPlaybackSpeedChanging: true,
         showControls: true,
         materialProgressColors: ChewieProgressColors(
-          playedColor: Colors.blue,
-          handleColor: Colors.blueAccent,
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightBlue.withValues(alpha: 0.5),
+          playedColor: colorScheme.primary,
+          handleColor: colorScheme.primaryContainer,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          bufferedColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
         ),
         placeholder: Container(
-          color: Colors.black,
+          color: colorScheme.surface,
           child: const Center(
             child: CircularProgressIndicator(),
           ),
@@ -102,26 +105,24 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   size: 48,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Video playback error',
-                  style: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 16,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   errorMessage,
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -159,7 +160,7 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black,
+      color: Theme.of(context).colorScheme.surface,
       child: Center(
         child: _buildContent(),
       ),
@@ -192,17 +193,15 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
         const SizedBox(height: 16),
         Text(
           'Loading video...',
-          style: TextStyle(
-            color: Colors.grey[300],
-            fontSize: 16,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           widget.fileName,
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 12,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),
@@ -212,31 +211,29 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
 
   /// Build error state with message
   Widget _buildErrorState() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline,
-            color: Colors.red,
+            color: colorScheme.error,
             size: 64,
           ),
           const SizedBox(height: 24),
           Text(
             'Unable to play video',
-            style: TextStyle(
-              color: Colors.grey[300],
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 16),
           Text(
             _errorMessage!,
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 14,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -246,8 +243,8 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(
                 horizontal: 24,
                 vertical: 12,
@@ -281,19 +278,18 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
   Widget _buildVideoInfo() {
     final duration = _videoPlayerController?.value.duration;
     final size = widget.videoBytes.lengthInBytes;
+    final colorScheme = Theme.of(context).colorScheme;
     
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.black87,
+      color: colorScheme.surfaceContainer,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             widget.fileName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colorScheme.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -303,34 +299,32 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
             children: [
               // Duration
               if (duration != null) ...[
-                const Icon(
+                Icon(
                   Icons.timer_outlined,
                   size: 16,
-                  color: Colors.grey,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   _formatDuration(duration),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 16),
               ],
               
               // File size
-              const Icon(
+              Icon(
                 Icons.storage_outlined,
                 size: 16,
-                color: Colors.grey,
+                color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
               Text(
                 _formatFileSize(size),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               
@@ -341,9 +335,8 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
                 Text(
                   '${_videoPlayerController!.value.size.width.toInt()}x'
                   '${_videoPlayerController!.value.size.height.toInt()}',
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -357,15 +350,14 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
               Icon(
                 Icons.info_outline,
                 size: 14,
-                color: Colors.grey[600],
+                color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   'Tap for controls • Double-tap for fullscreen',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                     fontStyle: FontStyle.italic,
                   ),
                 ),

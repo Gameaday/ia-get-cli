@@ -63,7 +63,9 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                           ? null
                           : () => _searchArchive(_controller.text)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isLoading && canCancel ? Colors.red : null,
+                  backgroundColor: isLoading && canCancel 
+                      ? Theme.of(context).colorScheme.error 
+                      : null,
                 ),
                 child: isLoading
                     ? (canCancel
@@ -75,13 +77,13 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                                 Text('Stop'),
                               ],
                             )
-                          : const SizedBox(
+                          : SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                                  Theme.of(context).colorScheme.onPrimary,
                                 ),
                               ),
                             ))
@@ -108,7 +110,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Search failed: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }

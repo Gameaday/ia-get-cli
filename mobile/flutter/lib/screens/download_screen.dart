@@ -9,6 +9,7 @@ import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
 import '../utils/semantic_colors.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/bandwidth_controls_widget.dart';
 import '../widgets/priority_selector.dart';
 import '../widgets/enhanced_progress_card.dart';
@@ -72,6 +73,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 if (downloads.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.clear_all),
+                    tooltip: 'Clear all downloads',
                     onPressed: () => _clearAllDownloads(downloadProvider),
                   ),
               ],
@@ -85,71 +87,202 @@ class _DownloadScreenState extends State<DownloadScreen> {
                         const SizedBox(height: 16),
                         Text(
                           'No downloads yet',
-                          style: TextStyle(fontSize: 16, color: SemanticColors.subtitle(context)),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: SemanticColors.subtitle(context),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Start downloading files from the main screen',
-                          style: TextStyle(fontSize: 14, color: SemanticColors.hint(context)),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: SemanticColors.hint(context),
+                          ),
                         ),
                       ],
                     ),
                   )
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      // Bandwidth controls at the top
-                      const BandwidthControlsWidget(),
-                      const SizedBox(height: 12),
-                      
-                      // Rate limit indicator (shows when rate limiting is active)
-                      Consumer<ArchiveService>(
-                        builder: (context, archiveService, _) {
-                          final rateLimitStatus = archiveService.getRateLimitStatus();
-                          return RateLimitIndicator(
-                            status: rateLimitStatus,
-                            showDetails: false,
-                          );
-                        },
+                : ResponsiveUtils.isTabletOrLarger(context)
+                    ? _buildTwoColumnLayout(
+                        activeDownloads,
+                        completedDownloads,
+                        downloadProvider,
+                      )
+                    : _buildSingleColumnLayout(
+                        activeDownloads,
+                        completedDownloads,
+                        downloadProvider,
                       ),
-                      const SizedBox(height: 24),
-                      
-                      if (activeDownloads.isNotEmpty) ...[
-                        const Text(
-                          'Active Downloads',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...activeDownloads.map(
-                          (state) =>
-                              _buildActiveDownloadCard(state, downloadProvider),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      if (completedDownloads.isNotEmpty) ...[
-                        const Text(
-                          'Completed Downloads',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...completedDownloads.map(
-                          (state) => _buildCompletedDownloadCard(
-                            state,
-                            downloadProvider,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
           ),
         );
       },
+    );
+  }
+
+  /// Build single column layout for phones (original layout)
+  Widget _buildSingleColumnLayout(
+    List<DownloadState> activeDownloads,
+    List<DownloadState> completedDownloads,
+    DownloadProvider downloadProvider,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Bandwidth controls at the top
+        const BandwidthControlsWidget(),
+        const SizedBox(height: 12),
+        
+        // Rate limit indicator (shows when rate limiting is active)
+        Consumer<ArchiveService>(
+          builder: (context, archiveService, _) {
+            final rateLimitStatus = archiveService.getRateLimitStatus();
+            return RateLimitIndicator(
+              status: rateLimitStatus,
+              showDetails: false,
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+        
+        if (activeDownloads.isNotEmpty) ...[
+          Text(
+            'Active Downloads',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          ...activeDownloads.map(
+            (state) =>
+                _buildActiveDownloadCard(state, downloadProvider),
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (completedDownloads.isNotEmpty) ...[
+          Text(
+            'Completed Downloads',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          ...completedDownloads.map(
+            (state) => _buildCompletedDownloadCard(
+              state,
+              downloadProvider,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Build two-column layout for tablets (active left, completed right)
+  Widget _buildTwoColumnLayout(
+    List<DownloadState> activeDownloads,
+    List<DownloadState> completedDownloads,
+    DownloadProvider downloadProvider,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left column: Active downloads
+        Expanded(
+          child: ListView(
+            padding: ResponsiveUtils.getScreenPadding(context),
+            children: [
+              // Bandwidth controls at the top
+              const BandwidthControlsWidget(),
+              const SizedBox(height: 12),
+              
+              // Rate limit indicator
+              Consumer<ArchiveService>(
+                builder: (context, archiveService, _) {
+                  final rateLimitStatus = archiveService.getRateLimitStatus();
+                  return RateLimitIndicator(
+                    status: rateLimitStatus,
+                    showDetails: false,
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              
+              Text(
+                'Active Downloads',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              if (activeDownloads.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.download_done,
+                          size: 48,
+                          color: SemanticColors.disabled(context),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No active downloads',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: SemanticColors.subtitle(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...activeDownloads.map(
+                  (state) => _buildActiveDownloadCard(state, downloadProvider),
+                ),
+            ],
+          ),
+        ),
+        
+        // Divider
+        Container(
+          width: 1,
+          color: Theme.of(context).dividerColor,
+        ),
+        
+        // Right column: Completed downloads
+        Expanded(
+          child: ListView(
+            padding: ResponsiveUtils.getScreenPadding(context),
+            children: [
+              Text(
+                'Completed Downloads',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              if (completedDownloads.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.inbox,
+                          size: 48,
+                          color: SemanticColors.disabled(context),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No completed downloads',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: SemanticColors.subtitle(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...completedDownloads.map(
+                  (state) => _buildCompletedDownloadCard(state, downloadProvider),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -186,12 +319,16 @@ class _DownloadScreenState extends State<DownloadScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'No downloads yet',
-                        style: TextStyle(fontSize: 16, color: SemanticColors.subtitle(context)),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: SemanticColors.subtitle(context),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Start downloading files from the main screen',
-                        style: TextStyle(fontSize: 14, color: SemanticColors.hint(context)),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: SemanticColors.hint(context),
+                        ),
                       ),
                     ],
                   ),
@@ -200,12 +337,9 @@ class _DownloadScreenState extends State<DownloadScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     if (active.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         'Active Downloads',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
                       ...active.map(
@@ -215,12 +349,9 @@ class _DownloadScreenState extends State<DownloadScreen> {
                       const SizedBox(height: 24),
                     ],
                     if (completed.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         'Completed Downloads',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
                       ...completed.map(
@@ -254,10 +385,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 Expanded(
                   child: Text(
                     p.identifier,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -271,7 +399,9 @@ class _DownloadScreenState extends State<DownloadScreen> {
             const SizedBox(height: 8),
             Text(
               'Downloading ${p.completedFiles ?? 0}/${p.totalFiles} files',
-              style: TextStyle(color: SemanticColors.subtitle(context)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: SemanticColors.subtitle(context),
+              ),
             ),
             const SizedBox(height: 12),
             LinearPercentIndicator(
@@ -284,7 +414,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
             const SizedBox(height: 8),
             Text(
               '${(prog * 100).toStringAsFixed(1)}%',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: Theme.of(context).textTheme.labelLarge,
             ),
           ],
         ),
@@ -311,12 +441,14 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 children: [
                   Text(
                     p.identifier,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     '${p.totalFiles} files • ${FileUtils.formatBytes(p.totalBytes ?? 0)}',
-                    style: TextStyle(fontSize: 12, color: SemanticColors.subtitle(context)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: SemanticColors.subtitle(context),
+                    ),
                   ),
                 ],
               ),
@@ -397,10 +529,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 Expanded(
                   child: Text(
                     identifier,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -425,7 +554,9 @@ class _DownloadScreenState extends State<DownloadScreen> {
               downloadState.downloadStatus == DownloadStatus.fetchingMetadata
                   ? 'Fetching metadata...'
                   : 'Downloading ${downloadState.fileProgress.length} files',
-              style: TextStyle(color: SemanticColors.subtitle(context)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: SemanticColors.subtitle(context),
+              ),
             ),
             const SizedBox(height: 12),
             LinearPercentIndicator(
@@ -441,11 +572,13 @@ class _DownloadScreenState extends State<DownloadScreen> {
               children: [
                 Text(
                   '${(overallProgress * 100).toStringAsFixed(1)}%',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
                 Text(
                   '${FileUtils.formatSize(downloadState.totalDownloaded)} / ${FileUtils.formatSize(downloadState.totalSize)}',
-                  style: TextStyle(color: SemanticColors.subtitle(context)),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: SemanticColors.subtitle(context),
+                  ),
                 ),
               ],
             ),
@@ -487,12 +620,14 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 children: [
                   Text(
                     identifier,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     '$fileCount files • ${FileUtils.formatSize(downloadState.totalSize)}',
-                    style: TextStyle(fontSize: 12, color: SemanticColors.subtitle(context)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: SemanticColors.subtitle(context),
+                    ),
                   ),
                 ],
               ),

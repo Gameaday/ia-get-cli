@@ -16,6 +16,7 @@ import 'widgets/onboarding_widget.dart';
 import 'widgets/whats_new_dialog.dart';
 import 'utils/theme.dart';
 import 'utils/permission_utils.dart';
+import 'utils/animation_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,31 +138,31 @@ class IAGetMobileApp extends StatelessWidget {
 
         // Navigation performance
         onGenerateRoute: (settings) {
-          // Implement custom route generation for better performance and state restoration
+          // Implement custom route generation with Material Design 3 transitions
           switch (settings.name) {
             case '/':
-              return MaterialPageRoute(
-                builder: (_) => const AppInitializer(),
+              return MD3PageTransitions.fadeThrough(
+                page: const AppInitializer(),
                 settings: settings,
               );
             case '/home':
-              return MaterialPageRoute(
-                builder: (_) => const HomeScreen(),
+              return MD3PageTransitions.fadeThrough(
+                page: const HomeScreen(),
                 settings: settings,
               );
             case ArchiveDetailScreen.routeName:
-              return MaterialPageRoute(
-                builder: (_) => const ArchiveDetailScreen(),
+              return MD3PageTransitions.fadeThrough(
+                page: const ArchiveDetailScreen(),
                 settings: settings,
               );
             case DownloadScreen.routeName:
-              return MaterialPageRoute(
-                builder: (_) => const DownloadScreen(),
+              return MD3PageTransitions.fadeThrough(
+                page: const DownloadScreen(),
                 settings: settings,
               );
             default:
-              return MaterialPageRoute(
-                builder: (_) => const AppInitializer(),
+              return MD3PageTransitions.fadeThrough(
+                page: const AppInitializer(),
                 settings: settings,
               );
           }
@@ -267,8 +268,8 @@ class _AppInitializerState extends State<AppInitializer> {
             // Navigate to detail screen
             // Use pushReplacement if we're on home screen, otherwise push normally
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const ArchiveDetailScreen(),
+              MD3PageTransitions.fadeThrough(
+                page: const ArchiveDetailScreen(),
                 settings: const RouteSettings(name: ArchiveDetailScreen.routeName),
               ),
             );
@@ -277,7 +278,7 @@ class _AppInitializerState extends State<AppInitializer> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Failed to load archive: ${archiveService.error}'),
-                backgroundColor: Colors.red,
+                backgroundColor: Theme.of(context).colorScheme.error,
                 action: SnackBarAction(
                   label: 'Retry',
                   textColor: Colors.white,
@@ -295,7 +296,7 @@ class _AppInitializerState extends State<AppInitializer> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to open link: $error'),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         });
@@ -392,7 +393,9 @@ class _AppInitializerState extends State<AppInitializer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              Icon(Icons.error_outline, 
+                size: 64, 
+                color: Theme.of(context).colorScheme.error),
               const SizedBox(height: 16),
               Text(
                 'Initialization Error',

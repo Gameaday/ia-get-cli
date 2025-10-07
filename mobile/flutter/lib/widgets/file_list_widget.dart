@@ -9,6 +9,7 @@ import '../services/file_preview_service.dart';
 import '../screens/file_preview_screen.dart';
 import '../screens/filters_screen.dart';
 import '../utils/permission_utils.dart';
+import '../utils/animation_constants.dart';
 import 'preview_dialog.dart';
 
 // File download state enum
@@ -66,7 +67,10 @@ class _FileListWidgetState extends State<FileListWidget> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 1,
+              ),
             ),
           ),
           child: Row(
@@ -107,8 +111,8 @@ class _FileListWidgetState extends State<FileListWidget> {
                       top: 4,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
                           shape: BoxShape.circle,
                         ),
                         constraints: const BoxConstraints(
@@ -118,8 +122,8 @@ class _FileListWidgetState extends State<FileListWidget> {
                         child: Center(
                           child: Text(
                             '${_getActiveFilterCount()}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),
@@ -226,7 +230,10 @@ class _FileListWidgetState extends State<FileListWidget> {
                                   ? Icons.filter_list_off
                                   : Icons.inbox_outlined,
                               size: 64,
-                              color: Colors.grey.shade400,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(alpha: 0.5),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -236,7 +243,7 @@ class _FileListWidgetState extends State<FileListWidget> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade700,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             if (hasActiveFilters) ...[
@@ -245,7 +252,9 @@ class _FileListWidgetState extends State<FileListWidget> {
                                 'Try adjusting your filters to see more results',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade600,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -332,10 +341,10 @@ class _FileListWidgetState extends State<FileListWidget> {
                   ),
                   child: Text(
                     file.format!.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -343,14 +352,20 @@ class _FileListWidgetState extends State<FileListWidget> {
               ],
               Text(
                 file.sizeFormatted,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
           if (file.name != file.displayName)
             Text(
               file.name,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -385,17 +400,24 @@ class _FileListWidgetState extends State<FileListWidget> {
               // Show Delete option if file is downloaded
               if (fileState == _FileState.downloaded ||
                   fileState == _FileState.outdated)
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text(
-                        'Delete Local File',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ],
+                  child: Builder(
+                    builder: (context) => Row(
+                      children: [
+                        Icon(
+                          Icons.delete,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Delete Local File',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               const PopupMenuItem(
@@ -488,26 +510,26 @@ class _FileListWidgetState extends State<FileListWidget> {
 
     // Document formats
     if (['pdf', 'doc', 'docx', 'txt', 'epub'].contains(formatLower)) {
-      return Colors.blue;
+      return Theme.of(context).colorScheme.primary;
     }
     // Image formats
     if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].contains(formatLower)) {
-      return Colors.green;
+      return Theme.of(context).colorScheme.tertiary;
     }
     // Video formats
     if (['mp4', 'avi', 'mov', 'mkv', 'webm'].contains(formatLower)) {
-      return Colors.purple;
+      return Theme.of(context).colorScheme.secondary;
     }
     // Audio formats
     if (['mp3', 'wav', 'flac', 'aac', 'ogg'].contains(formatLower)) {
-      return Colors.orange;
+      return Theme.of(context).colorScheme.tertiaryContainer;
     }
     // Archive formats
     if (['zip', 'rar', '7z', 'tar', 'gz'].contains(formatLower)) {
-      return Colors.brown;
+      return Theme.of(context).colorScheme.secondaryContainer;
     }
 
-    return Colors.grey;
+    return Theme.of(context).colorScheme.surfaceContainerHighest;
   }
 
   String _formatSize(int bytes) {
@@ -550,7 +572,9 @@ class _FileListWidgetState extends State<FileListWidget> {
   void _showFilePreview(ArchiveFile file) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => FilePreviewScreen(file: file)),
+      MD3PageTransitions.fadeThrough(
+        page: FilePreviewScreen(file: file),
+      ),
     );
   }
 
@@ -618,7 +642,7 @@ class _FileListWidgetState extends State<FileListWidget> {
             value,
             style: TextStyle(
               fontSize: 12,
-              color: isUrl ? Colors.blue : null,
+              color: isUrl ? Theme.of(context).colorScheme.primary : null,
               decoration: isUrl ? TextDecoration.underline : null,
             ),
           ),
@@ -649,8 +673,8 @@ class _FileListWidgetState extends State<FileListWidget> {
   void _openFiltersScreen() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
-      MaterialPageRoute(
-        builder: (context) => FiltersScreen(
+      MD3PageTransitions.sharedAxis(
+        page: FiltersScreen(
           initialIncludeFormats: _selectedIncludeFormats,
           initialExcludeFormats: _selectedExcludeFormats,
           initialMaxSize: _maxSize,
@@ -733,28 +757,33 @@ class _FileListWidgetState extends State<FileListWidget> {
 
   // UI helper methods
   Widget _buildFileStateBadge(_FileState state) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (state) {
       case _FileState.downloaded:
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.green.shade100,
+            color: colorScheme.tertiaryContainer,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Icon(
             Icons.check_circle,
             size: 14,
-            color: Colors.green.shade700,
+            color: colorScheme.onTertiaryContainer,
           ),
         );
       case _FileState.outdated:
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.orange.shade100,
+            color: colorScheme.errorContainer,
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(Icons.update, size: 14, color: Colors.orange.shade700),
+          child: Icon(
+            Icons.update,
+            size: 14,
+            color: colorScheme.onErrorContainer,
+          ),
         );
       case _FileState.checking:
         return const SizedBox(
@@ -768,20 +797,21 @@ class _FileListWidgetState extends State<FileListWidget> {
   }
 
   Widget _buildActionButton(ArchiveFile file, _FileState state) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (state) {
       case _FileState.downloaded:
         return IconButton(
           icon: Icon(_getFileTypeIcon(file.format)),
           tooltip: _getFileTypeAction(file.format),
           onPressed: () => _openLocalFile(file),
-          color: Colors.green,
+          color: colorScheme.tertiary,
         );
       case _FileState.outdated:
         return IconButton(
           icon: const Icon(Icons.download),
           tooltip: 'Update File',
           onPressed: () => _redownloadFile(file),
-          color: Colors.orange,
+          color: colorScheme.error,
         );
       case _FileState.checking:
         return const SizedBox(
@@ -803,6 +833,8 @@ class _FileListWidgetState extends State<FileListWidget> {
     if (_currentArchiveId == null) {
       return const SizedBox.shrink();
     }
+
+    final colorScheme = Theme.of(context).colorScheme;
 
     return FutureBuilder<bool>(
       future: FilePreviewService().isPreviewCached(_currentArchiveId!, file.name),
@@ -828,17 +860,17 @@ class _FileListWidgetState extends State<FileListWidget> {
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade700,
+                    color: colorScheme.tertiary,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white,
+                      color: colorScheme.surface,
                       width: 1,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.offline_pin,
                     size: 10,
-                    color: Colors.white,
+                    color: colorScheme.onTertiary,
                   ),
                 ),
               ),
@@ -948,7 +980,12 @@ class _FileListWidgetState extends State<FileListWidget> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Builder(
+              builder: (context) => Text(
+                'Delete',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           ),
         ],
       ),

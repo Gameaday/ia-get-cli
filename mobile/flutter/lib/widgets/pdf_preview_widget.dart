@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import '../utils/app_shapes.dart';
 
 /// Widget for previewing PDF documents with page navigation and zoom
 class PdfPreviewWidget extends StatefulWidget {
@@ -117,10 +118,10 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline,
                 size: 64,
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
               ),
               const SizedBox(height: 16),
               Text(
@@ -134,10 +135,12 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'This PDF may be corrupted, password-protected, or in an unsupported format.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12, 
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -180,15 +183,13 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(20),
+                  color: Theme.of(context).colorScheme.surfaceContainer,
+                  borderRadius: AppShapes.large,
                 ),
                 child: Text(
                   'Page $_currentPage of $_totalPages',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -203,13 +204,16 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
               left: 0,
               right: 0,
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: <Color>[
-                      Colors.black87,
-                      Colors.black54,
+                      Theme.of(context).colorScheme.surfaceContainer,
+                      Theme.of(context)
+                          .colorScheme
+                          .surfaceContainer
+                          .withValues(alpha: 0.7),
                       Colors.transparent,
                     ],
                   ),
@@ -220,7 +224,10 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
                   children: [
                     // Previous Page Button
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       onPressed: _currentPage > 1 ? _previousPage : null,
                       iconSize: 32,
                       tooltip: 'Previous Page',
@@ -235,23 +242,29 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white24,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '$_currentPage',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                       ),
                     ),
 
                     // Next Page Button
                     IconButton(
-                      icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                      icon: Icon(
+                        Icons.arrow_forward,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       onPressed:
                           _currentPage < _totalPages ? _nextPage : null,
                       iconSize: 32,
@@ -276,15 +289,14 @@ class _PdfPreviewWidgetState extends State<PdfPreviewWidget> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    borderRadius: AppShapes.large,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Tap to show controls',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ),
               ),

@@ -23,7 +23,9 @@ class SearchSuggestionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.archive, color: Colors.blue, size: 32),
+              Icon(Icons.archive, 
+                color: Theme.of(context).colorScheme.primary, 
+                size: 32),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -43,7 +45,7 @@ class SearchSuggestionCard extends StatelessWidget {
                       suggestion.identifier,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontFamily: 'monospace',
                       ),
                       maxLines: 1,
@@ -55,7 +57,8 @@ class SearchSuggestionCard extends StatelessWidget {
                         suggestion.description,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.6),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -67,7 +70,8 @@ class SearchSuggestionCard extends StatelessWidget {
               const SizedBox(width: 8),
               Icon(
                 Icons.arrow_forward_ios,
-                color: Colors.grey.shade400,
+                color: Theme.of(context).colorScheme.onSurfaceVariant
+                    .withValues(alpha: 0.5),
                 size: 16,
               ),
             ],

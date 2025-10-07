@@ -4,57 +4,76 @@
   Internet Archive Helper
 </h1>
 
-<p align="center"><b>Your comprehensive companion for accessing Internet Archive content</b></p>
+<p align="center"><b>Comprehensive tools for accessing Internet Archive content</b></p>
 <p align="center">
 <img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/Gameaday/ia-get-cli/total?logo=github&label=Downloads">
 <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/Gameaday/ia-get-cli/ci.yml?branch=main&logo=github&label=CI">
+<img alt="Material Design 3" src="https://img.shields.io/badge/Material%20Design%203-78%25-blue?logo=material-design">
 </p>
 
 <p align="center">Built with ❤️ for the Internet Archive community</p>
 
 > **Note**: This is an unofficial, community-developed project and is not affiliated with or endorsed by the Internet Archive.
 
-## 📥 Quick Download
+---
 
-### 🚀 Production Releases
-- **🐧 Linux**: [Latest Release](https://github.com/Gameaday/ia-get-cli/releases/latest) (x86_64, ARM, musl)
-- **🪟 Windows**: [Latest Release](https://github.com/Gameaday/ia-get-cli/releases/latest) (x86_64, code-signed)
-- **🍎 macOS**: [Latest Release](https://github.com/Gameaday/ia-get-cli/releases/latest) (Intel + Apple Silicon)
-- **🤖 Android**: [Latest Release](https://github.com/Gameaday/ia-get-cli/releases/latest) (APK + Native libraries)
+## 🚀 Two Powerful Implementations
 
-### 🔐 Security & Trust
-- **Windows binaries are code-signed** using Azure Trusted Signing to prevent SmartScreen warnings
-- **SHA256 checksums** provided for all releases to verify file integrity
-- **Automated security audits** run on every commit to detect vulnerabilities
+### � Flutter Mobile App (Mobile/Tablet/Desktop Web)
+**Pure Dart implementation** for cross-platform GUI experience:
 
-### 🔧 Development Builds
-- **Latest Changes**: [Development Release](https://github.com/Gameaday/ia-get-cli/releases/tag/development) (All platforms + Android)
-
-### 📱 Mobile App
-The Internet Archive Helper mobile app provides a premium Android experience with a **pure Flutter/Dart implementation**:
-
-**Android App Features:**
-- **Material 3 Design** - Modern, accessible interface aligned with Android standards
-- **Intuitive Touch Interface** - Optimized for mobile browsing and downloading
-- **Background Downloads** - Continue downloads even when the app is closed
-- **Deep Link Support** - Open archive.org links directly in the app
-- **Pure Dart Implementation** - Fast, platform-independent code without native dependencies
-- **Easy to Build** - Standard Flutter build process, no complex native compilation
+- **� Material Design 3** - Modern, responsive UI (78% compliant)
+- **📱 Mobile** - Optimized for Android phones with touch interface
+- **🖥️ Tablet** - Master-detail layouts, two-column views (600dp+)
+- **🌐 Desktop Web** - Full-featured browser experience (840dp+)
+- **🔄 Responsive Design** - Adaptive layouts for all screen sizes
+- **♿ Accessible** - Screen reader support, dynamic type, semantic labels
+- **📥 Background Downloads** - Continue downloads when app is closed
+- **🔗 Deep Links** - Open archive.org links directly in app
 
 **Platform Support:**
-The Flutter app now supports multiple platforms:
-- **Android** - Full-featured mobile experience
-- **iOS** - Coming soon (easy to add with pure Dart implementation)
-- **Web** - Access via browser (experimental)
-- **Desktop** - Windows, macOS, Linux support via Flutter
+- ✅ Android (phone/tablet)
+- ✅ Web (desktop browser)
+- 🔜 iOS (coming soon)
+- 🔜 Windows/macOS/Linux desktop
 
-See [Flutter App Documentation](mobile/flutter/README.md) for building and development instructions.
+### 🖥️ Rust CLI/Server (Command Line & Desktop GUI)
+**High-performance Rust implementation** for servers and power users:
 
-## 🌟 Project Vision
+- **⚡ Concurrent Downloads** - Parallel downloading with intelligent session management
+- **🖼️ Desktop GUI** - Native desktop interface (egui framework)
+- **⌨️ CLI Mode** - Powerful command-line for automation and scripts
+- **🗜️ Compression** - HTTP compression and automatic archive extraction
+- **🎯 Advanced Filtering** - Filter by file type, size, patterns
+- **📊 Performance** - Zero-cost abstractions, minimal overhead
 
-Internet Archive Helper is designed to be your comprehensive companion for accessing the vast resources of the Internet Archive. Whether you're a researcher, student, archivist, or simply someone who loves exploring historical digital content, this tool provides both powerful command-line capabilities and an intuitive mobile experience.
+**Platform Support:**
+- ✅ Linux (x86_64, ARM, musl)
+- ✅ Windows (x86_64, code-signed)
+- ✅ macOS (Intel + Apple Silicon)
 
-**Our Mission**: Make Internet Archive content more accessible, discoverable, and useful for everyone.
+---
+
+## 📥 Quick Download
+
+<div align="center">
+
+### 📱 Flutter Mobile & Web
+[🤖 Android APK](https://github.com/Gameaday/ia-get-cli/releases/latest/download/app-release.apk) | [🌐 Try Web App](https://gameaday.github.io/ia-get-cli)
+
+### 🖥️ Rust CLI & Server
+[🐧 Linux](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🪟 Windows](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🍎 macOS](https://github.com/Gameaday/ia-get-cli/releases/latest)
+
+**📋 [Complete Downloads & Installation Guide →](DOWNLOADS.md)**
+
+</div>
+
+### 🔐 Security & Trust
+- **Windows binaries are code-signed** to prevent SmartScreen warnings
+- **SHA256 checksums** provided for all releases
+- **Automated security audits** on every commit
+
+---
 
 ## ⚡ Quick Start
 
@@ -75,23 +94,44 @@ ia-get --help
 
 ## 🎯 Features
 
-### Core Functionality
-- 🔽 **Fast Concurrent Downloads**: Parallel downloading with configurable concurrency limits
-- 🌳 **Directory Structure**: Preserves the original archive directory structure  
-- 🔄 **Smart Resume**: Automatically resumes partial or failed downloads
-- 🎯 **Advanced Filtering**: Filter by file type, size, and custom patterns
-- 🗜️ **Compression Support**: HTTP compression and automatic archive extraction
-- 📊 **Progress Tracking**: Real-time progress with speed and ETA information
+### 🏗️ Architecture
 
-### Cross-Platform Support
-- **🖥️ Desktop**: CLI and GUI modes for Linux, Windows, macOS
-- **📱 Mobile**: Android APK app (pure Flutter/Dart implementation)
-- **🔧 Development**: Hot-reload support and comprehensive debugging tools
+**Two Independent Implementations:**
 
-### User Interfaces
-- **🖼️ GUI Mode**: Intuitive graphical interface with visual filtering and settings
-- **⌨️ CLI Mode**: Powerful command-line interface for automation
-- **📱 Interactive Menu**: Fallback text interface when GUI isn't available
+| Feature | Flutter Mobile/Web | Rust CLI/Server |
+|---------|-------------------|-----------------|
+| **Purpose** | Cross-platform GUI | High-performance automation |
+| **Platforms** | Android, Web, iOS (soon), Desktop (soon) | Linux, Windows, macOS |
+| **UI** | Material Design 3, Responsive | egui (desktop GUI) + CLI |
+| **Downloads** | Background, pause/resume | Concurrent, session management |
+| **Target Users** | Mobile users, casual browsing | Power users, automation, servers |
+
+Both implementations provide feature parity for core functionality.
+
+---
+
+### Core Functionality (All Platforms)
+- 🔽 **Fast Concurrent Downloads** - Parallel downloading with configurable limits
+- 🌳 **Directory Structure** - Preserves original archive organization  
+- 🔄 **Smart Resume** - Automatically recovers from interruptions
+- 🎯 **Advanced Filtering** - Filter by file type, size, patterns
+- � **Progress Tracking** - Real-time speed and ETA information
+- 🔒 **Data Integrity** - MD5/SHA256 checksum verification
+
+### Flutter Mobile/Web Specific
+- 🎨 **Material Design 3** - Modern, accessible UI (78% compliant)
+- 📱 **Responsive Design** - Optimized for phones, tablets, desktop browsers
+- 🔗 **Deep Links** - Open archive.org URLs directly in app
+- 📥 **Background Downloads** - Continue when app is closed
+- 🌐 **Offline Mode** - Access cached metadata without internet
+- ♿ **Accessibility** - Screen reader support, dynamic type
+
+### Rust CLI/Server Specific
+- 🗜️ **Compression** - HTTP compression and automatic archive extraction
+- 🖼️ **Desktop GUI** - Native egui interface with visual controls
+- ⌨️ **CLI Mode** - Powerful command-line for automation
+- 📈 **Performance** - Zero-cost abstractions, minimal overhead
+- 🔧 **Scripting** - Batch operations and integration support
 
 ## 🚀 Advanced Usage
 
@@ -136,51 +176,74 @@ Supports gzip, bzip2, xz, tar, and combined formats. See [docs/COMPRESSION.md](d
 
 ## 🏗️ Development
 
+### Rust CLI/Server Development
+
 ```shell
-# Build CLI only (fastest - 60% faster builds)
+# Standard Cargo workflow
+cargo build --release        # Optimized production build
+cargo build                  # Fast development build
+cargo test                   # Run test suite
+cargo clippy                 # Linting
+cargo fmt                    # Code formatting
+
+# Build CLI only (60% faster)
 cargo build --no-default-features --features cli
 
-# Build with GUI support  
+# Build with desktop GUI
 cargo build --features gui
 
-# Fast development builds
+# Fast development profile
 cargo build --profile fast-dev --no-default-features --features cli
-
-# Optimized release
-cargo build --release --no-default-features --features cli
 ```
 
-### 📱 Flutter/Android Development
+**Requirements:**
+- Rust 1.70+ (standard toolchain)
+- No external dependencies for CLI
+- egui for desktop GUI mode
 
-The Flutter mobile app now uses a **pure Dart implementation** - no native Rust compilation required!
+---
+
+### Flutter Mobile/Web Development
+
+The Flutter app uses **pure Dart** - no native compilation or NDK required!
 
 ```shell
-# Install Flutter (required)
-# See https://flutter.dev/docs/get-started/install
-
 # Navigate to Flutter project
 cd mobile/flutter
 
 # Get dependencies
 flutter pub get
 
-# Run on connected device/emulator
+# Run on device (auto-detects connected device/emulator)
 flutter run
 
-# Build Android APK
-flutter build apk
-
-# Build for other platforms
-flutter build ios          # iOS (coming soon)
-flutter build web          # Web version
-flutter build windows      # Windows desktop
-flutter build macos        # macOS desktop
-flutter build linux        # Linux desktop
+# Build for specific platforms
+flutter build apk           # Android APK
+flutter build web           # Web bundle
+flutter build ios           # iOS (coming soon)
+flutter build windows       # Windows desktop (coming soon)
+flutter build macos         # macOS desktop (coming soon)
+flutter build linux         # Linux desktop (coming soon)
 ```
 
-**Benefits of Pure Dart:**
-- ✅ No Android NDK required
-- ✅ No Rust toolchain needed for Flutter development
+**Requirements:**
+- Flutter 3.35.5+ / Dart 3.8.0+
+- No Android NDK needed
+- No Rust toolchain needed
+- Standard Flutter development workflow
+
+**Current Platform Status:**
+- ✅ **Android** - Full support (phones and tablets)
+- ✅ **Web** - Desktop browser support
+- 🔜 **iOS** - Coming soon (easy to add with pure Dart)
+- 🔜 **Windows/macOS/Linux Desktop** - Coming soon
+
+**Responsive Design:**
+- 📱 **Mobile** (< 600dp) - Phone-optimized layouts
+- 🖥️ **Tablet** (600-839dp) - Master-detail, two-column layouts
+- 💻 **Desktop** (840dp+) - Constrained width, multi-pane views
+
+See [mobile/flutter/README.md](mobile/flutter/README.md) for detailed documentation.
 - ✅ Standard Flutter build process
 - ✅ Faster builds (no native compilation)
 - ✅ Easy debugging with Flutter DevTools
@@ -244,50 +307,85 @@ cargo clippy --no-default-features --features cli -- -D warnings
 
 **Test Coverage**: 81+ tests passing across unit, integration, and API validation.
 
-## CI/CD & Quality Assurance 🔄
+## CI/CD & Automated Builds 🔄
 
-The project now includes comprehensive CI/CD processes:
+### Separate Build Pipelines
 
-### Continuous Integration
-- **Multi-platform builds**: Automatic builds for Linux, Windows, macOS
-- **Flutter builds**: Separate workflow for Android APK building
-- **Code quality checks**: Formatting, linting, and compilation verification
-- **Standard toolchains**: Uses Rust's cargo and Flutter's build system
+**Rust CLI/Server:**
+- **Platforms**: Linux (x86_64, ARM, musl), Windows (x86_64), macOS (Intel + Apple Silicon)
+- **Artifacts**: Native binaries, code-signed Windows executables
+- **Workflow**: `.github/workflows/ci.yml`
+- **Toolchain**: Standard Cargo, no cross-compilation dependencies
 
-### Automated Artifacts
-- **Every commit**: Development releases with all desktop platforms + Android APK
-- **Tagged releases**: Production-quality binaries with comprehensive packaging
-- **Integrity verification**: SHA256 checksums for all downloads
-- **Multi-platform**: All supported architectures and operating systems
+**Flutter Mobile/Web:**
+- **Platforms**: Android APK, Web bundle
+- **Artifacts**: Universal APK, web deployment files
+- **Workflow**: `.github/workflows/flutter-ci.yml` (coming soon)
+- **Toolchain**: Standard Flutter SDK, no native dependencies
 
-### Supported Platforms
+### Release Artifacts
 
-**Rust CLI/GUI:**
-- **Linux**: x86_64, ARM, musl variants
-- **Windows**: x86_64
-- **macOS**: Intel + Apple Silicon
+**Every Commit** (Development Release):
+- All Rust binaries for desktop platforms
+- Android APK (debug build)
+- SHA256 checksums
 
-**Flutter Mobile App:**
+**Tagged Releases** (Production):
+- Optimized Rust binaries (all platforms)
+- Signed Android APK (release build)
+- Web deployment bundle
+- Comprehensive documentation
+
+### Quality Assurance
+
+```shell
+# Rust: Run tests, formatting, linting
+cargo test --no-default-features --features cli
+cargo fmt --check
+cargo clippy -- -D warnings
+
+# Flutter: Run tests and analysis
+cd mobile/flutter
+flutter test
+flutter analyze
+```
+
+**Test Coverage:**
+- Rust: 81+ unit and integration tests
+- Flutter: Comprehensive widget and unit tests
+- Both: Zero linting issues required for merge
+
+---
 - **Android**: APK for all architectures (arm64-v8a, armeabi-v7a, x86_64)
 - **iOS**: Coming soon (pure Dart makes this easy)
 - **Web**: Experimental support
 - **Desktop**: Windows, macOS, Linux via Flutter
 
-## 🏗️ Modern Architecture & Development
+## 🏗️ Architecture & Implementation
 
-Internet Archive Helper uses **two independent, optimized implementations**:
+### Two Independent, Optimized Implementations
 
-### Rust CLI/GUI (Desktop)
-- **🔄 Modern JSON APIs**: Clean, efficient communication with Internet Archive services
-- **⚡ High-Performance Architecture**: Concurrent downloading with intelligent session management
-- **🧪 Comprehensive Testing**: Robust test suite ensuring reliability and stability
-- **🔧 Zero Unsafe Code**: Safe, reliable Rust code with minimal unsafe blocks
-- **📦 Standard Toolchain**: Uses standard Cargo for building - no special setup required
+**Rust CLI/Server (High Performance):**
+- ⚡ **Zero-cost abstractions** - Minimal overhead for maximum speed
+- 🔄 **Modern JSON APIs** - Clean communication with Internet Archive
+- 🧪 **Comprehensive testing** - 81+ tests ensuring reliability
+- � **Memory safe** - No unsafe code (minimal unsafe blocks)
+- 📦 **Standard toolchain** - Just Cargo, no special setup
 
-### Flutter Mobile App  
-- **🎨 Pure Dart Implementation**: No native dependencies or FFI complexity
-- **📱 Cross-Platform Ready**: Android, iOS, Web, and Desktop from single codebase
-- **🚀 Fast Development**: Hot-reload and Flutter DevTools for rapid iteration
+**Flutter Mobile/Web (Cross-Platform GUI):**
+- 🎨 **Pure Dart** - No native dependencies or FFI complexity
+- 📱 **Responsive design** - Adaptive layouts for all screen sizes
+- 🚀 **Hot reload** - Fast iteration with Flutter DevTools
+- ♿ **Accessible** - Screen reader support, dynamic type
+- 🔧 **Standard workflow** - Just Flutter SDK, no Android NDK
+
+**Why Two Implementations?**
+- Each optimized for its target platform and use case
+- Rust: Maximum performance for servers and automation
+- Flutter: Best UX for mobile and casual users
+- No compromises - both implementations excel at their goals
+
+---
 - **🔄 Modern HTTP Client**: Direct API communication using Dart's http package
 - **✅ Easy Testing**: Standard Flutter testing framework with no native complications
 

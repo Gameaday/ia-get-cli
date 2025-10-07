@@ -63,7 +63,7 @@ class BatchOperationsWidget extends StatelessWidget {
                 Text(
                   'Total: ${FormattingUtils.formatBytes(totalSize)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -85,7 +85,7 @@ class BatchOperationsWidget extends StatelessWidget {
             label: const Text('Download'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             onPressed: () => _handleBatchDownload(context),
@@ -112,32 +112,37 @@ class BatchOperationsWidget extends StatelessWidget {
             Text(
               'Total size: ${FormattingUtils.formatBytes(selectedFiles.fold<int>(0, (sum, f) => sum + (f.size ?? 0)))}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade700,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Files will be downloaded concurrently',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade900,
-                      ),
-                    ),
+            Builder(
+              builder: (builderContext) {
+                final colorScheme = Theme.of(builderContext).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Files will be downloaded concurrently',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -166,10 +171,10 @@ class BatchOperationsWidget extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Started downloading ${fileNames.length} files'),
-              backgroundColor: Colors.green,
+              backgroundColor: Theme.of(context).colorScheme.tertiary,
               action: SnackBarAction(
                 label: 'View',
-                textColor: Colors.white,
+                textColor: Theme.of(context).colorScheme.onTertiary,
                 onPressed: () {
                   Navigator.pushNamed(context, '/downloads');
                 },
@@ -182,7 +187,7 @@ class BatchOperationsWidget extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to start batch download: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }

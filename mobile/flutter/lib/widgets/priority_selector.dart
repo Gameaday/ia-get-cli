@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/download_priority.dart';
+import '../utils/app_shapes.dart';
 
 /// Compact priority selector for mobile UI
 /// 
@@ -57,12 +58,12 @@ class PrioritySelector extends StatelessWidget {
   Widget _buildFullChip(BuildContext context) {
     return InkWell(
       onTap: () => _showPriorityPicker(context),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: AppShapes.large,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Color(priority.colorValue).withAlpha(25),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: AppShapes.large,
           border: Border.all(
             color: Color(priority.colorValue).withAlpha(76),
             width: 1.5,
@@ -75,7 +76,7 @@ class PrioritySelector extends StatelessWidget {
               priority.icon,
               style: const TextStyle(fontSize: 16),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               priority.displayName,
               style: TextStyle(
@@ -95,16 +96,16 @@ class PrioritySelector extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: AppShapes.topLarge,
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 'Download Priority',
                 style: TextStyle(
@@ -187,12 +188,12 @@ class PriorityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: showLabel ? 8 : 6,
+        horizontal: showLabel ? 8 : 8,
         vertical: 4,
       ),
       decoration: BoxDecoration(
         color: Color(priority.colorValue).withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppShapes.medium,
         border: Border.all(
           color: Color(priority.colorValue).withAlpha(76),
           width: 1,

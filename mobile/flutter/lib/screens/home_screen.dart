@@ -3,9 +3,14 @@ import 'package:provider/provider.dart';
 import '../services/archive_service.dart';
 import '../services/history_service.dart';
 import '../utils/semantic_colors.dart';
+import '../utils/responsive_utils.dart';
+import '../utils/animation_constants.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/search_suggestion_card.dart';
 import '../widgets/download_manager_widget.dart';
+import '../widgets/archive_info_widget.dart';
+import '../widgets/file_list_widget.dart';
+import '../widgets/download_controls_widget.dart';
 import 'archive_detail_screen.dart';
 import 'download_screen.dart';
 import 'help_screen.dart';
@@ -52,7 +57,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onServiceChanged() {
     final service = context.read<ArchiveService>();
 
-    // Navigate to detail screen only when metadata is successfully loaded
+    // On tablets, we show detail inline - no navigation needed
+    if (ResponsiveUtils.isTabletOrLarger(context)) {
+      // Just update state to show detail panel
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+
+    // On phones, navigate to detail screen only when metadata is successfully loaded
     // Check that we have metadata AND no error AND not currently loading
     if (service.currentMetadata != null && 
         service.error == null && 
@@ -63,8 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       Navigator.of(context)
           .push(
-            MaterialPageRoute(
-              builder: (context) => const ArchiveDetailScreen(),
+            MD3PageTransitions.fadeThrough(
+              page: const ArchiveDetailScreen(),
               settings: const RouteSettings(name: ArchiveDetailScreen.routeName),
             ),
           )
@@ -89,8 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HistoryScreen(),
+                MD3PageTransitions.sharedAxis(
+                  page: const HistoryScreen(),
                   settings: const RouteSettings(name: HistoryScreen.routeName),
                 ),
               );
@@ -101,8 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(),
+                MD3PageTransitions.sharedAxis(
+                  page: const SettingsScreen(),
                   settings: const RouteSettings(name: '/settings'),
                 ),
               );
@@ -113,8 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const HelpScreen(),
+                MD3PageTransitions.sharedAxis(
+                  page: const HelpScreen(),
                   settings: const RouteSettings(name: '/help'),
                 ),
               );
@@ -125,8 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const DownloadScreen(useBackground: true),
+                MD3PageTransitions.fadeThrough(
+                  page: const DownloadScreen(useBackground: true),
                   settings: const RouteSettings(name: DownloadScreen.routeName),
                 ),
               );
@@ -151,18 +165,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 64,
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Initialization Failed',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         service.error!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 14),
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -191,128 +202,219 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          // Safety check: if we're on home screen, metadata should be cleared
-          // This prevents black screen if we somehow navigate back without clearing metadata
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && service.currentMetadata != null && !_hasNavigated) {
-              // We have metadata but haven't navigated - this shouldn't happen normally
-              // Clear it to ensure consistent state
-              service.clearMetadata();
-            }
-          });
-
-          return Column(
-            children: [
-              // Search bar
-              const SearchBarWidget(),
-
-              // Error display
-              if (service.error != null)
+          // Build master-detail layout for tablets, standard layout for phones
+          final masterPanel = _buildMasterPanel(context, service);
+          final hasDetail = service.currentMetadata != null && service.error == null;
+          
+          if (ResponsiveUtils.isTabletOrLarger(context) && hasDetail) {
+            // Master-detail layout for tablets when we have archive data
+            return Row(
+              children: [
+                // Master panel (search & suggestions) - left side
+                Expanded(
+                  flex: (ResponsiveUtils.getMasterDetailRatio(context) * 100).round(),
+                  child: masterPanel,
+                ),
+                // Divider
                 Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Theme.of(context).colorScheme.error),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              service.error!,
-                              style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  width: 1,
+                  color: Theme.of(context).dividerColor,
                 ),
-
-              // Search suggestions
-              if (service.suggestions.isNotEmpty)
+                // Detail panel (archive details) - right side
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        child: Text(
-                          'Suggestions:',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                      ...service.suggestions.map((suggestion) {
-                        return SearchSuggestionCard(
-                          suggestion: suggestion,
-                          onTap: () {
-                            // Clear error and suggestions before fetching
-                            service.clearMetadata();
-                            // Fetch metadata for the suggested archive
-                            service.fetchMetadata(suggestion.identifier);
-                          },
-                        );
-                      }),
-                    ],
-                  ),
+                  flex: ((1.0 - ResponsiveUtils.getMasterDetailRatio(context)) * 100).round(),
+                  child: _buildDetailPanel(context, service),
                 ),
+              ],
+            );
+          }
 
-              // Loading indicator
-              if (service.isLoading) const LinearProgressIndicator(),
-
-              // Empty state when not loading and no metadata
-              if (!service.isLoading &&
-                  service.currentMetadata == null &&
-                  service.suggestions.isEmpty &&
-                  service.error == null)
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search,
-                          size: 64,
-                          color: SemanticColors.disabled(context),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Search for an Internet Archive identifier',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: SemanticColors.subtitle(context),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'e.g., "commute_test" or "nasa_images"',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: SemanticColors.hint(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Active downloads manager at bottom
-              const DownloadManagerWidget(),
-            ],
-          );
+          // Standard single-panel layout for phones or when no detail
+          return masterPanel;
         },
       ),
+    );
+  }
+
+  /// Build the master panel (search and suggestions)
+  Widget _buildMasterPanel(BuildContext context, ArchiveService service) {
+    // Safety check: if we're on home screen, metadata should be cleared (phones only)
+    if (!ResponsiveUtils.isTabletOrLarger(context)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && service.currentMetadata != null && !_hasNavigated) {
+          // We have metadata but haven't navigated - this shouldn't happen normally
+          // Clear it to ensure consistent state
+          service.clearMetadata();
+        }
+      });
+    }
+
+    return Column(
+      children: [
+        // Search bar
+        const SearchBarWidget(),
+
+        // Error display
+        if (service.error != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Theme.of(context).colorScheme.error),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        service.error!,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+        // Search suggestions
+        if (service.suggestions.isNotEmpty)
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(top: 8, bottom: 8),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Text(
+                    'Suggestions:',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                ...service.suggestions.map((suggestion) {
+                  return SearchSuggestionCard(
+                    suggestion: suggestion,
+                    onTap: () {
+                      // Clear error and suggestions before fetching
+                      service.clearMetadata();
+                      // Fetch metadata for the suggested archive
+                      service.fetchMetadata(suggestion.identifier);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+
+        // Loading indicator
+        if (service.isLoading) const LinearProgressIndicator(),
+
+        // Empty state when not loading and no metadata
+        if (!service.isLoading &&
+            service.currentMetadata == null &&
+            service.suggestions.isEmpty &&
+            service.error == null)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.search,
+                    size: 64,
+                    color: SemanticColors.disabled(context),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Search for an Internet Archive identifier',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: SemanticColors.subtitle(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'e.g., "commute_test" or "nasa_images"',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: SemanticColors.hint(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // Active downloads manager at bottom
+        const DownloadManagerWidget(),
+      ],
+    );
+  }
+
+  /// Build the detail panel (archive details for tablets)
+  Widget _buildDetailPanel(BuildContext context, ArchiveService service) {
+    if (service.currentMetadata == null) {
+      return const Center(
+        child: Text('No archive selected'),
+      );
+    }
+
+    return Column(
+      children: [
+        // App bar for detail panel
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Clear selection',
+                    onPressed: () {
+                      service.clearMetadata();
+                    },
+                  ),
+                  Expanded(
+                    child: Text(
+                      service.currentMetadata!.identifier,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Detail content
+        Expanded(
+          child: ListView(
+            padding: ResponsiveUtils.getScreenPadding(context),
+            children: [
+              ArchiveInfoWidget(metadata: service.currentMetadata!),
+              const SizedBox(height: 16),
+              FileListWidget(files: service.currentMetadata!.files),
+              const SizedBox(height: 16),
+              const DownloadControlsWidget(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

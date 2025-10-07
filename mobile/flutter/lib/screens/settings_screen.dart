@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/metadata_cache.dart';
 import '../services/archive_service.dart';
 import '../utils/semantic_colors.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/cache_statistics_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -144,12 +145,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: [
+    // For tablets, constrain content width for better readability
+    final content = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : ListView(
+            children: [
                 // Download Settings Section
                 _buildSectionHeader('Download Settings'),
 
@@ -172,6 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.remove),
+                          tooltip: 'Decrease concurrent downloads',
                           onPressed: _concurrentDownloads > 1
                               ? () => _saveConcurrentDownloads(
                                   _concurrentDownloads - 1,
@@ -181,6 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Text('$_concurrentDownloads'),
                         IconButton(
                           icon: const Icon(Icons.add),
+                          tooltip: 'Increase concurrent downloads',
                           onPressed: _concurrentDownloads < 10
                               ? () => _saveConcurrentDownloads(
                                   _concurrentDownloads + 1,
@@ -387,7 +389,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 32),
               ],
-            ),
+            );
+
+    // Wrap content with responsive constraints for tablets
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ResponsiveUtils.isTabletOrLarger(context)
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 840),
+                child: content,
+              ),
+            )
+          : content,
     );
   }
 
@@ -396,10 +410,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
           color: Theme.of(context).primaryColor,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
         ),
       ),
     );
@@ -426,7 +438,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               'Downloads will be saved to this directory',
-              style: TextStyle(fontSize: 12, color: SemanticColors.hint(context)),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: SemanticColors.hint(context),
+              ),
             ),
           ],
         ),
@@ -785,7 +799,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 'Unpinned and non-downloaded archives will be purged after $selectedDays days of inactivity.',
-                style: TextStyle(fontSize: 13, color: SemanticColors.subtitle(context)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: SemanticColors.subtitle(context),
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -808,7 +824,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     width: 60,
                     child: Text(
                       '$selectedDays days',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.labelLarge,
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -895,7 +911,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Text(
                 'Cached metadata will be synced from the Internet Archive after $selectedDays days.',
-                style: TextStyle(fontSize: 13, color: SemanticColors.subtitle(context)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: SemanticColors.subtitle(context),
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -1001,7 +1019,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               'Set to 0 for unlimited cache size. When limit is reached, '
               'oldest unpinned entries will be purged.',
-              style: TextStyle(fontSize: 12, color: SemanticColors.hint(context)),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: SemanticColors.hint(context),
+              ),
             ),
           ],
         ),

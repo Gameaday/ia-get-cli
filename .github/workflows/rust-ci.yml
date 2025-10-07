@@ -1,0 +1,179 @@
+name: CI/CD - Rust CLI & Server
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [published]
+
+concurrency:
+  group: rust-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 1
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Format Check
+      run: cargo fmt --check
+    
+    - name: Clippy
+      run: cargo clippy --no-default-features --features cli -- -D warnings
+    
+    - name: Test
+      run: cargo test --no-default-features --features cli
+
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: ia-get-linux-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: ia-get-linux-x86_64-musl
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: ia-get-linux-arm64
+          
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: ia-get-windows-x86_64.exe
+          
+          # macOS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: ia-get-macos-intel
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: ia-get-macos-apple-silicon
+    
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Install cross-compilation tools (Linux ARM)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+    
+    - name: Install musl tools (Linux musl)
+      if: contains(matrix.target, 'musl')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+    
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build
+      run: |
+        cargo build --release --target ${{ matrix.target }} --no-default-features --features cli
+    
+    - name: Strip binary (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        strip target/${{ matrix.target }}/release/ia-get || true
+    
+    - name: Generate checksum (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        cd target/${{ matrix.target }}/release
+        sha256sum ia-get > ia-get.sha256
+    
+    - name: Generate checksum (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        cd target/${{ matrix.target }}/release
+        Get-FileHash ia-get.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash > ia-get.exe.sha256
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: |
+          target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}
+          target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}.sha256
+        retention-days: 30
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+    
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create archives
+      run: |
+        cd artifacts
+        for dir in */; do
+          artifact_name="${dir%/}"
+          cd "$dir"
+          if [[ -f *.exe ]]; then
+            zip "../${artifact_name}.zip" *
+          else
+            tar czf "../${artifact_name}.tar.gz" *
+          fi
+          cd ..
+        done
+    
+    - name: Upload to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/*.{tar.gz,zip}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/filters_screen.dart';
+import '../utils/animation_constants.dart';
 
 class FilterControlsWidget extends StatefulWidget {
   const FilterControlsWidget({super.key});
@@ -45,7 +46,7 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Theme.of(context).colorScheme.surface,
@@ -59,8 +60,8 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
                     child: Center(
                       child: Text(
                         '${_getActiveFilterCount()}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -78,7 +79,7 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
             Expanded(
               child: Text(
                 _getFilterSummary(),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -139,8 +140,8 @@ class _FilterControlsWidgetState extends State<FilterControlsWidget> {
   void _openFiltersScreen() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
-      MaterialPageRoute(
-        builder: (context) => FiltersScreen(
+      MD3PageTransitions.sharedAxis(
+        page: FiltersScreen(
           initialIncludeFormats: _selectedIncludeFormats,
           initialExcludeFormats: _selectedExcludeFormats,
           initialMaxSize: _maxSize,
