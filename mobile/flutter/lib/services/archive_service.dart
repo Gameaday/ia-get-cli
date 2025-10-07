@@ -7,6 +7,8 @@ import 'internet_archive_api.dart';
 import 'history_service.dart';
 import 'metadata_cache.dart';
 import 'local_archive_storage.dart';
+import 'ia_http_client.dart';
+import 'bandwidth_throttle.dart';
 import '../core/constants/internet_archive_constants.dart';
 
 /// Archive Service - Pure Dart/Flutter implementation
@@ -22,16 +24,26 @@ import '../core/constants/internet_archive_constants.dart';
 /// - No race conditions from FFI boundaries
 
 class ArchiveService extends ChangeNotifier {
-  final InternetArchiveApi _api = InternetArchiveApi();
+  final MetadataCache _cache;
+  late final InternetArchiveApi _api;
   final HistoryService? _historyService;
   final LocalArchiveStorage? _localArchiveStorage;
-  final MetadataCache _cache = MetadataCache();
 
   ArchiveService({
     HistoryService? historyService,
     LocalArchiveStorage? localArchiveStorage,
-  }) : _historyService = historyService,
-       _localArchiveStorage = localArchiveStorage;
+    IAHttpClient? httpClient,
+    BandwidthThrottle? bandwidthThrottle,
+    MetadataCache? cache,
+  })  : _cache = cache ?? MetadataCache(),
+        _historyService = historyService,
+        _localArchiveStorage = localArchiveStorage {
+    _api = InternetArchiveApi(
+      client: httpClient,
+      cache: _cache,
+      bandwidthThrottle: bandwidthThrottle,
+    );
+  }
 
   // State
   bool _isInitialized = true; // No initialization needed for pure Dart

@@ -82,6 +82,27 @@ class IAHttpConfig {
   static const int connectionTimeoutSeconds = 10;
 }
 
+/// Download Priority Configuration
+///
+/// Internet Archive supports the X-Accept-Reduced-Priority header to mark
+/// downloads as lower priority, which helps avoid rate limiting and reduces
+/// strain on their servers.
+///
+/// See: https://archive.org/developers/iarest.html#custom-headers
+class IADownloadPriority {
+  /// File size threshold (in bytes) for automatic reduced priority
+  /// Files larger than this will automatically use reduced priority
+  /// Default: 50 MB
+  static const int largeSizeThresholdBytes = 50 * 1024 * 1024;
+  
+  /// Whether to use reduced priority by default for all downloads
+  /// Set to true to be an extra good citizen
+  static const bool defaultReducedPriority = false;
+  
+  /// Whether to auto-enable reduced priority for large files
+  static const bool autoReduceLargeFiles = true;
+}
+
 /// HTTP Headers for API Compliance
 class IAHeaders {
   /// User-Agent header - REQUIRED
@@ -100,6 +121,13 @@ class IAHeaders {
   
   /// Do Not Track header (be respectful)
   static const String doNotTrack = '1';
+  
+  /// X-Accept-Reduced-Priority header
+  /// Set to '1' to mark requests as lower priority (good citizen practice)
+  /// This can help avoid rate limiting for large downloads
+  /// See: https://archive.org/developers/iarest.html#custom-headers
+  static const String reducedPriorityHeader = 'X-Accept-Reduced-Priority';
+  static const String reducedPriorityValue = '1';
   
   /// Standard headers map
   static Map<String, String> standard(String appVersion) => {
@@ -165,6 +193,7 @@ class IABestPractices {
     'Handle 429 (Too Many Requests) responses gracefully',
     'Be mindful of Archive.org server load',
     'Consider using S3-like download URLs for better performance',
+    'Use X-Accept-Reduced-Priority header for large downloads to reduce server strain',
   ];
 }
 

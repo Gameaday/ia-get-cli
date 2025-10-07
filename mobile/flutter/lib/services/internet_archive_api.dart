@@ -11,6 +11,10 @@ import '../models/search_result.dart';
 import '../core/constants/internet_archive_constants.dart';
 import '../core/errors/ia_exceptions.dart';
 import '../utils/identifier_validator.dart';
+import 'ia_http_client.dart';
+import 'rate_limiter.dart';
+import 'bandwidth_throttle.dart';
+import 'metadata_cache.dart';
 
 /// Pure Dart/Flutter implementation of Internet Archive API client
 ///
@@ -23,21 +27,27 @@ import '../utils/identifier_validator.dart';
 /// API Reference: https://archive.org/developers/md-read.html
 /// 
 /// Compliance:
-/// - Respects rate limits (max 30 requests/minute)
-/// - Includes proper User-Agent header with contact info
-/// - Implements exponential backoff for retries
+/// - Respects rate limits (max 30 requests/minute) via RateLimiter
+/// - Includes proper User-Agent header with contact info via IAHttpClient
+/// - Implements exponential backoff for retries via IAHttpClient
 /// - Handles all IA-specific HTTP status codes
+/// - Bandwidth throttling for downloads via BandwidthThrottle
+/// - ETag caching for metadata via MetadataCache
 class InternetArchiveApi {
-  final http.Client _client;
-  DateTime? _lastRequestTime;
-  int _requestCount = 0;
-  final DateTime _sessionStart = DateTime.now();
+  final IAHttpClient _client;
+  final MetadataCache? _cache;
+  final BandwidthThrottle? _bandwidthThrottle;
   
   /// App version for User-Agent header
   static const String _appVersion = '1.6.0';
 
-  InternetArchiveApi({http.Client? client})
-      : _client = client ?? http.Client();
+  InternetArchiveApi({
+    IAHttpClient? client,
+    MetadataCache? cache,
+    BandwidthThrottle? bandwidthThrottle,
+  }) : _client = client ?? IAHttpClient(rateLimiter: archiveRateLimiter),
+       _cache = cache,
+       _bandwidthThrottle = bandwidthThrottle;
 
   /// Fetch metadata for an Internet Archive item
   ///
@@ -47,6 +57,8 @@ class InternetArchiveApi {
   /// - A metadata URL: "https://archive.org/metadata/commute_test"
   ///
   /// Returns the parsed [ArchiveMetadata] or throws an exception on error
+  ///
+  /// Supports ETag caching if MetadataCache is provided
   Future<ArchiveMetadata> fetchMetadata(String identifier) async {
     final metadataUrl = _getMetadataUrl(identifier);
     
@@ -64,259 +76,205 @@ class InternetArchiveApi {
     }
     
     if (kDebugMode) {
-      print('Fetching metadata from: $metadataUrl');
+      print('[InternetArchiveApi] Fetching metadata from: $metadataUrl');
     }
 
-    // Retry logic for transient errors
-    int retries = 0;
-    Duration retryDelay = const Duration(seconds: IARateLimits.defaultRetryDelaySecs);
-    
-    while (retries < IARateLimits.maxRetries) {
-      try {
-        await _enforceRateLimit();
-        
-        final response = await _client
-            .get(
-              Uri.parse(metadataUrl),
-              headers: IAHeaders.standard(_appVersion),
-            )
-            .timeout(const Duration(seconds: IAHttpConfig.timeoutSeconds));
-
-        _lastRequestTime = DateTime.now();
-        _requestCount++;
-
-        if (response.statusCode == 200) {
-          final jsonData = json.decode(response.body);
-          return ArchiveMetadata.fromJson(jsonData);
-        } else if (response.statusCode == 429) {
-          // Rate limited - respect Retry-After header and retry
-          final retryAfter = int.tryParse(
-                  response.headers['retry-after'] ?? '') ??
-              IARateLimits.defaultRetryDelaySecs;
-          
-          if (retries < IARateLimits.maxRetries - 1) {
-            if (kDebugMode) {
-              print('Rate limited. Waiting ${retryAfter}s before retry (as requested by server)...');
-            }
-            // Wait the exact time the server told us to wait
-            await Future.delayed(Duration(seconds: retryAfter));
-            retries++;
-            // Reset retry delay for next iteration if needed
-            retryDelay = const Duration(seconds: IARateLimits.defaultRetryDelaySecs);
-            continue;
-          }
-          // If we've exhausted retries, throw with the information
-          throw RateLimitException(retryAfter);
-        } else if (response.statusCode == 404) {
-          // Item not found - throw a special exception that can be caught
-          // to populate suggestions separately
-          throw NotFoundException(identifier);
-        } else if (response.statusCode == 403) {
-          throw ForbiddenException(
-              'Access forbidden. This item may be restricted or require authentication.');
-        } else if (response.statusCode == 503) {
-          // Service unavailable - check for Retry-After header first
-          if (retries < IARateLimits.maxRetries - 1) {
-            final serverRetryAfter = int.tryParse(response.headers['retry-after'] ?? '');
-            final waitTime = serverRetryAfter != null 
-                ? Duration(seconds: serverRetryAfter)
-                : retryDelay;
-            
-            if (kDebugMode) {
-              if (serverRetryAfter != null) {
-                print('Service unavailable, retrying in ${waitTime.inSeconds}s (as requested by server)...');
-              } else {
-                print('Service unavailable, retrying in ${waitTime.inSeconds}s (exponential backoff)...');
-              }
-            }
-            
-            await Future.delayed(waitTime);
-            retries++;
-            
-            // Only apply exponential backoff if server didn't specify retry-after
-            if (serverRetryAfter == null) {
-              retryDelay = Duration(
-                  seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-              if (retryDelay.inSeconds > IARateLimits.maxBackoffDelaySecs) {
-                retryDelay = const Duration(seconds: IARateLimits.maxBackoffDelaySecs);
-              }
-            }
-            continue;
-          }
-          throw ServiceUnavailableException(
-              'Archive.org service temporarily unavailable. This is likely temporary.');
-        } else if (response.statusCode >= 500) {
-          // Server error - check for Retry-After header first, then use exponential backoff
-          if (retries < IARateLimits.maxRetries - 1) {
-            // Check if server provided a Retry-After header
-            final serverRetryAfter = int.tryParse(response.headers['retry-after'] ?? '');
-            final waitTime = serverRetryAfter != null 
-                ? Duration(seconds: serverRetryAfter)
-                : retryDelay;
-            
-            if (kDebugMode) {
-              if (serverRetryAfter != null) {
-                print('Server error (${response.statusCode}), retrying in ${waitTime.inSeconds}s (as requested by server)...');
-              } else {
-                print('Server error (${response.statusCode}), retrying in ${waitTime.inSeconds}s (exponential backoff)...');
-              }
-            }
-            
-            await Future.delayed(waitTime);
-            retries++;
-            
-            // Only apply exponential backoff if server didn't specify retry-after
-            if (serverRetryAfter == null) {
-              retryDelay = Duration(
-                  seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-              // Cap at max backoff delay
-              if (retryDelay.inSeconds > IARateLimits.maxBackoffDelaySecs) {
-                retryDelay = const Duration(seconds: IARateLimits.maxBackoffDelaySecs);
-              }
-            }
-            continue;
-          }
-          throw Exception('${IAErrorMessages.serverError} (${response.statusCode}). This is likely temporary.');
-        } else {
-          throw Exception(
-              'Failed to fetch metadata: HTTP ${response.statusCode}');
+    try {
+      // Check for cached ETag if cache is available
+      String? etag;
+      if (_cache != null) {
+        etag = await _cache.getETag(extractedId);
+        if (kDebugMode && etag != null) {
+          print('[InternetArchiveApi] Found cached ETag: $etag');
         }
-      } on TimeoutException {
-        if (retries < IARateLimits.maxRetries - 1) {
-          if (kDebugMode) {
-            print('Request timeout, retrying in ${retryDelay.inSeconds}s...');
-          }
-          await Future.delayed(retryDelay);
-          retries++;
-          retryDelay = Duration(
-              seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-          continue;
-        }
-        rethrow;
-      } on SocketException catch (e) {
-        if (retries < IARateLimits.maxRetries - 1) {
-          if (kDebugMode) {
-            print('Network error: $e, retrying in ${retryDelay.inSeconds}s...');
-          }
-          await Future.delayed(retryDelay);
-          retries++;
-          retryDelay = Duration(
-              seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-          continue;
-        }
-        rethrow;
       }
-    }
 
-    throw Exception('Failed to fetch metadata after ${IARateLimits.maxRetries} attempts');
+      // Use IAHttpClient.get with ETag support
+      final response = await _client.get(
+        Uri.parse(metadataUrl),
+        ifNoneMatch: etag,
+      );
+
+      // Handle 304 Not Modified - return cached data
+      if (response.statusCode == 304) {
+        if (kDebugMode) {
+          print('[InternetArchiveApi] Cache hit (304 Not Modified)');
+        }
+        
+        // Get cached metadata
+        if (_cache != null) {
+          final cached = await _cache.getCachedMetadata(extractedId);
+          if (cached != null) {
+            return cached.metadata;
+          }
+        }
+        
+        // Fallback: cache returned 304 but we don't have the data
+        // This shouldn't happen, but handle it gracefully
+        throw const IAHttpException(
+          'Server returned 304 but no cached data available',
+          statusCode: 304,
+          type: IAHttpExceptionType.serverError,
+        );
+      }
+
+      // Handle success
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final metadata = ArchiveMetadata.fromJson(jsonData);
+        
+        // Update cache with new ETag if available
+        if (_cache != null) {
+          final newEtag = IAHttpClient.extractETag(response);
+          if (newEtag != null) {
+            await _cache.updateETag(extractedId, newEtag);
+            if (kDebugMode) {
+              print('[InternetArchiveApi] Updated ETag in cache: $newEtag');
+            }
+          }
+        }
+        
+        return metadata;
+      }
+
+      // Handle errors
+      if (response.statusCode == 404) {
+        throw ItemNotFoundException(extractedId);
+      } else if (response.statusCode == 403) {
+        throw AccessForbiddenException(extractedId);
+      }
+
+      // Other errors
+      throw IAHttpException(
+        'Failed to fetch metadata: HTTP ${response.statusCode}',
+        statusCode: response.statusCode,
+        type: response.statusCode >= 500
+            ? IAHttpExceptionType.serverError
+            : IAHttpExceptionType.clientError,
+      );
+    } on IAHttpException {
+      rethrow;
+    } on ItemNotFoundException {
+      rethrow;
+    } on AccessForbiddenException {
+      rethrow;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[InternetArchiveApi] Error fetching metadata: $e');
+      }
+      throw IAHttpException(
+        'Failed to fetch metadata: ${e.toString()}',
+        type: IAHttpExceptionType.network,
+      );
+    }
   }
 
-  /// Download a file from a URL with progress tracking
+  /// Download a file from a URL with progress tracking and bandwidth throttling
   ///
   /// [url] - Full URL to the file
   /// [outputPath] - Local path where file should be saved
   /// [onProgress] - Optional callback for progress updates (downloaded, total)
   /// [cancellationToken] - Optional token to cancel the download
+  /// [useReducedPriority] - Optional flag to mark download as lower priority
+  ///                        If null, will auto-detect based on file size (>50MB)
+  ///                        Set to true to be a good citizen for large downloads
   ///
   /// Returns the path to the downloaded file
   /// Throws exception on failure
   ///
-  /// Automatically retries on transient errors and respects server Retry-After headers
+  /// Uses BandwidthThrottle for rate control and supports X-Accept-Reduced-Priority
+  /// header to reduce strain on Internet Archive servers.
+  ///
+  /// See: https://archive.org/developers/iarest.html#custom-headers
   Future<String> downloadFile(
     String url,
     String outputPath, {
     void Function(int downloaded, int total)? onProgress,
     CancellationToken? cancellationToken,
+    bool? useReducedPriority,
   }) async {
-    int retries = 0;
-    Duration retryDelay = const Duration(seconds: IARateLimits.defaultRetryDelaySecs);
-    
-    while (retries < IARateLimits.maxRetries) {
+    if (kDebugMode) {
+      print('[InternetArchiveApi] Downloading from: $url');
+      print('[InternetArchiveApi] Saving to: $outputPath');
+    }
+
+    try {
+      // Use HEAD request to get content length first
+      final headResponse = await _client.head(Uri.parse(url));
+      final contentLength = int.tryParse(
+            headResponse.headers['content-length'] ?? '') ??
+          0;
+
+      if (kDebugMode) {
+        print('[InternetArchiveApi] Content length: $contentLength bytes');
+      }
+
+      // Determine if we should use reduced priority
+      // Priority logic:
+      // 1. If explicitly set by caller, use that
+      // 2. If file is large (>50MB) and auto-reduce is enabled, use reduced priority
+      // 3. Otherwise, use default setting
+      bool shouldReducePriority = useReducedPriority ??
+          (IADownloadPriority.autoReduceLargeFiles &&
+              contentLength >= IADownloadPriority.largeSizeThresholdBytes) ||
+          IADownloadPriority.defaultReducedPriority;
+
+      if (shouldReducePriority && kDebugMode) {
+        print('[InternetArchiveApi] Using reduced priority (good citizen mode)');
+      }
+
+      // Use IAHttpClient's GET for retry/rate-limit, but we need streaming
+      // For now, use a simple streaming approach with the same headers
+      final request = http.Request('GET', Uri.parse(url));
+      request.headers.addAll({
+        'User-Agent':
+            'ia-get/$_appVersion (https://github.com/Gameaday/ia-get-cli)',
+      });
+
+      // Add reduced priority header if requested
+      if (shouldReducePriority) {
+        request.headers[IAHeaders.reducedPriorityHeader] =
+            IAHeaders.reducedPriorityValue;
+      }
+
+      // Use plain http client for streaming (IAHttpClient handles rate limiting via RateLimiter)
+      // We create a temporary client for the download
+      final streamClient = http.Client();
       try {
-        if (kDebugMode) {
-          print('Downloading from: $url (attempt ${retries + 1})');
-          print('Saving to: $outputPath');
+        final streamedResponse = await streamClient.send(request);
+
+        if (streamedResponse.statusCode != 200) {
+          await streamedResponse.stream.drain();
+          throw IAHttpException(
+            'Failed to download file: HTTP ${streamedResponse.statusCode}',
+            statusCode: streamedResponse.statusCode,
+            type: streamedResponse.statusCode >= 500
+                ? IAHttpExceptionType.serverError
+                : IAHttpExceptionType.clientError,
+          );
         }
-
-        final request = http.Request('GET', Uri.parse(url));
-        request.headers.addAll(IAHeaders.standard(_appVersion));
-
-        final response = await _client.send(request);
-
-        // Handle rate limiting and errors with retry-after support
-        if (response.statusCode == 429) {
-          // Rate limited - respect Retry-After header
-          final retryAfter = int.tryParse(
-                  response.headers['retry-after'] ?? '') ??
-              IARateLimits.defaultRetryDelaySecs;
-          
-          if (retries < IARateLimits.maxRetries - 1) {
-            if (kDebugMode) {
-              print('Download rate limited. Waiting ${retryAfter}s before retry (as requested by server)...');
-            }
-            await response.stream.drain(); // Drain the stream
-            await Future.delayed(Duration(seconds: retryAfter));
-            retries++;
-            continue;
-          }
-          await response.stream.drain();
-          throw RateLimitException(retryAfter);
-        } else if (response.statusCode >= 500) {
-          // Server error - check for Retry-After header
-          if (retries < IARateLimits.maxRetries - 1) {
-            final serverRetryAfter = int.tryParse(response.headers['retry-after'] ?? '');
-            final waitTime = serverRetryAfter != null 
-                ? Duration(seconds: serverRetryAfter)
-                : retryDelay;
-            
-            if (kDebugMode) {
-              if (serverRetryAfter != null) {
-                print('Download failed (${response.statusCode}), retrying in ${waitTime.inSeconds}s (as requested by server)...');
-              } else {
-                print('Download failed (${response.statusCode}), retrying in ${waitTime.inSeconds}s (exponential backoff)...');
-              }
-            }
-            
-            await response.stream.drain(); // Drain the stream
-            await Future.delayed(waitTime);
-            retries++;
-            
-            // Only apply exponential backoff if server didn't specify retry-after
-            if (serverRetryAfter == null) {
-              retryDelay = Duration(
-                  seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-              if (retryDelay.inSeconds > IARateLimits.maxBackoffDelaySecs) {
-                retryDelay = const Duration(seconds: IARateLimits.maxBackoffDelaySecs);
-              }
-            }
-            continue;
-          }
-          await response.stream.drain();
-          throw ServerException(response.statusCode);
-        } else if (response.statusCode != 200) {
-          await response.stream.drain();
-          throw Exception(
-              'Failed to download file: HTTP ${response.statusCode}');
-        }
-
-        // Success - proceed with download
-        final contentLength = response.contentLength ?? 0;
-        int downloaded = 0;
-
         final outputFile = File(outputPath);
         await outputFile.parent.create(recursive: true);
-        
+
         final sink = outputFile.openWrite();
+        int downloaded = 0;
 
         try {
-          await for (final chunk in response.stream) {
+          await for (final chunk in streamedResponse.stream) {
+            // Check cancellation
             if (cancellationToken?.isCancelled ?? false) {
               throw Exception('Download cancelled by user');
+            }
+
+            // Apply bandwidth throttling if available
+            if (_bandwidthThrottle != null) {
+              await _bandwidthThrottle.consume(chunk.length);
             }
 
             sink.add(chunk);
             downloaded += chunk.length;
 
+            // Report progress
             onProgress?.call(downloaded, contentLength);
           }
 
@@ -324,7 +282,7 @@ class InternetArchiveApi {
           await sink.close();
 
           if (kDebugMode) {
-            print('Download complete: $outputPath');
+            print('[InternetArchiveApi] Download complete: $outputPath');
           }
 
           return outputPath;
@@ -336,34 +294,20 @@ class InternetArchiveApi {
           }
           rethrow;
         }
-      } on SocketException catch (e) {
-        if (retries < IARateLimits.maxRetries - 1) {
-          if (kDebugMode) {
-            print('Network error during download: $e, retrying in ${retryDelay.inSeconds}s...');
-          }
-          await Future.delayed(retryDelay);
-          retries++;
-          retryDelay = Duration(
-              seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-          continue;
-        }
-        rethrow;
-      } on TimeoutException {
-        if (retries < IARateLimits.maxRetries - 1) {
-          if (kDebugMode) {
-            print('Download timeout, retrying in ${retryDelay.inSeconds}s...');
-          }
-          await Future.delayed(retryDelay);
-          retries++;
-          retryDelay = Duration(
-              seconds: (retryDelay.inSeconds * IARateLimits.backoffMultiplier).toInt());
-          continue;
-        }
-        rethrow;
+      } finally {
+        streamClient.close();
       }
+    } on IAHttpException {
+      rethrow;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[InternetArchiveApi] Download error: $e');
+      }
+      throw IAHttpException(
+        'Failed to download file: ${e.toString()}',
+        type: IAHttpExceptionType.network,
+      );
     }
-
-    throw Exception('Failed to download file after ${IARateLimits.maxRetries} attempts');
   }
 
   /// Validate file checksum
@@ -680,42 +624,6 @@ class InternetArchiveApi {
     
     // Assume it's a bare identifier
     return trimmed;
-  }
-
-  /// Enforce rate limiting between requests
-  Future<void> _enforceRateLimit() async {
-    if (_lastRequestTime != null) {
-      final elapsed = DateTime.now().difference(_lastRequestTime!);
-      final minDelay = const Duration(milliseconds: IARateLimits.minRequestDelayMs);
-
-      if (elapsed < minDelay) {
-        final waitTime = minDelay - elapsed;
-        await Future.delayed(waitTime);
-      }
-    }
-  }
-
-  /// Get API usage statistics
-  Map<String, dynamic> getStats() {
-    final sessionDuration = DateTime.now().difference(_sessionStart);
-    final minutes = sessionDuration.inSeconds / 60.0;
-    final requestsPerMinute = minutes > 0 ? _requestCount / minutes : 0.0;
-
-    return {
-      'requestCount': _requestCount,
-      'sessionDuration': sessionDuration.toString(),
-      'requestsPerMinute': requestsPerMinute.toStringAsFixed(1),
-    };
-  }
-
-  /// Check if request rate is healthy (under 30 requests/minute)
-  bool isRateHealthy() {
-    final sessionDuration = DateTime.now().difference(_sessionStart);
-    final minutes = sessionDuration.inSeconds / 60.0;
-    if (minutes <= 0) return true;
-    
-    final requestsPerMinute = _requestCount / minutes;
-    return requestsPerMinute < IARateLimits.maxRequestsPerMinute;
   }
 
   /// Close the HTTP client
