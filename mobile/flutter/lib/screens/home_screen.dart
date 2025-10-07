@@ -16,6 +16,8 @@ import 'download_screen.dart';
 import 'help_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
+import 'favorites_screen.dart';
+import 'collections_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,6 +101,32 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Search'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.favorite),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MD3PageTransitions.sharedAxis(
+                  page: const FavoritesScreen(),
+                  settings: const RouteSettings(name: '/favorites'),
+                ),
+              );
+            },
+            tooltip: 'Favorites',
+          ),
+          IconButton(
+            icon: const Icon(Icons.collections_bookmark),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MD3PageTransitions.sharedAxis(
+                  page: const CollectionsScreen(),
+                  settings: const RouteSettings(name: '/collections'),
+                ),
+              );
+            },
+            tooltip: 'Collections',
+          ),
+          IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
               Navigator.push(
@@ -109,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+            tooltip: 'History',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -121,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+            tooltip: 'Settings',
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -133,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+            tooltip: 'Help',
           ),
           IconButton(
             icon: const Icon(Icons.download_rounded),
@@ -145,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+            tooltip: 'Downloads',
           ),
         ],
       ),

@@ -5,6 +5,8 @@ import '../widgets/archive_info_widget.dart';
 import '../widgets/file_list_widget.dart';
 import '../widgets/download_controls_widget.dart';
 import '../widgets/download_manager_widget.dart';
+import '../widgets/favorite_button.dart';
+import '../widgets/collection_picker.dart';
 
 /// Screen showing archive details with files and download options
 class ArchiveDetailScreen extends StatefulWidget {
@@ -42,6 +44,36 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
               );
             },
           ),
+          actions: [
+            Consumer<ArchiveService>(
+              builder: (context, service, child) {
+                final identifier = service.currentMetadata?.identifier;
+                if (identifier == null) return const SizedBox.shrink();
+                
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Favorite button
+                    FavoriteButton(
+                      identifier: identifier,
+                      title: service.currentMetadata?.title,
+                      iconSize: 24,
+                    ),
+                    // Collections menu
+                    IconButton(
+                      icon: const Icon(Icons.collections_bookmark),
+                      tooltip: 'Add to collection',
+                      onPressed: () => CollectionPicker.show(
+                        context: context,
+                        identifier: identifier,
+                        title: service.currentMetadata?.title,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
         body: Consumer<ArchiveService>(
           builder: (context, service, child) {

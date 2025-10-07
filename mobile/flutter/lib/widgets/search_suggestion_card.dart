@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/search_result.dart';
+import '../widgets/favorite_button.dart';
 
 /// Widget that displays a search result suggestion similar to the archive info card
 class SearchSuggestionCard extends StatelessWidget {
@@ -68,6 +69,12 @@ class SearchSuggestionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              // Favorite button
+              FavoriteIconButton(
+                identifier: suggestion.identifier,
+                iconSize: 20,
+              ),
+              const SizedBox(width: 4),
               Icon(
                 Icons.arrow_forward_ios,
                 color: Theme.of(context).colorScheme.onSurfaceVariant
