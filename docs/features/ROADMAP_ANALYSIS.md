@@ -3,8 +3,20 @@
 **Document Purpose**: Bridge the gap between initial brainstorming (BRAINSTORMING_IMPROVEMENTS.md), current implementation status (Phase 1-3 complete), and future vision (Phase 4+) with focus on becoming a comprehensive Internet Archive management tool.
 
 **Created**: 2025-10-06  
-**Last Updated**: 2025-10-06 (Updated after Day 6 UI Integration & API Compliance work)  
-**Status**: 🎯 Active Planning - API Compliance Complete, Phase 4 Ready
+**Last Updated**: 2025-10-07 (v1.7.0 Released - Consolidated Documentation)  
+**Status**: 🎯 Active Planning - v1.7.0 Complete (~98% MD3 Compliance), Phase 4 Ready
+
+---
+
+## 📚 Documentation Navigation
+
+**This is the comprehensive strategic roadmap.** For specific phase details, see:
+
+- **Historical Reference**: [`mobile/flutter/docs/PHASES_1-3_COMPLETE.md`](../../mobile/flutter/docs/PHASES_1-3_COMPLETE.md) - Consolidated completion summary for Phases 1-3, Day 6, and v1.7.0 Material Design 3 Excellence
+- **Current/Upcoming**: [`mobile/flutter/docs/PHASE_4-5_PLAN.md`](../../mobile/flutter/docs/PHASE_4-5_PLAN.md) - Detailed plans for Phase 4 (User Experience & Data Management) and Phase 5 (Polish & Play Store Release)
+- **Immediate Next Steps**: [`mobile/flutter/docs/POST_V1.7.0_ROADMAP.md`](../../mobile/flutter/docs/POST_V1.7.0_ROADMAP.md) - Quick reference for what to do after v1.7.0
+
+**Note**: Individual phase completion documents (phase-2-task-1-complete.md, etc.) have been consolidated into the documents above for better organization and reduced documentation sprawl.
 
 ---
 
