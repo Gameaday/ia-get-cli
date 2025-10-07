@@ -43,6 +43,24 @@ class BackgroundDownloadService extends ChangeNotifier {
   int get maxRetries => _maxRetries;
   int get maxConcurrentDownloads => _maxConcurrentDownloads;
 
+  /// Get metadata for a specific download (for retry functionality)
+  ArchiveMetadata? getDownloadMetadata(String downloadId) {
+    return _downloadMetadata[downloadId];
+  }
+
+  /// Get selected files for a specific download (for retry functionality)
+  List<String>? getDownloadFiles(String downloadId) {
+    return _downloadFiles[downloadId];
+  }
+
+  /// Get download path for a specific download (for retry functionality)
+  /// Returns null if not stored - caller should use default path
+  String? getDownloadPath(String downloadId) {
+    // Download path is not currently stored per-download
+    // Return null to use default path
+    return null;
+  }
+
   /// Set maximum retry attempts for failed downloads
   set maxRetries(int value) {
     if (value >= 0 && value <= 10) {

@@ -5,6 +5,13 @@ import 'package:flutter/foundation.dart';
 import 'rate_limiter.dart';
 import '../models/rate_limit_status.dart';
 
+/// Current Flutter SDK version for User-Agent header.
+/// 
+/// NOTE: Flutter doesn't expose SDK version at runtime without external dependencies.
+/// This constant should be updated when upgrading Flutter SDK.
+/// Run `flutter --version` to get the current version.
+const String _kFlutterVersion = '3.35.5';
+
 /// Enhanced HTTP client for Archive.org API compliance.
 ///
 /// Implements all Archive.org best practices:
@@ -45,6 +52,10 @@ class IAHttpClient {
   final Duration defaultTimeout;
   final int maxRetries;
   final List<Duration> retryDelays;
+
+  /// Track the last retry-after delay from server responses
+  int? _lastRetryAfterSeconds;
+  DateTime? _lastRetryAfterExpiry;
 
   /// Creates an HTTP client configured for Archive.org API.
   ///
@@ -158,6 +169,12 @@ class IAHttpClient {
         },
       );
 
+      // Always parse retry-after header for tracking (even if not retrying)
+      final statusCode = _getStatusCode(response);
+      if (statusCode == 429 || statusCode == 503) {
+        _parseRetryAfter(response);
+      }
+
       // Check if retry is needed based on status code
       if (_shouldRetry(response, attemptNumber)) {
         final retryAfter = _parseRetryAfter(response);
@@ -179,7 +196,6 @@ class IAHttpClient {
       }
 
       // Check for HTTP errors
-      final statusCode = _getStatusCode(response);
       if (statusCode >= 400) {
         throw IAHttpException(
           'HTTP $statusCode: ${_getReasonPhrase(response)}',
@@ -251,6 +267,10 @@ class IAHttpClient {
   }
 
   /// Parse Retry-After header from response.
+  ///
+  /// Supports both formats per RFC 7231:
+  /// - Delay in seconds: "120"
+  /// - HTTP-date: "Wed, 21 Oct 2015 07:28:00 GMT"
   Duration? _parseRetryAfter(dynamic response) {
     if (response is! http.Response && response is! http.StreamedResponse) {
       return null;
@@ -264,11 +284,30 @@ class IAHttpClient {
     // Try parsing as seconds (integer)
     final seconds = int.tryParse(retryAfter);
     if (seconds != null) {
+      // Store for UI display
+      _lastRetryAfterSeconds = seconds;
+      _lastRetryAfterExpiry = DateTime.now().add(Duration(seconds: seconds));
       return Duration(seconds: seconds);
     }
 
-    // Try parsing as HTTP date (not implemented, would need date parsing)
-    // For now, return null and use default exponential backoff
+    // Try parsing as HTTP-date (RFC 7231 format)
+    try {
+      final httpDate = HttpDate.parse(retryAfter);
+      final now = DateTime.now();
+      final delaySeconds = httpDate.difference(now).inSeconds;
+      
+      if (delaySeconds > 0) {
+        // Store for UI display
+        _lastRetryAfterSeconds = delaySeconds;
+        _lastRetryAfterExpiry = httpDate;
+        return Duration(seconds: delaySeconds);
+      }
+    } catch (e) {
+      // Invalid date format, fall through to default behavior
+      debugPrint('Failed to parse Retry-After date: $retryAfter - $e');
+    }
+
+    // Unable to parse, return null and use default exponential backoff
     return null;
   }
 
@@ -335,11 +374,34 @@ class IAHttpClient {
         response.headers['ETAG'];
   }
 
-  /// Get Flutter version for User-Agent.
+  /// Get Flutter/Dart version for User-Agent.
+  ///
+  /// Returns Flutter SDK version (from constant) and Dart SDK version (from Platform.version).
+  /// Flutter SDK version is defined as a constant since Flutter doesn't expose it at runtime.
+  /// 
+  /// Format examples:
+  /// - Native: "Flutter/3.35.5 Dart/3.8.0"
+  /// - Web: "Flutter/3.35.5 (Web)"
   static String _getFlutterVersion() {
-    // In production, this would read from package info
-    // For now, return a placeholder
-    return 'Flutter/3.24';
+    if (kIsWeb) {
+      return 'Flutter/$_kFlutterVersion (Web)';
+    }
+    
+    try {
+      // Platform.version includes full Dart version info
+      // Format: "3.8.0 (stable) on \"windows_x64\""
+      final version = Platform.version;
+      final match = RegExp(r'^(\d+\.\d+\.\d+)').firstMatch(version);
+      if (match != null) {
+        final dartVersion = match.group(1);
+        return 'Flutter/$_kFlutterVersion Dart/$dartVersion';
+      }
+    } catch (e) {
+      // Fallback if Platform.version is not available
+      debugPrint('Failed to get Dart version: $e');
+    }
+    
+    return 'Flutter/$_kFlutterVersion';
   }
 
   /// Get current rate limiter statistics.
@@ -349,12 +411,19 @@ class IAHttpClient {
 
   /// Get current rate limiter status for UI display.
   RateLimitStatus getRateLimitStatus() {
+    // Clear expired retry-after data
+    if (_lastRetryAfterExpiry != null && 
+        DateTime.now().isAfter(_lastRetryAfterExpiry!)) {
+      _lastRetryAfterSeconds = null;
+      _lastRetryAfterExpiry = null;
+    }
+
     return RateLimitStatus.fromRateLimiter(
       activeCount: _rateLimiter.activeCount,
       queueLength: _rateLimiter.queueLength,
       maxConcurrent: _rateLimiter.maxConcurrent,
-      retryAfterSeconds: null, // TODO: Track retry-after from responses
-      retryAfterExpiry: null,
+      retryAfterSeconds: _lastRetryAfterSeconds,
+      retryAfterExpiry: _lastRetryAfterExpiry,
     );
   }
 

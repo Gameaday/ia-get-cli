@@ -517,11 +517,51 @@ class _DownloadManagerWidgetState extends State<DownloadManagerWidget> {
     BackgroundDownloadService service,
     DownloadProgress download,
   ) async {
-    // Implementation would need to restart the download with same parameters
-    // This requires storing original download parameters
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Retry functionality not yet implemented')),
-    );
+    try {
+      // Get metadata and files from service
+      final metadata = service.getDownloadMetadata(download.downloadId);
+      final files = service.getDownloadFiles(download.downloadId);
+      
+      if (metadata == null || files == null || files.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot retry: download information not available'),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Cancel the failed download first
+      await service.cancelDownload(download.downloadId);
+      
+      // Get download path from settings or use default
+      final downloadPath = service.getDownloadPath(download.downloadId) ?? 
+                          '/storage/emulated/0/Download';
+
+      // Restart the download with same parameters
+      await service.startBackgroundDownload(
+        identifier: download.identifier,
+        selectedFiles: files,
+        downloadPath: downloadPath,
+        metadata: metadata,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Retrying download: ${download.identifier}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to retry download: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _cancelDownload(

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 
 /// Utility class for file operations and formatting
 class FileUtils {
@@ -225,10 +226,17 @@ class FileUtils {
   /// Calculate MD5 hash of a file (for verification)
   static Future<String?> calculateFileHash(String filePath) async {
     try {
-      // This would require crypto package and is platform-specific
-      // Placeholder for actual implementation
-      return null;
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return null;
+      }
+
+      // Read file and calculate MD5 hash
+      final bytes = await file.readAsBytes();
+      final digest = md5.convert(bytes);
+      return digest.toString();
     } catch (e) {
+      // Return null on any error (file not found, permission denied, etc.)
       return null;
     }
   }
