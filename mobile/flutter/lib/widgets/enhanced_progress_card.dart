@@ -36,37 +36,38 @@ class EnhancedProgressCard extends StatelessWidget {
   Widget _buildCompactInfo(BuildContext context) {
     return Row(
       children: [
-        // Speed indicator
-        if (progressInfo.hasSpeedData) ...[
-          Icon(
-            progressInfo.isThrottled ? Icons.speed : Icons.bolt,
-            size: 16,
-            color: progressInfo.isThrottled ? Colors.orange : Colors.blue,
+        // Speed indicator - always show, even if 0
+        Icon(
+          progressInfo.isThrottled ? Icons.speed : Icons.bolt,
+          size: 16,
+          color: progressInfo.isThrottled 
+              ? Colors.orange 
+              : (progressInfo.hasSpeedData ? Colors.blue : Colors.grey),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          progressInfo.hasSpeedData 
+              ? progressInfo.formattedCurrentSpeed 
+              : 'Starting...',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: progressInfo.hasSpeedData ? null : Colors.grey.shade600,
           ),
-          const SizedBox(width: 4),
-          Text(
-            progressInfo.formattedCurrentSpeed,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
+        ),
+        const SizedBox(width: 12),
         
-        // ETA
-        if (progressInfo.hasEta) ...[
-          const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
-          const SizedBox(width: 4),
-          Text(
-            progressInfo.formattedEta,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade700,
-            ),
+        // ETA - show calculating if not available
+        const Icon(Icons.timer_outlined, size: 16, color: Colors.grey),
+        const SizedBox(width: 4),
+        Text(
+          progressInfo.formattedEta,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade700,
           ),
-          const SizedBox(width: 12),
-        ],
+        ),
+        const SizedBox(width: 12),
         
         // File count
         const Icon(Icons.insert_drive_file_outlined, size: 16, color: Colors.grey),
@@ -109,13 +110,17 @@ class EnhancedProgressCard extends StatelessWidget {
           _buildDetailRow(
             icon: Icons.speed,
             label: 'Current Speed',
-            value: progressInfo.formattedCurrentSpeed,
+            value: progressInfo.hasSpeedData 
+                ? progressInfo.formattedCurrentSpeed 
+                : 'Starting...',
           ),
           const SizedBox(height: 8),
           _buildDetailRow(
             icon: Icons.show_chart,
             label: 'Average Speed',
-            value: progressInfo.formattedAverageSpeed,
+            value: progressInfo.hasSpeedData 
+                ? progressInfo.formattedAverageSpeed 
+                : 'Calculating...',
           ),
           const SizedBox(height: 8),
           _buildDetailRow(
@@ -141,6 +146,25 @@ class EnhancedProgressCard extends StatelessWidget {
                     fontSize: 12,
                     color: Colors.orange.shade700,
                     fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (!progressInfo.hasSpeedData) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Speed will be calculated once download starts',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blue.shade700,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ],
