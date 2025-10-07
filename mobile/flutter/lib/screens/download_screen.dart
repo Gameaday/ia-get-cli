@@ -4,12 +4,14 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:open_file/open_file.dart';
 import '../providers/download_provider.dart';
 import '../services/background_download_service.dart';
+import '../services/archive_service.dart';
 import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
 import '../widgets/bandwidth_controls_widget.dart';
 import '../widgets/priority_selector.dart';
 import '../widgets/enhanced_progress_card.dart';
+import '../widgets/rate_limit_indicator.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -97,6 +99,18 @@ class _DownloadScreenState extends State<DownloadScreen> {
                     children: [
                       // Bandwidth controls at the top
                       const BandwidthControlsWidget(),
+                      const SizedBox(height: 12),
+                      
+                      // Rate limit indicator (shows when rate limiting is active)
+                      Consumer<ArchiveService>(
+                        builder: (context, archiveService, _) {
+                          final rateLimitStatus = archiveService.getRateLimitStatus();
+                          return RateLimitIndicator(
+                            status: rateLimitStatus,
+                            showDetails: false,
+                          );
+                        },
+                      ),
                       const SizedBox(height: 24),
                       
                       if (activeDownloads.isNotEmpty) ...[

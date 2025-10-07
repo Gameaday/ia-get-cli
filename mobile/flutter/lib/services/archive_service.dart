@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/archive_metadata.dart';
 import '../models/search_result.dart';
+import '../models/rate_limit_status.dart';
 import 'internet_archive_api.dart';
 import 'history_service.dart';
 import 'metadata_cache.dart';
@@ -661,6 +662,11 @@ class ArchiveService extends ChangeNotifier {
   Future<void> clearAllCache() async {
     await _cache.clearAllCache();
     notifyListeners();
+  }
+
+  /// Get current rate limiter status
+  RateLimitStatus getRateLimitStatus() {
+    return _api.client.getRateLimitStatus();
   }
 
   @override

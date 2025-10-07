@@ -41,6 +41,9 @@ class InternetArchiveApi {
   /// App version for User-Agent header
   static const String _appVersion = '1.6.0';
 
+  /// Expose the HTTP client for rate limit status
+  IAHttpClient get client => _client;
+
   InternetArchiveApi({
     IAHttpClient? client,
     MetadataCache? cache,

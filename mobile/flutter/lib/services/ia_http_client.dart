@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'rate_limiter.dart';
+import '../models/rate_limit_status.dart';
 
 /// Enhanced HTTP client for Archive.org API compliance.
 ///
@@ -344,6 +345,17 @@ class IAHttpClient {
   /// Get current rate limiter statistics.
   Map<String, dynamic> getStats() {
     return _rateLimiter.getStats();
+  }
+
+  /// Get current rate limiter status for UI display.
+  RateLimitStatus getRateLimitStatus() {
+    return RateLimitStatus.fromRateLimiter(
+      activeCount: _rateLimiter.activeCount,
+      queueLength: _rateLimiter.queueLength,
+      maxConcurrent: _rateLimiter.maxConcurrent,
+      retryAfterSeconds: null, // TODO: Track retry-after from responses
+      retryAfterExpiry: null,
+    );
   }
 
   /// Close the HTTP client and release resources.
