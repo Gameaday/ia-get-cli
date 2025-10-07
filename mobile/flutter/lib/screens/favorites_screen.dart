@@ -569,54 +569,68 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('Sort by'),
-                titleTextStyle: Theme.of(context).textTheme.titleMedium,
+        SortOption selectedOption = _sortOption;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: const Text('Sort by'),
+                    titleTextStyle: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const Divider(height: 1),
+                  RadioListTile<SortOption>(
+                    title: const Text('Most recent'),
+                    value: SortOption.recent,
+                    groupValue: selectedOption,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setModalState(() => selectedOption = value);
+                        setState(() {
+                          _sortOption = value;
+                          _applyFiltersAndSort();
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  RadioListTile<SortOption>(
+                    title: const Text('Title (A-Z)'),
+                    value: SortOption.title,
+                    groupValue: selectedOption,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setModalState(() => selectedOption = value);
+                        setState(() {
+                          _sortOption = value;
+                          _applyFiltersAndSort();
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  RadioListTile<SortOption>(
+                    title: const Text('Media type'),
+                    value: SortOption.mediatype,
+                    groupValue: selectedOption,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setModalState(() => selectedOption = value);
+                        setState(() {
+                          _sortOption = value;
+                          _applyFiltersAndSort();
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-              const Divider(height: 1),
-              RadioListTile<SortOption>(
-                title: const Text('Most recent'),
-                value: SortOption.recent,
-                groupValue: _sortOption,
-                onChanged: (value) {
-                  setState(() {
-                    _sortOption = value!;
-                    _applyFiltersAndSort();
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              RadioListTile<SortOption>(
-                title: const Text('Title (A-Z)'),
-                value: SortOption.title,
-                groupValue: _sortOption,
-                onChanged: (value) {
-                  setState(() {
-                    _sortOption = value!;
-                    _applyFiltersAndSort();
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              RadioListTile<SortOption>(
-                title: const Text('Media type'),
-                value: SortOption.mediatype,
-                groupValue: _sortOption,
-                onChanged: (value) {
-                  setState(() {
-                    _sortOption = value!;
-                    _applyFiltersAndSort();
-                  });
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+            );
+          },
         );
       },
     );

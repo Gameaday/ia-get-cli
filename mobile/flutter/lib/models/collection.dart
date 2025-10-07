@@ -52,7 +52,7 @@ class Collection {
       'name': name,
       'description': description,
       'icon': icon,
-      'color': color?.value,
+      'color': color?.toARGB32(),
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
       'is_smart': isSmart ? 1 : 0,
