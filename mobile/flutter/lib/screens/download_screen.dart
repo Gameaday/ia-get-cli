@@ -7,6 +7,7 @@ import '../services/background_download_service.dart';
 import '../models/download_progress.dart' as progress_model;
 import '../utils/file_utils.dart';
 import '../utils/permission_utils.dart';
+import '../widgets/bandwidth_controls_widget.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -89,6 +90,10 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // Bandwidth controls at the top
+                      const BandwidthControlsWidget(),
+                      const SizedBox(height: 24),
+                      
                       if (activeDownloads.isNotEmpty) ...[
                         const Text(
                           'Active Downloads',

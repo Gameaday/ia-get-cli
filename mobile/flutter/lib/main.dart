@@ -7,6 +7,8 @@ import 'services/background_download_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/local_archive_storage.dart';
 import 'providers/download_provider.dart';
+import 'providers/bandwidth_manager_provider.dart';
+import 'models/bandwidth_preset.dart';
 import 'screens/home_screen.dart';
 import 'screens/archive_detail_screen.dart';
 import 'screens/download_screen.dart';
@@ -43,6 +45,11 @@ class IAGetMobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Bandwidth Manager - needs to be created first for global access
+        ChangeNotifierProvider<BandwidthManagerProvider>(
+          create: (_) => BandwidthManagerProvider()..initialize(BandwidthPreset.mb1),
+          lazy: false, // Initialize eagerly to set up bandwidth limits
+        ),
         // History service - needs to be created first
         ChangeNotifierProvider<HistoryService>(
           create: (_) => HistoryService(),
@@ -72,8 +79,16 @@ class IAGetMobileApp extends StatelessWidget {
               ),
           lazy: true,
         ),
-        ChangeNotifierProvider<DownloadProvider>(
-          create: (_) => DownloadProvider(),
+        // Download provider with bandwidth management
+        ChangeNotifierProxyProvider<BandwidthManagerProvider, DownloadProvider>(
+          create: (context) => DownloadProvider(
+            bandwidthManager: context.read<BandwidthManagerProvider>(),
+          ),
+          update: (context, bandwidthManager, previous) =>
+              previous ??
+              DownloadProvider(
+                bandwidthManager: bandwidthManager,
+              ),
           lazy: true,
         ),
         // Background download service with archive storage integration

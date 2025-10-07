@@ -5,6 +5,7 @@ import '../models/download_progress.dart' as progress_model show DownloadStatus;
 import '../models/file_filter.dart';
 import '../services/archive_service.dart';
 import '../core/constants/internet_archive_constants.dart';
+import '../providers/bandwidth_manager_provider.dart';
 
 /// Download State Management Provider
 ///
@@ -158,6 +159,7 @@ class DownloadState {
 /// Uses pure Dart implementation for all Internet Archive operations.
 class DownloadProvider extends ChangeNotifier {
   final ArchiveService _service = ArchiveService();
+  final BandwidthManagerProvider? _bandwidthManager;
   
   // State management - all in Dart!
   final Map<String, DownloadState> _downloads = {};
@@ -183,6 +185,10 @@ class DownloadProvider extends ChangeNotifier {
   final int _totalDownloadsCompleted = 0;
   int _totalDownloadsFailed = 0;
   final int _totalBytesDownloaded = 0;
+
+  /// Constructor with optional bandwidth manager injection
+  DownloadProvider({BandwidthManagerProvider? bandwidthManager})
+      : _bandwidthManager = bandwidthManager;
 
   /// Get all downloads
   Map<String, DownloadState> get downloads => Map.unmodifiable(_downloads);
@@ -304,6 +310,9 @@ class DownloadProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Create bandwidth throttle for this download
+      _bandwidthManager?.createThrottle(identifier);
+      
       // Fetch metadata with caching
       ArchiveMetadata metadata;
       if (_metadataCache.containsKey(identifier)) {
@@ -494,6 +503,9 @@ class DownloadProvider extends ChangeNotifier {
 
       rethrow;
     } finally {
+      // Remove bandwidth throttle for this download
+      _bandwidthManager?.removeThrottle(identifier);
+      
       // Ensure active download count is decremented
       if (_activeDownloads > 0) {
         _activeDownloads--;
