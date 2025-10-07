@@ -12,6 +12,7 @@ import '../widgets/bandwidth_controls_widget.dart';
 import '../widgets/priority_selector.dart';
 import '../widgets/enhanced_progress_card.dart';
 import '../widgets/rate_limit_indicator.dart';
+import 'settings_screen.dart';
 
 class DownloadScreen extends StatefulWidget {
   const DownloadScreen({super.key, this.useBackground = false});
@@ -50,6 +51,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
           canPop: true,
           child: Scaffold(
             appBar: AppBar(
+              centerTitle: false,
               title: Row(
                 children: [
                   const Text('Downloads'),
@@ -68,6 +70,18 @@ class _DownloadScreenState extends State<DownloadScreen> {
                 ],
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: 'Download settings',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
                 if (downloads.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.clear_all),
@@ -168,6 +182,7 @@ class _DownloadScreenState extends State<DownloadScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Downloads'),
+            centerTitle: false,
             actions: [
               if (completed.isNotEmpty)
                 IconButton(

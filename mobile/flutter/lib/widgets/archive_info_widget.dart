@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/archive_metadata.dart';
 import '../services/archive_service.dart';
+import '../services/local_archive_storage.dart';
 import '../models/cached_metadata.dart';
 
 class ArchiveInfoWidget extends StatelessWidget {
@@ -12,6 +13,8 @@ class ArchiveInfoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final archiveService = Provider.of<ArchiveService>(context, listen: false);
+    final localArchiveStorage = Provider.of<LocalArchiveStorage>(context);
+    final isDownloaded = localArchiveStorage.hasArchive(metadata.identifier);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -22,17 +25,69 @@ class ArchiveInfoWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.archive, color: Colors.blue),
+                Stack(
+                  children: [
+                    Icon(
+                      Icons.archive,
+                      color: isDownloaded ? Colors.green : Colors.blue,
+                      size: 24,
+                    ),
+                    if (isDownloaded)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(1),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade700,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    metadata.title ?? metadata.identifier,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        metadata.title ?? metadata.identifier,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isDownloaded)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.download_done,
+                                size: 12,
+                                color: Colors.green.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Previously Downloaded',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 // Offline indicator and pin button
@@ -97,11 +152,12 @@ class ArchiveInfoWidget extends StatelessWidget {
                                 isPinned
                                     ? Icons.push_pin
                                     : Icons.push_pin_outlined,
-                                color: isPinned ? Colors.orange : Colors.grey,
+                                color: isPinned ? Colors.orange.shade700 : Colors.grey.shade500,
+                                size: 28,
                               ),
                               tooltip: isPinned
-                                  ? 'Unpin archive'
-                                  : 'Pin archive',
+                                  ? 'Unpin archive (currently pinned)'
+                                  : 'Pin archive to keep offline',
                               onPressed: () async {
                                 await archiveService.togglePin(
                                   metadata.identifier,

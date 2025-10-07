@@ -14,6 +14,7 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
+        centerTitle: false,
         actions: [
           Consumer<HistoryService>(
             builder: (context, historyService, child) {

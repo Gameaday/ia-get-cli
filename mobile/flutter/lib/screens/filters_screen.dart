@@ -73,6 +73,7 @@ class _FiltersScreenState extends State<FiltersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Filter Files'),
+        centerTitle: false,
         actions: [
           // Clear all button
           if (_hasActiveFilters())

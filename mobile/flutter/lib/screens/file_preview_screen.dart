@@ -107,6 +107,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.file.displayName),
+        centerTitle: false,
         actions: [
           if (_fileData != null)
             IconButton(

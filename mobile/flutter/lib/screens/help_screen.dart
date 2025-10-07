@@ -8,7 +8,10 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & About')),
+      appBar: AppBar(
+        title: const Text('Help & About'),
+        centerTitle: false,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

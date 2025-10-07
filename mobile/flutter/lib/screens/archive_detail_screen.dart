@@ -34,6 +34,7 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          centerTitle: false,
           title: Consumer<ArchiveService>(
             builder: (context, service, child) {
               return Text(

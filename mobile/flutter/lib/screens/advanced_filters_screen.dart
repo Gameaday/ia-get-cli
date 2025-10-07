@@ -79,6 +79,7 @@ class _AdvancedFiltersScreenState extends State<AdvancedFiltersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Advanced Filters'),
+        centerTitle: false,
         actions: [
           if (_hasActiveFilters())
             TextButton.icon(

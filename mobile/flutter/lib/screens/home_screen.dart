@@ -82,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Search'),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
