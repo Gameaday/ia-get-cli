@@ -105,8 +105,10 @@ jobs:
         # --no-pub: Don't run pub get again (already done above)
         flutter build apk --release --no-tree-shake-icons --no-pub
       env:
-        # Ensure Gradle uses our optimized properties
-        GRADLE_OPTS: -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.caching=true
+        # Gradle JVM memory settings to prevent OOM during native lib processing
+        # GitHub Actions runners have 7GB RAM, allocate 4GB to Gradle JVM
+        GRADLE_OPTS: -Xmx4g -Xms512m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.caching=true
+        JAVA_OPTS: -Xmx4g -Xms512m
     
     - name: Generate checksum
       working-directory: mobile/flutter/build/app/outputs/flutter-apk
