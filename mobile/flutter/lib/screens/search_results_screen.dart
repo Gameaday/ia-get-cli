@@ -16,6 +16,8 @@ import 'package:internet_archive_helper/services/advanced_search_service.dart';
 /// - Loading states
 /// - MD3 animations and transitions
 class SearchResultsScreen extends StatefulWidget {
+  static const String routeName = '/search-results';
+  
   final SearchQuery query;
   final String? title;
 

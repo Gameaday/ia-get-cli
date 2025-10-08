@@ -12,6 +12,10 @@ import 'models/bandwidth_preset.dart';
 import 'screens/home_screen.dart';
 import 'screens/archive_detail_screen.dart';
 import 'screens/download_screen.dart';
+import 'screens/advanced_search_screen.dart';
+import 'screens/saved_searches_screen.dart';
+import 'screens/search_results_screen.dart';
+import 'models/search_query.dart';
 import 'widgets/onboarding_widget.dart';
 import 'widgets/whats_new_dialog.dart';
 import 'utils/theme.dart';
@@ -158,6 +162,28 @@ class IAGetMobileApp extends StatelessWidget {
             case DownloadScreen.routeName:
               return MD3PageTransitions.fadeThrough(
                 page: const DownloadScreen(),
+                settings: settings,
+              );
+            case AdvancedSearchScreen.routeName:
+              return MD3PageTransitions.sharedAxis(
+                page: const AdvancedSearchScreen(),
+                settings: settings,
+              );
+            case SavedSearchesScreen.routeName:
+              return MD3PageTransitions.sharedAxis(
+                page: const SavedSearchesScreen(),
+                settings: settings,
+              );
+            case SearchResultsScreen.routeName:
+              // Pass SearchQuery through settings.arguments
+              final args = settings.arguments as Map<String, dynamic>?;
+              final query = args?['query'] as SearchQuery? ?? const SearchQuery();
+              final title = args?['title'] as String?;
+              return MD3PageTransitions.fadeThrough(
+                page: SearchResultsScreen(
+                  query: query,
+                  title: title,
+                ),
                 settings: settings,
               );
             default:

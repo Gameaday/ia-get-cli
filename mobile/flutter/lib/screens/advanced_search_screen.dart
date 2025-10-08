@@ -19,6 +19,8 @@ import 'package:internet_archive_helper/services/search_history_service.dart';
 /// - Saved searches management
 /// - MD3 animations and transitions
 class AdvancedSearchScreen extends StatefulWidget {
+  static const String routeName = '/advanced-search';
+  
   const AdvancedSearchScreen({super.key});
 
   @override
@@ -174,9 +176,29 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
     );
     await _searchHistoryService.addEntry(entry);
 
-    // TODO: Navigate to search results screen
-    // For now, just show a message
-    _showSnackBar('Search: ${_currentQuery.buildQueryString()}');
+    // Navigate to search results screen
+    if (!mounted) return;
+    
+    await Navigator.pushNamed(
+      context,
+      '/search-results',
+      arguments: {
+        'query': _currentQuery,
+        'title': _currentQuery.buildQueryString(),
+      },
+    );
+  }
+
+  Future<void> _navigateToSavedSearches() async {
+    final result = await Navigator.pushNamed(
+      context,
+      '/saved-searches',
+    );
+
+    // If a saved search was returned, load it
+    if (result is SavedSearch && mounted) {
+      await _loadSavedSearch(result);
+    }
   }
 
   Future<void> _saveSearch() async {
@@ -345,10 +367,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
         ),
         IconButton(
           icon: const Icon(Icons.bookmark),
-          onPressed: () {
-            // TODO: Navigate to saved searches screen
-            _showSnackBar('Saved searches: ${_savedSearches.length}');
-          },
+          onPressed: _navigateToSavedSearches,
           tooltip: 'Saved searches',
         ),
       ],
@@ -661,9 +680,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () {
-                // TODO: Navigate to saved searches screen
-              },
+              onPressed: _navigateToSavedSearches,
               child: const Text('View All'),
             ),
           ],

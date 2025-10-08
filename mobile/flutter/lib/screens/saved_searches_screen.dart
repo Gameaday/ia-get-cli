@@ -15,6 +15,8 @@ import 'package:internet_archive_helper/services/saved_search_service.dart';
 /// - Sort options (alphabetical, last used, created date)
 /// - MD3 animations and transitions
 class SavedSearchesScreen extends StatefulWidget {
+  static const String routeName = '/saved-searches';
+  
   const SavedSearchesScreen({super.key});
 
   @override

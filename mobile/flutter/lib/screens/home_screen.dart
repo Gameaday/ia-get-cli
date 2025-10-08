@@ -101,6 +101,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Search'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.manage_search),
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                '/advanced-search',
+              );
+            },
+            tooltip: 'Advanced Search',
+          ),
+          IconButton(
             icon: const Icon(Icons.favorite),
             onPressed: () {
               Navigator.push(
