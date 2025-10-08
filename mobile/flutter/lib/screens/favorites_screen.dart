@@ -569,7 +569,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) {
-        SortOption selectedOption = _sortOption;
         return StatefulBuilder(
           builder: (context, setModalState) {
             return SafeArea(
@@ -581,13 +580,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     titleTextStyle: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Divider(height: 1),
-                  RadioListTile<SortOption>(
-                    title: const Text('Most recent'),
-                    value: SortOption.recent,
-                    groupValue: selectedOption,
+                  RadioGroup<SortOption>(
+                    groupValue: _sortOption,
                     onChanged: (value) {
                       if (value != null) {
-                        setModalState(() => selectedOption = value);
                         setState(() {
                           _sortOption = value;
                           _applyFiltersAndSort();
@@ -595,36 +591,22 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         Navigator.pop(context);
                       }
                     },
-                  ),
-                  RadioListTile<SortOption>(
-                    title: const Text('Title (A-Z)'),
-                    value: SortOption.title,
-                    groupValue: selectedOption,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setModalState(() => selectedOption = value);
-                        setState(() {
-                          _sortOption = value;
-                          _applyFiltersAndSort();
-                        });
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  RadioListTile<SortOption>(
-                    title: const Text('Media type'),
-                    value: SortOption.mediatype,
-                    groupValue: selectedOption,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setModalState(() => selectedOption = value);
-                        setState(() {
-                          _sortOption = value;
-                          _applyFiltersAndSort();
-                        });
-                        Navigator.pop(context);
-                      }
-                    },
+                    child: Column(
+                      children: [
+                        RadioListTile<SortOption>(
+                          title: const Text('Most recent'),
+                          value: SortOption.recent,
+                        ),
+                        RadioListTile<SortOption>(
+                          title: const Text('Title (A-Z)'),
+                          value: SortOption.title,
+                        ),
+                        RadioListTile<SortOption>(
+                          title: const Text('Media type'),
+                          value: SortOption.mediatype,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                 ],
