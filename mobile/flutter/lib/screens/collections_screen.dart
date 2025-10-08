@@ -446,14 +446,179 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     }
   }
   
-  void _viewCollectionDetails(Collection collection) {
-    // TODO: Navigate to collection detail screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('View "${collection.name}" details (TODO)'),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _viewCollectionDetails(Collection collection) async {
+    // Get collection items
+    final items = await _collectionsService.getCollectionItems(
+      collectionId: collection.id!,
     );
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              if (collection.icon != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(
+                    IconData(
+                      int.parse(collection.icon!),
+                      fontFamily: 'MaterialIcons',
+                    ),
+                    color: collection.color,
+                  ),
+                ),
+              Expanded(
+                child: Text(
+                  collection.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (collection.description != null &&
+                    collection.description!.isNotEmpty) ...[
+                  Text(
+                    collection.description!,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                ],
+                // Collection metadata
+                _buildDetailRow(
+                  context,
+                  Icons.archive,
+                  'Items',
+                  '${items.length}',
+                ),
+                const SizedBox(height: 8),
+                _buildDetailRow(
+                  context,
+                  Icons.calendar_today,
+                  'Created',
+                  _formatDate(collection.createdAt),
+                ),
+                const SizedBox(height: 8),
+                _buildDetailRow(
+                  context,
+                  Icons.update,
+                  'Updated',
+                  _formatDate(collection.updatedAt),
+                ),
+                if (collection.isSmart) ...[
+                  const SizedBox(height: 8),
+                  _buildDetailRow(
+                    context,
+                    Icons.auto_awesome,
+                    'Type',
+                    'Smart Collection',
+                  ),
+                ],
+                // Show first few items
+                if (items.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Recent Items',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  ...items.take(5).map((identifier) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.link, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              identifier,
+                              style: Theme.of(context).textTheme.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  if (items.length > 5)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '... and ${items.length - 5} more',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            FilledButton.tonal(
+              onPressed: () {
+                Navigator.pop(context);
+                _showEditCollectionDialog(collection);
+              },
+              child: const Text('Edit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: Theme.of(context).colorScheme.outline,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
   
   Color _getContrastColor(Color background) {

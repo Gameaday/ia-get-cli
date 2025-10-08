@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:internet_archive_helper/models/search_query.dart';
 import 'package:internet_archive_helper/models/search_result.dart';
 import 'package:internet_archive_helper/services/advanced_search_service.dart';
+import 'package:internet_archive_helper/services/archive_service.dart';
+import 'package:internet_archive_helper/utils/animation_constants.dart';
+import 'archive_detail_screen.dart';
 
 /// Material Design 3 compliant search results display screen
 ///
@@ -356,8 +360,35 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     );
   }
 
-  void _navigateToDetail(SearchResult result) {
-    // TODO: Navigate to ArchiveDetailScreen
-    _showSnackBar('Navigate to: ${result.identifier}');
+  Future<void> _navigateToDetail(SearchResult result) async {
+    // Load metadata into ArchiveService
+    final archiveService = context.read<ArchiveService>();
+    
+    try {
+      await archiveService.fetchMetadata(result.identifier);
+      
+      if (!mounted) return;
+      
+      // Navigate to detail screen with MD3 fadeThrough transition
+      await Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const ArchiveDetailScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // MD3 fadeThrough transition
+            return FadeTransition(
+              opacity: CurveTween(curve: MD3Curves.emphasized).animate(animation),
+              child: child,
+            );
+          },
+          transitionDuration: MD3Durations.medium,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error loading archive: $e');
+      }
+    }
   }
 }
