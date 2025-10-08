@@ -464,10 +464,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Icon(
-                    IconData(
-                      int.parse(collection.icon!),
-                      fontFamily: 'MaterialIcons',
-                    ),
+                    IconData(int.parse(collection.icon!), fontFamily: 'MaterialIcons'),
                     color: collection.color,
                   ),
                 ),
