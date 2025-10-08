@@ -51,12 +51,14 @@ org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=512m
 # Disable unused Android build features
 android.defaults.buildfeatures.aidl=false
 android.defaults.buildfeatures.renderscript=false
-android.defaults.buildfeatures.resvalues=false
+# Note: resvalues=true (required for product flavor custom resource values)
+android.defaults.buildfeatures.resvalues=true
 android.defaults.buildfeatures.shaders=false
 ```
 - **Why**: Skips processing for features the app doesn't use
 - **Impact**: Faster Gradle configuration and build
 - **Savings**: ~10-15% build time
+- **Note**: `resvalues` must be enabled for product flavors with `resValue()` calls
 
 ```properties
 # Enable non-transitive R class
@@ -225,6 +227,52 @@ Push changes and monitor build times in GitHub Actions:
 - Second build: ~3-4 minutes (cache hit)
 - No duplicate tree-shaking messages
 - No "Already watching path" errors
+
+## Troubleshooting
+
+### Error: "Product Flavor contains custom resource values, but the feature is disabled"
+
+**Symptom:**
+```
+FAILURE: Build failed with an exception.
+* What went wrong:
+A problem occurred configuring project ':app'.
+> Product Flavor development contains custom resource values, but the feature is disabled.
+```
+
+**Cause:** The app uses `resValue` in product flavors (for dynamic app names), but `android.defaults.buildfeatures.resvalues=false` was set in `gradle.properties`.
+
+**Solution:** Enable resValues in `gradle.properties`:
+```properties
+# Enable resValues - required for product flavor custom resource values
+android.defaults.buildfeatures.resvalues=true
+```
+
+**Why required:** Product flavors use:
+- `resValue "string", "app_name", "..."` for dynamic app names
+- `buildConfigField` for environment configuration
+- Manifest placeholders for dynamic values
+
+**Performance impact:** Minimal (<1% build time increase)
+
+### Error: "Already watching path"
+
+**Symptom:** Multiple "Already watching path" warnings during build
+
+**Cause:** Gradle parallel builds causing file watcher conflicts
+
+**Solution:** Ensure `org.gradle.parallel=false` in `gradle.properties`
+
+### Error: OutOfMemoryError during build
+
+**Symptom:** `java.lang.OutOfMemoryError: Java heap space`
+
+**Cause:** Insufficient JVM memory allocation
+
+**Solution:** Increase heap size in `gradle.properties`:
+```properties
+org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G
+```
 
 ## Further Optimizations (Future)
 
