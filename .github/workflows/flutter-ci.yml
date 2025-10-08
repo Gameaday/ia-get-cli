@@ -108,13 +108,14 @@ jobs:
     - name: Build APK and AAB (optimized)
       working-directory: mobile/flutter
       run: |
-        # Build both APK and AAB:
+        # Build both APK and AAB with production flavor:
         # APK: For direct download, sideloading, testing
         # AAB: For Google Play Store submission (required format)
+        # --flavor production: Explicitly use production product flavor
         # --no-tree-shake-icons: Skip font tree-shaking to save build time
         # --release: Production build with optimizations
-        flutter build apk --release --no-tree-shake-icons
-        flutter build appbundle --release --no-tree-shake-icons
+        flutter build apk --release --flavor production --no-tree-shake-icons
+        flutter build appbundle --release --flavor production --no-tree-shake-icons
       env:
         # Gradle JVM memory settings to prevent OOM during native lib processing
         # GitHub Actions runners have 7GB RAM, allocate 4GB to Gradle JVM
@@ -125,20 +126,20 @@ jobs:
     - name: Generate checksums
       working-directory: mobile/flutter/build/app/outputs
       run: |
-        # APK checksum
-        sha256sum flutter-apk/app-release.apk > flutter-apk/app-release.apk.sha256
-        # AAB checksum
-        sha256sum bundle/release/app-release.aab > bundle/release/app-release.aab.sha256
+        # APK checksum (with product flavor path)
+        sha256sum flutter-apk/production/release/app-production-release.apk > flutter-apk/production/release/app-production-release.apk.sha256
+        # AAB checksum (with product flavor path)
+        sha256sum bundle/productionRelease/app-production-release.aab > bundle/productionRelease/app-production-release.aab.sha256
     
     - name: Upload APK and AAB
       uses: actions/upload-artifact@v4
       with:
         name: ia-get-android
         path: |
-          mobile/flutter/build/app/outputs/flutter-apk/app-release.apk
-          mobile/flutter/build/app/outputs/flutter-apk/app-release.apk.sha256
-          mobile/flutter/build/app/outputs/bundle/release/app-release.aab
-          mobile/flutter/build/app/outputs/bundle/release/app-release.aab.sha256
+          mobile/flutter/build/app/outputs/flutter-apk/production/release/app-production-release.apk
+          mobile/flutter/build/app/outputs/flutter-apk/production/release/app-production-release.apk.sha256
+          mobile/flutter/build/app/outputs/bundle/productionRelease/app-production-release.aab
+          mobile/flutter/build/app/outputs/bundle/productionRelease/app-production-release.aab.sha256
         retention-days: 30
 
   build-web:

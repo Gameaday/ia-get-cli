@@ -417,13 +417,13 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
             Icon(
               icon,
               size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.38),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
             ),
             const SizedBox(height: 16),
             Text(
               title,
               style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -431,7 +431,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.38),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
               ),
               textAlign: TextAlign.center,
             ),
@@ -587,7 +587,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -647,7 +647,7 @@ class _DownloadTaskCard extends StatelessWidget {
                       Text(
                         task.identifier,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -681,7 +681,7 @@ class _DownloadTaskCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color, size: 24),
@@ -699,7 +699,7 @@ class _DownloadTaskCard extends StatelessWidget {
       case DownloadStatus.error:
         return (Icons.error, colorScheme.error);
       case DownloadStatus.cancelled:
-        return (Icons.cancel, colorScheme.onSurface.withOpacity(0.6));
+        return (Icons.cancel, colorScheme.onSurface.withValues(alpha: 0.6));
       default:
         return (Icons.hourglass_empty, colorScheme.secondary);
     }
@@ -774,13 +774,13 @@ class _DownloadTaskCard extends StatelessWidget {
             Text(
               '${FormattingUtils.formatBytes(task.partialBytes)} / ${FormattingUtils.formatBytes(task.totalBytes)}',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             Text(
               '${(progressValue * 100).toStringAsFixed(1)}%',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -810,7 +810,7 @@ class _DownloadTaskCard extends StatelessWidget {
             child: Text(
               'ETA: ${_formatDuration(Duration(seconds: progress!.etaSeconds!))}',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),
@@ -860,7 +860,7 @@ class _DownloadTaskCard extends StatelessWidget {
         return colorScheme.error;
       case DownloadStatus.cancelled:
       case DownloadStatus.queued:
-        return colorScheme.onSurface.withOpacity(0.6);
+        return colorScheme.onSurface.withValues(alpha: 0.6);
     }
   }
 
