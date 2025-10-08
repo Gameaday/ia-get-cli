@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// Used for metadata caching and file preview caching with versioning and migrations
 class DatabaseHelper {
   static const String _databaseName = 'ia_get.db';
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   // Table names
   static const String tableCachedMetadata = 'cached_metadata';
@@ -16,6 +16,7 @@ class DatabaseHelper {
   static const String tableCollectionItems = 'collection_items';
   static const String tableSearchHistory = 'search_history';
   static const String tableSavedSearches = 'saved_searches';
+  static const String tableDownloadTasks = 'download_tasks';
   
   // Singleton pattern
   DatabaseHelper._privateConstructor();
@@ -241,6 +242,53 @@ class DatabaseHelper {
       ON $tableSavedSearches(is_pinned DESC, last_used_at DESC)
     ''');
 
+    // Download tasks table (Phase 4 Task 3)
+    await db.execute('''
+      CREATE TABLE $tableDownloadTasks (
+        id TEXT PRIMARY KEY,
+        identifier TEXT NOT NULL,
+        url TEXT NOT NULL,
+        save_path TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        partial_bytes INTEGER NOT NULL DEFAULT 0,
+        etag TEXT,
+        last_modified TEXT,
+        total_bytes INTEGER NOT NULL,
+        priority TEXT NOT NULL DEFAULT 'normal',
+        network_requirement TEXT NOT NULL DEFAULT 'any',
+        scheduled_time TEXT,
+        status TEXT NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        created_at TEXT NOT NULL,
+        started_at TEXT,
+        completed_at TEXT,
+        updated_at TEXT NOT NULL,
+        metadata TEXT,
+        selected_files TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_download_tasks_status 
+      ON $tableDownloadTasks(status)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_download_tasks_scheduled 
+      ON $tableDownloadTasks(scheduled_time)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_download_tasks_priority 
+      ON $tableDownloadTasks(priority DESC, created_at ASC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_download_tasks_identifier 
+      ON $tableDownloadTasks(identifier)
+    ''');
+
     debugPrint('Database schema created successfully');
   }
 
@@ -420,6 +468,60 @@ class DatabaseHelper {
       ''');
 
       debugPrint('Migration to version 5 completed successfully');
+    }
+
+    // Migration from version 5 to version 6: Add download tasks table for resumable downloads
+    if (oldVersion < 6) {
+      debugPrint('Migrating to version 6: Adding download_tasks table');
+      
+      // Download tasks table for resumable downloads and queue management
+      await db.execute('''
+        CREATE TABLE $tableDownloadTasks (
+          id TEXT PRIMARY KEY,
+          identifier TEXT NOT NULL,
+          url TEXT NOT NULL,
+          save_path TEXT NOT NULL,
+          file_name TEXT NOT NULL,
+          partial_bytes INTEGER NOT NULL DEFAULT 0,
+          etag TEXT,
+          last_modified TEXT,
+          total_bytes INTEGER NOT NULL,
+          priority TEXT NOT NULL DEFAULT 'normal',
+          network_requirement TEXT NOT NULL DEFAULT 'any',
+          scheduled_time TEXT,
+          status TEXT NOT NULL,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          started_at TEXT,
+          completed_at TEXT,
+          updated_at TEXT NOT NULL,
+          metadata TEXT,
+          selected_files TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_download_tasks_status 
+        ON $tableDownloadTasks(status)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_download_tasks_scheduled 
+        ON $tableDownloadTasks(scheduled_time)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_download_tasks_priority 
+        ON $tableDownloadTasks(priority DESC, created_at ASC)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_download_tasks_identifier 
+        ON $tableDownloadTasks(identifier)
+      ''');
+
+      debugPrint('Migration to version 6 completed successfully');
     }
   }
 
