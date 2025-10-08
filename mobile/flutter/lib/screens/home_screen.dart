@@ -101,6 +101,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Search'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.download_outlined),
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                '/download-queue',
+              );
+            },
+            tooltip: 'Download Queue',
+          ),
+          IconButton(
             icon: const Icon(Icons.manage_search),
             onPressed: () {
               Navigator.pushNamed(

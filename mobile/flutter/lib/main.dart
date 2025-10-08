@@ -6,12 +6,14 @@ import 'services/history_service.dart';
 import 'services/background_download_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/local_archive_storage.dart';
+import 'services/download_scheduler.dart';
 import 'providers/download_provider.dart';
 import 'providers/bandwidth_manager_provider.dart';
 import 'models/bandwidth_preset.dart';
 import 'screens/home_screen.dart';
 import 'screens/archive_detail_screen.dart';
 import 'screens/download_screen.dart';
+import 'screens/download_queue_screen.dart';
 import 'screens/advanced_search_screen.dart';
 import 'screens/saved_searches_screen.dart';
 import 'screens/search_results_screen.dart';
@@ -24,6 +26,9 @@ import 'utils/animation_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize download scheduler for queue management
+  await DownloadScheduler().initialize();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -162,6 +167,11 @@ class IAGetMobileApp extends StatelessWidget {
             case DownloadScreen.routeName:
               return MD3PageTransitions.fadeThrough(
                 page: const DownloadScreen(),
+                settings: settings,
+              );
+            case DownloadQueueScreen.routeName:
+              return MD3PageTransitions.fadeThrough(
+                page: const DownloadQueueScreen(),
                 settings: settings,
               );
             case AdvancedSearchScreen.routeName:

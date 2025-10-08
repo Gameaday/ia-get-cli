@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/download_task.dart';
 import '../models/download_progress.dart';
-import '../services/resumable_download_service.dart';
+import '../services/download_scheduler.dart';
 import '../database/database_helper.dart';
 import '../utils/animation_constants.dart';
 import '../core/utils/formatting_utils.dart';
@@ -26,19 +27,43 @@ class DownloadQueueScreen extends StatefulWidget {
 class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
   DownloadStatus _selectedFilter = DownloadStatus.downloading;
   final Map<String, DownloadProgress> _progressMap = {};
-  late ResumableDownloadService _downloadService;
+  final DownloadScheduler _scheduler = DownloadScheduler();
+  StreamSubscription<DownloadSchedulerState>? _stateSubscription;
+  StreamSubscription<Map<String, DownloadProgress>>? _progressSubscription;
   bool _isLoading = true;
   List<DownloadTask> _tasks = [];
 
   @override
   void initState() {
     super.initState();
-    _downloadService = ResumableDownloadService(
-      onProgress: _handleProgressUpdate,
-      onComplete: _handleDownloadComplete,
-      onError: _handleDownloadError,
-    );
     _loadTasks();
+    _subscribeToScheduler();
+  }
+
+  @override
+  void dispose() {
+    _stateSubscription?.cancel();
+    _progressSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToScheduler() {
+    // Listen to scheduler state changes
+    _stateSubscription = _scheduler.stateStream.listen((state) {
+      if (mounted) {
+        // Reload tasks when scheduler state changes
+        _loadTasks();
+      }
+    });
+
+    // Listen to progress updates
+    _progressSubscription = _scheduler.progressStream.listen((progressMap) {
+      if (mounted) {
+        setState(() {
+          _progressMap.addAll(progressMap);
+        });
+      }
+    });
   }
 
   Future<void> _loadTasks() async {
@@ -54,46 +79,6 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
       if (mounted) {
         _showError('Failed to load downloads: $e');
       }
-    }
-  }
-
-  void _handleProgressUpdate(String taskId, DownloadProgress progress) {
-    if (mounted) {
-      setState(() {
-        _progressMap[taskId] = progress;
-      });
-    }
-  }
-
-  void _handleDownloadComplete(String taskId, DownloadTask task) {
-    if (mounted) {
-      setState(() {
-        _progressMap[taskId] = _progressMap[taskId]!.copyWith(
-          status: DownloadStatus.completed,
-          progress: 1.0,
-        );
-      });
-      _loadTasks(); // Reload to get updated task
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Download completed: ${task.fileName}'),
-          behavior: SnackBarBehavior.floating,
-          duration: MD3Durations.medium,
-        ),
-      );
-    }
-  }
-
-  void _handleDownloadError(String taskId, String error) {
-    if (mounted) {
-      setState(() {
-        _progressMap[taskId] = _progressMap[taskId]!.copyWith(
-          status: DownloadStatus.error,
-          errorMessage: error,
-        );
-      });
-      _loadTasks(); // Reload to get updated task
-      _showError('Download failed: $error');
     }
   }
 
@@ -122,7 +107,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
 
   Future<void> _pauseDownload(DownloadTask task) async {
     try {
-      await _downloadService.pauseDownload(task.id);
+      await _scheduler.pauseTask(task.id);
       await _loadTasks();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -140,7 +125,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
 
   Future<void> _resumeDownload(DownloadTask task) async {
     try {
-      await _downloadService.resumeDownload(task.id);
+      await _scheduler.resumeTask(task.id);
       await _loadTasks();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,7 +146,7 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
     if (!confirmed) return;
 
     try {
-      await _downloadService.cancelDownload(task.id, deletePartialFile: true);
+      await _scheduler.removeTask(task.id);
       await DatabaseHelper.instance.deleteDownloadTask(task.id);
       await _loadTasks();
       if (mounted) {
@@ -180,7 +165,14 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
 
   Future<void> _retryDownload(DownloadTask task) async {
     try {
-      await _downloadService.retryDownload(task.id);
+      // Reset error state and resume
+      final updatedTask = task.copyWith(
+        status: DownloadStatus.queued,
+        errorMessage: null,
+        retryCount: 0,
+      );
+      await DatabaseHelper.instance.updateDownloadTask(updatedTask);
+      await _scheduler.enqueueTask(updatedTask);
       await _loadTasks();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -504,12 +496,6 @@ class _DownloadQueueScreenState extends State<DownloadQueueScreen> {
       _showError('Failed to update queue order: $e');
       await _loadTasks(); // Reload to get correct order
     }
-  }
-
-  @override
-  void dispose() {
-    // Note: Don't dispose the service as it might have active downloads
-    super.dispose();
   }
 }
 
