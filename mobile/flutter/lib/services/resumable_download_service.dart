@@ -21,13 +21,16 @@ class ResumableDownloadService {
   final Map<String, DownloadProgress> _progressMap = {};
   
   // Callbacks
-  void Function(String taskId, DownloadProgress progress)? onProgress;
-  void Function(String taskId, DownloadTask task)? onComplete;
-  void Function(String taskId, String error)? onError;
+  final void Function(String taskId, DownloadProgress progress)? onProgress;
+  final void Function(String taskId, DownloadTask task)? onComplete;
+  final void Function(String taskId, String error)? onError;
 
   ResumableDownloadService({
     Dio? dio,
     DatabaseHelper? db,
+    this.onProgress,
+    this.onComplete,
+    this.onError,
   })  : _dio = dio ?? Dio(),
         _db = db ?? DatabaseHelper.instance;
 
