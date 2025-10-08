@@ -15,5 +15,4 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
-    - "**/*.skip/**"
-    - "test/**/*.skip"
+    - "integration_test.skip/**"
