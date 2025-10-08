@@ -37,7 +37,6 @@ liblzma = "0.4"
 tar = "0.4"
 zip = "5.1.1"
 futures = "0.3"
-bytes = "1.0"
 urlencoding = "2.1"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]

@@ -2069,7 +2069,6 @@ name = "ia-get"
 version = "2.0.0"
 dependencies = [
  "anyhow",
- "bytes",
  "bzip2",
  "chrono",
  "clap",
