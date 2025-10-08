@@ -591,18 +591,18 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         Navigator.pop(context);
                       }
                     },
-                    child: Column(
+                    child: const Column(
                       children: [
                         RadioListTile<SortOption>(
-                          title: const Text('Most recent'),
+                          title: Text('Most recent'),
                           value: SortOption.recent,
                         ),
                         RadioListTile<SortOption>(
-                          title: const Text('Title (A-Z)'),
+                          title: Text('Title (A-Z)'),
                           value: SortOption.title,
                         ),
                         RadioListTile<SortOption>(
-                          title: const Text('Media type'),
+                          title: Text('Media type'),
                           value: SortOption.mediatype,
                         ),
                       ],
