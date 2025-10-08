@@ -2065,7 +2065,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ia-helper"
+name = "ia-get"
 version = "2.0.0"
 dependencies = [
  "anyhow",

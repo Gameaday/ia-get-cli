@@ -1,67 +1,44 @@
 # ia-get Documentation
 
-This directory contains all technical documentation for the ia-get project (Rust CLI + Flutter mobile app).
+This directory contains technical documentation for the ia-get Rust CLI tool.
 
-## 📚 Quick Navigation
+> **Note:** The Flutter mobile app has moved to [ia-helper](https://github.com/gameaday/ia-helper)
 
-### Getting Started
-- **[Setup Guide](development/setup-guide.md)** - Installation and development environment setup
-- **[Build Guide](development/build-guide.md)** - Building CLI and mobile app (includes CI/CD)
-- **[Testing Guide](development/testing-guide.md)** - Running tests and quality checks
-
-### Mobile App
-- **[Implementation Status](mobile/implementation-status.md)** - What's built, what's in progress
-- **[Roadmap](mobile/roadmap.md)** - Phase 4-5 plans and future features
-- **[Play Store Deployment](mobile/play-store-guide.md)** - Publishing to Google Play
-
-### Architecture
-- **[Mobile App Architecture](architecture/mobile-app-architecture.md)** - Flutter app design and patterns
-- **[Rust CLI Architecture](architecture/cli-architecture.md)** - Core download engine design
+## 📚 Documentation
 
 ### Reference
-- **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and workflows
+- **[Quick Reference](QUICK_REFERENCE.md)** - Common development workflows and security setup
+- **[Format Categories](guides/format-categories.md)** - File format filtering and presets
+- **[Migration Complete](MIGRATION_COMPLETE.md)** - Historical record of repository split
 - **[TODO](TODO.md)** - Current work items
 
 ---
 
-## 📁 Directory Structure
+## 📁 Key Files
 
 ```
 docs/
 ├── README.md                    # This file
+├── QUICK_REFERENCE.md          # Development quick reference
+├── MIGRATION_COMPLETE.md       # Repository split history
+├── TODO.md                     # Current tasks
+└── guides/
+    └── format-categories.md    # File format filtering guide
+```
+├── README.md                    # This file
 ├── QUICK_REFERENCE.md          # Common commands
 ├── TODO.md                     # Work tracking
-│
-├── architecture/               # System design
-│   ├── mobile-app-architecture.md
-│   └── cli-architecture.md
-│
-├── development/               # Dev guides
-│   ├── setup-guide.md
-│   ├── build-guide.md
-│   └── testing-guide.md
-│
-└── mobile/                    # Mobile-specific
-    ├── implementation-status.md
-    ├── roadmap.md
-    └── play-store-guide.md
-```
-
 ---
 
 ## 🎯 Project Status (October 2025)
 
-**Rust CLI**: ✅ Stable (v1.6.0+)
-- Internet Archive downloads with resume support
-- Metadata caching, compression, performance optimized
+**ia-get CLI**: ✅ Stable (v2.0.0)
+- Rust-based Internet Archive downloader
+- High-performance concurrent downloads with resume support
+- Metadata caching, compression support, advanced filtering
+- CLI-first design with optional GUI mode
 
-**Flutter Mobile App**: 🚧 In Development
-- **Phase 1-3**: ✅ Complete (search, preview 74+ formats, MD3 UI)
-- **Phase 4**: 🚧 In Progress (favorites, queue management, analytics)
-  - Task 1: Not started
-  - Task 2: ✅ Complete (unit tests)
-  - Task 3: 🚧 In progress (download queue)
-- **Phase 5**: 📋 Planned (advanced features, v2.0 release)
+**Flutter Mobile App**: Moved to [ia-helper repository](https://github.com/gameaday/ia-helper)
 
 ---
 
@@ -69,6 +46,12 @@ docs/
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for development guidelines.
 
+For Rust development:
+- Follow standard Rust conventions
+- Run `cargo fmt` and `cargo clippy` before committing
+- Write tests for new functionality
+- Update documentation for API changes
+
 ## 📜 License
 
-See [LICENSE](../LICENSE) for details.
+See [LICENSE](../LICENSE) for details (MIT License).
