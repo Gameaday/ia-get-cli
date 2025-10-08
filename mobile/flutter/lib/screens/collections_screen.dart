@@ -311,7 +311,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               color: color,
             );
             await _loadCollections();
-            if (!mounted) return;
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Collection "$name" created'),
@@ -319,7 +319,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               ),
             );
           } catch (e) {
-            if (!mounted) return;
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Error creating collection: $e'),
@@ -347,7 +347,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               color: color,
             );
             await _loadCollections();
-            if (!mounted) return;
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Collection "$name" updated'),
@@ -355,7 +355,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               ),
             );
           } catch (e) {
-            if (!mounted) return;
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Error updating collection: $e'),
@@ -392,7 +392,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               try {
                 await _collectionsService.deleteCollection(collection.id!);
                 await _loadCollections();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Collection "${collection.name}" deleted'),
@@ -400,7 +400,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   ),
                 );
               } catch (e) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Error deleting collection: $e'),

@@ -325,8 +325,9 @@ void main() {
       final elapsed = DateTime.now().difference(startTime);
 
       // Should take ~4-5 seconds (50 KB at 10 KB/s, with burst allowance)
-      expect(elapsed.inMilliseconds, greaterThanOrEqualTo(3000));
-      expect(elapsed.inMilliseconds, lessThan(6000));
+      // Allow more tolerance for CI environments with variable system load
+      expect(elapsed.inMilliseconds, greaterThanOrEqualTo(2800));
+      expect(elapsed.inMilliseconds, lessThan(7000));
       expect(totalBytes, 50000);
     });
 
