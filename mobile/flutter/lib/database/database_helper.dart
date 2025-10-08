@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// Used for metadata caching and file preview caching with versioning and migrations
 class DatabaseHelper {
   static const String _databaseName = 'ia_get.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   // Table names
   static const String tableCachedMetadata = 'cached_metadata';
@@ -14,6 +14,8 @@ class DatabaseHelper {
   static const String tableFavorites = 'favorites';
   static const String tableCollections = 'collections';
   static const String tableCollectionItems = 'collection_items';
+  static const String tableSearchHistory = 'search_history';
+  static const String tableSavedSearches = 'saved_searches';
   
   // Singleton pattern
   DatabaseHelper._privateConstructor();
@@ -188,6 +190,57 @@ class DatabaseHelper {
       ON $tableCollectionItems(collection_id)
     ''');
 
+    // Search history table (Phase 4 Task 2)
+    await db.execute('''
+      CREATE TABLE $tableSearchHistory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        result_count INTEGER,
+        mediatype TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_search_history_timestamp 
+      ON $tableSearchHistory(timestamp DESC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_search_history_query 
+      ON $tableSearchHistory(query)
+    ''');
+
+    // Saved searches table (Phase 4 Task 2)
+    await db.execute('''
+      CREATE TABLE $tableSavedSearches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        query_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_used_at INTEGER,
+        use_count INTEGER NOT NULL DEFAULT 0,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        tags_json TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_saved_searches_created_at 
+      ON $tableSavedSearches(created_at DESC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_saved_searches_last_used_at 
+      ON $tableSavedSearches(last_used_at DESC)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_saved_searches_is_pinned 
+      ON $tableSavedSearches(is_pinned DESC, last_used_at DESC)
+    ''');
+
     debugPrint('Database schema created successfully');
   }
 
@@ -309,6 +362,64 @@ class DatabaseHelper {
       ''');
 
       debugPrint('Migration to version 4 completed successfully');
+    }
+
+    // Migration from version 4 to version 5: Add search history and saved searches tables
+    if (oldVersion < 5) {
+      debugPrint('Migrating to version 5: Adding search history and saved searches tables');
+      
+      // Search history table
+      await db.execute('''
+        CREATE TABLE $tableSearchHistory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          query TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          result_count INTEGER,
+          mediatype TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_search_history_timestamp 
+        ON $tableSearchHistory(timestamp DESC)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_search_history_query 
+        ON $tableSearchHistory(query)
+      ''');
+
+      // Saved searches table
+      await db.execute('''
+        CREATE TABLE $tableSavedSearches (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          query_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          last_used_at INTEGER,
+          use_count INTEGER NOT NULL DEFAULT 0,
+          is_pinned INTEGER NOT NULL DEFAULT 0,
+          tags_json TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_saved_searches_created_at 
+        ON $tableSavedSearches(created_at DESC)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_saved_searches_last_used_at 
+        ON $tableSavedSearches(last_used_at DESC)
+      ''');
+
+      await db.execute('''
+        CREATE INDEX idx_saved_searches_is_pinned 
+        ON $tableSavedSearches(is_pinned DESC, last_used_at DESC)
+      ''');
+
+      debugPrint('Migration to version 5 completed successfully');
     }
   }
 
