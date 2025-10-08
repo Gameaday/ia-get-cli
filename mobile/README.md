@@ -1,119 +1,235 @@
-# Mobile App - README
+# Mobile App Migrated ✨# Mobile App - README
 
-This directory contains the Flutter mobile application.
 
-## Overview
 
-The mobile app uses a **pure Dart implementation** for accessing Internet Archive content. This provides:
+The **IA Helper** Flutter mobile app has been moved to its own dedicated repository:This directory contains the Flutter mobile application.
+
+
+
+## 🔗 New Location## Overview
+
+
+
+### [**github.com/gameaday/ia-helper**](https://github.com/gameaday/ia-helper)The mobile app uses a **pure Dart implementation** for accessing Internet Archive content. This provides:
+
 - Cross-platform compatibility (Android, iOS, Web, Desktop)
-- Standard Flutter development workflow
+
+---- Standard Flutter development workflow
+
 - No native build dependencies
-- Fast build times without native compilation
 
-## Architecture
+## 📱 Why the Move?- Fast build times without native compilation
 
-```
+
+
+The mobile app now lives in a separate repository for several great reasons:## Architecture
+
+
+
+### ✅ Benefits```
+
 Flutter/Dart App
-    ↓ (HTTP API)
-Internet Archive JSON API
-```
+
+1. **Faster Development**    ↓ (HTTP API)
+
+   - No more waiting for Rust builds when working on FlutterInternet Archive JSON API
+
+   - No more Flutter builds when working on Rust```
+
+   - 50% faster CI/CD pipeline
 
 ### Key Design Principles
 
-1. **Pure Dart Implementation**: All functionality is implemented in Dart, making it portable and easy to maintain.
+2. **Clear Product Identity**
 
-2. **Standard Flutter Architecture**: Uses standard Flutter packages and follows Flutter best practices.
+   - **IA Get**: Command-line power tool for automation1. **Pure Dart Implementation**: All functionality is implemented in Dart, making it portable and easy to maintain.
 
-3. **API-First Design**: Direct communication with Internet Archive's JSON API using Dart's http package.
+   - **IA Helper**: Mobile companion app for browsing
 
-## Building
+   - Each has focused documentation and development2. **Standard Flutter Architecture**: Uses standard Flutter packages and follows Flutter best practices.
+
+
+
+3. **Independent Releases**3. **API-First Design**: Direct communication with Internet Archive's JSON API using Dart's http package.
+
+   - Mobile app can release on its own schedule
+
+   - CLI tool can evolve independently## Building
+
+   - No forced version synchronization
 
 ### Development Build
-```bash
-cd mobile/flutter
-flutter pub get
-flutter run
+
+4. **Better Play Store Experience**```bash
+
+   - Repository contains only mobile app codecd mobile/flutter
+
+   - All documentation is mobile-focusedflutter pub get
+
+   - Clearer for Google Play reviewersflutter run
+
 ```
 
-### Android APK Build
-```bash
-# From project root
+5. **Smaller Repositories**
+
+   - Mobile devs don't need Rust toolchain### Android APK Build
+
+   - CLI devs don't need Flutter SDK```bash
+
+   - Faster clones, focused development# From project root
+
 ./scripts/build-mobile.sh --development
 
+---
+
 # Or directly with Flutter
-cd mobile/flutter
+
+## 🆕 New Brandingcd mobile/flutter
+
 flutter build apk
-```
 
-### Production Build
+The mobile app has been rebranded from **"IA Get"** to **"IA Helper"** to better reflect its role as a complete Internet Archive companion app.```
+
+
+
+### What Changed### Production Build
+
 ```bash
-# From project root
-./scripts/build-mobile.sh --production --store-ready
 
-# Or build both APK and App Bundle
+- **App Name**: IA Get → **IA Helper**# From project root
+
+- **Package**: `com.gameaday.iagetcli` → `com.gameaday.iahelper`./scripts/build-mobile.sh --production --store-ready
+
+- **Positioning**: "Downloader" → **"Internet Archive Companion"**
+
+- **Repository**: ia-get-cli → **ia-helper**# Or build both APK and App Bundle
+
 ./scripts/build-mobile.sh --production --appbundle --store-ready
-```
 
-## Testing
+---```
 
-Run Flutter tests from the mobile app directory:
-```bash
-cd mobile/flutter
+
+
+## 🚀 Get Started with IA Helper## Testing
+
+
+
+### DownloadRun Flutter tests from the mobile app directory:
+
+- **Android APK**: [Coming to Google Play Store](#)```bash
+
+- **Source Code**: https://github.com/gameaday/ia-helpercd mobile/flutter
+
 flutter test
-```
 
-Run analysis:
+### Features```
+
+- 📱 Beautiful Material Design 3 interface
+
+- 🔍 Search 35+ million Internet Archive itemsRun analysis:
+
+- 📥 Smart download queue with resume capability```bash
+
+- 📚 Offline library managementcd mobile/flutter
+
+- 🌙 Full dark mode supportflutter analyze
+
+- 🔐 Privacy-first (no tracking, no ads)```
+
+
+
+### Development## Documentation
+
 ```bash
-cd mobile/flutter
-flutter analyze
-```
 
-## Documentation
+git clone https://github.com/gameaday/ia-helper.gitSee the Flutter app's README for detailed information:
 
-See the Flutter app's README for detailed information:
-- [Flutter App README](flutter/README.md) - Complete Flutter app documentation
-- [Android Deployment Guide](../ANDROID_DEPLOYMENT_GUIDE.md) - Play Store submission guide
+cd ia-helper- [Flutter App README](flutter/README.md) - Complete Flutter app documentation
 
-## Common Tasks
+flutter pub get- [Android Deployment Guide](../ANDROID_DEPLOYMENT_GUIDE.md) - Play Store submission guide
 
-### Update App Version
+flutter run
+
+```## Common Tasks
+
+
+
+---### Update App Version
+
 Update the version in `mobile/flutter/pubspec.yaml`:
-```yaml
-version: 1.0.0+1
-```
 
-### Add New Features
-1. Create new Dart files in `lib/`
-2. Follow Flutter best practices and Material Design guidelines
-3. Test changes with `flutter test`
+## 📖 Documentation```yaml
+
+version: 1.0.0+1
+
+All mobile app documentation has moved to the new repository:```
+
+
+
+- **Play Store Metadata**: [ia-helper/docs/PLAY_STORE_METADATA.md](https://github.com/gameaday/ia-helper/blob/main/docs/PLAY_STORE_METADATA.md)### Add New Features
+
+- **Android Permissions**: [ia-helper/docs/ANDROID_PERMISSIONS.md](https://github.com/gameaday/ia-helper/blob/main/docs/ANDROID_PERMISSIONS.md)1. Create new Dart files in `lib/`
+
+- **Migration Guide**: [ia-helper/docs/FLUTTER_APP_MIGRATION.md](https://github.com/gameaday/ia-helper/blob/main/docs/FLUTTER_APP_MIGRATION.md)2. Follow Flutter best practices and Material Design guidelines
+
+- **Phase Plans**: [ia-helper/docs/features/](https://github.com/gameaday/ia-helper/tree/main/docs/features)3. Test changes with `flutter test`
+
 4. Run analysis with `flutter analyze`
 
+---
+
 ### Debug on Device
-```bash
+
+## 🔧 This Repository (ia-get-cli)```bash
+
 cd mobile/flutter
-flutter run -v  # Verbose output for debugging
+
+This repository now focuses exclusively on the **Rust command-line tool**:flutter run -v  # Verbose output for debugging
+
 ```
 
-## Flutter Integration
+- ⚡ High-performance concurrent downloads
 
-The Flutter app communicates directly with the Internet Archive API using standard HTTP requests. See `mobile/flutter/lib/services/` for the service implementations.
+- 🖼️ Optional desktop GUI (egui)## Flutter Integration
+
+- ⌨️ Powerful CLI for automation
+
+- 🗜️ HTTP compression supportThe Flutter app communicates directly with the Internet Archive API using standard HTTP requests. See `mobile/flutter/lib/services/` for the service implementations.
+
+- 🎯 Advanced filtering
 
 ## Contributing
 
+**[Back to main README →](../README.md)**
+
 When making changes to the mobile app:
-1. Follow Flutter and Dart best practices
+
+---1. Follow Flutter and Dart best practices
+
 2. Use Material Design 3 components
-3. Test on multiple screen sizes
+
+## 💬 Questions?3. Test on multiple screen sizes
+
 4. Run `flutter analyze` before committing
-5. Update documentation for significant changes
 
-## Platform Support
+- **IA Helper Issues**: https://github.com/gameaday/ia-helper/issues5. Update documentation for significant changes
 
-The app is built using Flutter and can target:
+- **IA Get CLI Issues**: https://github.com/gameaday/ia-get-cli/issues
+
+- **Email**: gameaday.project@gmail.com## Platform Support
+
+
+
+---The app is built using Flutter and can target:
+
 - **Android** - Primary platform (fully tested)
-- **iOS** - Coming soon
-- **Web** - Experimental support
-- **Desktop** - Windows, macOS, Linux (via Flutter Desktop)
+
+**Migration Date**: October 8, 2025  - **iOS** - Coming soon
+
+**IA Helper**: https://github.com/gameaday/ia-helper  - **Web** - Experimental support
+
+**IA Get CLI**: https://github.com/gameaday/ia-get-cli- **Desktop** - Windows, macOS, Linux (via Flutter Desktop)
+
 
 ## License
 

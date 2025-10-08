@@ -1,14 +1,14 @@
 <h1 align="center">
   <img src="assets/ia-helper.png" width="256" height="256" alt="Internet Archive Helper">
   <br />
-  Internet Archive Helper
+  IA Get - Internet Archive CLI
 </h1>
 
-<p align="center"><b>Comprehensive tools for accessing Internet Archive content</b></p>
+<p align="center"><b>Command-line tool for downloading from Internet Archive</b></p>
 <p align="center">
 <img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/Gameaday/ia-get-cli/total?logo=github&label=Downloads">
 <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/Gameaday/ia-get-cli/ci.yml?branch=main&logo=github&label=CI">
-<img alt="Material Design 3" src="https://img.shields.io/badge/Material%20Design%203-78%25-blue?logo=material-design">
+<img alt="Rust" src="https://img.shields.io/badge/Rust-1.70+-orange?logo=rust">
 </p>
 
 <p align="center">Built with ❤️ for the Internet Archive community</p>
@@ -17,28 +17,33 @@
 
 ---
 
-## 🚀 Two Powerful Implementations
+## � Looking for the Mobile App?
 
-### � Flutter Mobile App (Mobile/Tablet/Desktop Web)
-**Pure Dart implementation** for cross-platform GUI experience:
+The **Flutter mobile app** has moved to its own repository for better development workflow:
 
-- **� Material Design 3** - Modern, responsive UI (78% compliant)
-- **📱 Mobile** - Optimized for Android phones with touch interface
-- **🖥️ Tablet** - Master-detail layouts, two-column views (600dp+)
-- **🌐 Desktop Web** - Full-featured browser experience (840dp+)
-- **🔄 Responsive Design** - Adaptive layouts for all screen sizes
-- **♿ Accessible** - Screen reader support, dynamic type, semantic labels
-- **📥 Background Downloads** - Continue downloads when app is closed
-- **🔗 Deep Links** - Open archive.org links directly in app
+### [**IA Helper** - Mobile Companion App](https://github.com/gameaday/ia-helper)
 
-**Platform Support:**
-- ✅ Android (phone/tablet)
-- ✅ Web (desktop browser)
-- 🔜 iOS (coming soon)
-- 🔜 Windows/macOS/Linux desktop
+<p align="center">
+  <a href="https://github.com/gameaday/ia-helper">
+    <img src="https://img.shields.io/badge/Android-Coming%20Soon-green?logo=android&style=for-the-badge" alt="Android App" />
+  </a>
+</p>
 
-### 🖥️ Rust CLI/Server (Command Line & Desktop GUI)
-**High-performance Rust implementation** for servers and power users:
+**Mobile App Features:**
+- � Beautiful Material Design 3 interface
+- 🔍 Search 35+ million Internet Archive items
+- 📥 Smart download queue with resume capability
+- � Offline library management
+- 🌙 Full dark mode support
+- 🔐 Privacy-first (no tracking, no ads)
+
+[**Download IA Helper →**](https://github.com/gameaday/ia-helper)
+
+---
+
+## 🖥️ Rust CLI Tool (This Repository)
+
+**IA Get** is a high-performance command-line tool for downloading from Internet Archive:
 
 - **⚡ Concurrent Downloads** - Parallel downloading with intelligent session management
 - **🖼️ Desktop GUI** - Native desktop interface (egui framework)
@@ -58,13 +63,13 @@
 
 <div align="center">
 
-### 📱 Flutter Mobile & Web
-[🤖 Android APK](https://github.com/Gameaday/ia-get-cli/releases) | [🌐 Try Web App](https://gameaday.github.io/ia-get-cli/)
-
-### 🖥️ Rust CLI & Server
+### ️ Rust CLI & Desktop GUI
 [🐧 Linux](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🪟 Windows](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🍎 macOS](https://github.com/Gameaday/ia-get-cli/releases/latest)
 
 **📋 [Complete Downloads & Installation Guide →](DOWNLOADS.md)**
+
+### 📱 Mobile App
+Looking for the mobile app? Check out **[IA Helper](https://github.com/gameaday/ia-helper)**
 
 </div>
 
@@ -77,7 +82,7 @@
 
 ## ⚡ Quick Start
 
-Internet Archive Helper provides both CLI and GUI interfaces with smart auto-detection:
+**IA Get** provides both CLI and GUI interfaces with smart auto-detection:
 
 ```shell
 # Auto-detect best mode (GUI if available, menu otherwise)
