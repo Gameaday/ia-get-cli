@@ -45,6 +45,7 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -56,25 +57,50 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4.2.4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            mobile/flutter/android/.gradle
+          key: gradle-release-${{ runner.os }}-${{ hashFiles('mobile/flutter/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/flutter/android/build.gradle', 'mobile/flutter/android/app/build.gradle') }}
+          restore-keys: |
+            gradle-release-${{ runner.os }}-
+
       - name: Cache Flutter dependencies
         uses: actions/cache@v4.2.4
         with:
           path: |
             ~/.pub-cache
+            mobile/flutter/.dart_tool
           key: ${{ runner.os }}-flutter-release-dart3.8-${{ hashFiles('mobile/flutter/pubspec.yaml') }}
           restore-keys: |
             ${{ runner.os }}-flutter-release-dart3.8-
+
+      - name: Cache Flutter build artifacts
+        uses: actions/cache@v4.2.4
+        with:
+          path: |
+            mobile/flutter/build
+          key: flutter-build-release-${{ runner.os }}-${{ hashFiles('mobile/flutter/pubspec.yaml') }}
+          restore-keys: |
+            flutter-build-release-${{ runner.os }}-
 
       - name: Verify Flutter and Dart versions
         run: |
           flutter --version
           flutter doctor -v
 
-      - name: Build Android APK and App Bundle (Pure Dart)
+      - name: Build Android APK and App Bundle (Pure Dart - Optimized)
+        env:
+          # Ensure Gradle uses our optimized properties
+          GRADLE_OPTS: -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.caching=true
         run: |
           chmod +x scripts/build-mobile.sh
           
           # Build production App Bundle for Play Store - Pure Dart!
+          # Note: For RELEASE builds, we ENABLE tree-shaking for smaller APK/AAB
           ./scripts/build-mobile.sh --production --appbundle --store-ready
           
           # Also build production APK for direct distribution
