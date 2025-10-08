@@ -34,10 +34,10 @@ void main() {
     });
 
     test('should create complex search query', () {
-      final query = SearchQuery(
+      final query = const SearchQuery(
         query: 'internet archive',
-        fieldQueries: {'title': 'example'},
-        mediatypes: ['texts'],
+        fieldQueries: const {'title': 'example'},
+        mediatypes: const ['texts'],
         rows: 50,
       );
 
@@ -187,9 +187,9 @@ void main() {
     });
 
     test('should preserve unmodified fields', () {
-      final original = SearchQuery(
+      final original = const SearchQuery(
         query: 'test',
-        mediatypes: ['texts'],
+        mediatypes: const ['texts'],
         rows: 20,
       );
       final modified = original.copyWith(page: 2);
@@ -251,8 +251,8 @@ void main() {
 
   group('SearchResultPage - Display Formatting', () {
     test('should format range display correctly', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 1,
         pageSize: 20,
         totalResults: 100,
@@ -265,8 +265,8 @@ void main() {
     });
 
     test('should format page display correctly', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 2,
         pageSize: 20,
         totalResults: 100,
@@ -279,8 +279,8 @@ void main() {
     });
 
     test('should handle zero results', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 0,
         pageSize: 20,
         totalResults: 0,
@@ -294,8 +294,8 @@ void main() {
     });
 
     test('should correctly identify first page', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 1,
         pageSize: 20,
         totalResults: 100,
@@ -309,8 +309,8 @@ void main() {
     });
 
     test('should correctly identify last page', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 5,
         pageSize: 20,
         totalResults: 100,
@@ -324,8 +324,8 @@ void main() {
     });
 
     test('should correctly identify middle page', () {
-      final page = SearchResultPage(
-        results: const [],
+      final page = const SearchResultPage(
+        results: [],
         page: 3,
         pageSize: 20,
         totalResults: 100,
