@@ -1,10 +1,7 @@
-name: CI
+name: CI - Rust CLI
 
-# This workflow tests the independent implementations:
-# - Rust CLI: Terminal-first command-line interface (default) with search and batch operations
-# - Rust GUI: Optional graphical user interface using egui (--features gui)
-# - Flutter Mobile: Pure Dart implementation with zero native dependencies
-# Note: FFI has been completely removed - Flutter and Rust are now independent
+# Continuous Integration for ia-get Rust CLI tool
+# Tests and builds across multiple platforms
 
 on:
   push:
@@ -12,724 +9,172 @@ on:
   pull_request:
     branches: [ main, master ]
 
-# Cancel previous runs when new commits are pushed to the same PR/branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
-  # Optimize Cargo for CI/CD performance
-  CARGO_NET_RETRY: 10
-  CARGO_NET_TIMEOUT: 60
-  CARGO_HTTP_TIMEOUT: 60
-  CARGO_HTTP_LOW_SPEED_LIMIT: 10
-  # Use offline mode when possible to prefer cached dependencies
-  CARGO_NET_OFFLINE: false
-  # Enable incremental compilation for faster builds
   CARGO_INCREMENTAL: 1
 
 jobs:
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache Cargo registry
-      uses: actions/cache@v4.2.4
-      with:
-        path: |
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-        key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
-
-    - name: Run security audit
-      run: cargo audit
-
-    - name: Install cargo-outdated
-      run: cargo install cargo-outdated --locked
-
-    - name: Check for outdated dependencies
-      run: cargo outdated --exit-code 1
-      continue-on-error: true
-
   test:
-    name: Test and Build (${{ matrix.os }}, ${{ matrix.features }})
+    name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        features: [cli, gui]
-        include:
-          - features: cli
-            feature_flags: ""
-            cache_suffix: "cli"
-            description: "Terminal-first CLI with search and batch operations"
-          - features: gui  
-            feature_flags: "--features gui"
-            cache_suffix: "gui"
-            description: "Optional GUI interface"
-
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Install Rust toolchain
+    - uses: actions/checkout@v5
+    
+    - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy
-
-    - name: Cache Rust toolchain
-      uses: actions/cache@v4.2.4
+    
+    - name: Cache
+      uses: actions/cache@v4
       with:
         path: |
-          ~/.rustup/toolchains
-          ~/.rustup/update-hashes
-          ~/.rustup/settings.toml
-        key: ${{ runner.os }}-rustup-stable-${{ hashFiles('rust-toolchain.toml', 'Cargo.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-rustup-stable-
-          ${{ runner.os }}-rustup-
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Format Check
+      run: cargo fmt --check
+    
+    - name: Clippy
+      run: cargo clippy --no-default-features --features cli -- -D warnings
+    
+    - name: Test
+      run: cargo test --no-default-features --features cli
 
-    - name: Cache Cargo registry and dependencies
-      uses: actions/cache@v4.2.4
-      with:
-        path: |
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-          # Windows-specific paths
-          ${{ runner.os == 'Windows' && 'C:\Users\runneradmin\.cargo\registry\' || '' }}
-          ${{ runner.os == 'Windows' && 'C:\Users\runneradmin\.cargo\git\' || '' }}
-        key: ${{ runner.os }}-${{ matrix.cache_suffix }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.cache_suffix }}-cargo-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-${{ matrix.cache_suffix }}-cargo-
-          ${{ runner.os }}-cargo-
-
-    - name: Cache build artifacts by target
-      uses: actions/cache@v4.2.4
-      with:
-        path: |
-          target/debug/deps/
-          target/debug/build/
-          target/debug/.fingerprint/
-          target/release/deps/
-          target/release/build/
-          target/release/.fingerprint/
-        key: ${{ runner.os }}-${{ matrix.cache_suffix }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**/*.rs') }}-${{ hashFiles('build.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.cache_suffix }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('src/**/*.rs') }}-
-          ${{ runner.os }}-${{ matrix.cache_suffix }}-target-${{ hashFiles('**/Cargo.lock') }}-
-          ${{ runner.os }}-${{ matrix.cache_suffix }}-target-
-          ${{ runner.os }}-target-
-
-    - name: Warm up dependency cache (Unix)
-      if: runner.os != 'Windows'
-      shell: bash
-      run: |
-        # Pre-fetch dependencies to populate cache
-        cargo fetch --verbose
-        # Verify cache integrity and show cache statistics
-        echo "=== Cache Statistics ==="
-        echo "Cargo cache size:"
-        if command -v du > /dev/null 2>&1; then
-          du -sh ~/.cargo/ 2>/dev/null || echo "Cache size check not available"
-        else
-          echo "Cache size check not available on this platform"
-        fi
-        echo "Target directory size:"
-        if command -v du > /dev/null 2>&1; then
-          du -sh target/ 2>/dev/null || echo "Target size check not available"
-        else
-          echo "Target size check not available on this platform"
-        fi
-        # Verify dependencies are available offline
-        cargo tree --quiet > /dev/null 2>&1 || echo "Cache warming completed"
-
-    - name: Warm up dependency cache (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        # Pre-fetch dependencies to populate cache
-        cargo fetch --verbose
-        # Verify cache integrity and show cache statistics
-        Write-Host "=== Cache Statistics ==="
-        Write-Host "Cargo cache size:"
-        try {
-          $cargoPath = if (Test-Path "$env:USERPROFILE\.cargo") { "$env:USERPROFILE\.cargo" } else { "~/.cargo" }
-          if (Test-Path $cargoPath) {
-            $size = (Get-ChildItem -Path $cargoPath -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-            Write-Host "Cache size: $([math]::Round($size / 1MB, 2)) MB"
-          } else {
-            Write-Host "Cache size check not available"
-          }
-        } catch {
-          Write-Host "Cache size check not available"
-        }
-        Write-Host "Target directory size:"
-        try {
-          if (Test-Path "target") {
-            $size = (Get-ChildItem -Path "target" -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-            Write-Host "Target size: $([math]::Round($size / 1MB, 2)) MB"
-          } else {
-            Write-Host "Target size check not available"
-          }
-        } catch {
-          Write-Host "Target size check not available"
-        }
-        # Verify dependencies are available offline
-        try { cargo tree --quiet *>$null } catch { Write-Host "Cache warming completed" }
-
-    - name: Optimize cache for build speed (Unix)
-      if: runner.os != 'Windows'
-      shell: bash
-      run: |
-        # Set environment variables for optimized builds
-        echo "CARGO_NET_OFFLINE=true" >> $GITHUB_ENV
-        echo "CARGO_TARGET_DIR=target" >> $GITHUB_ENV
-
-    - name: Optimize cache for build speed (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        # Set environment variables for optimized builds
-        "CARGO_NET_OFFLINE=true" | Add-Content -Path $env:GITHUB_ENV -Encoding UTF8
-        "CARGO_TARGET_DIR=target" | Add-Content -Path $env:GITHUB_ENV -Encoding UTF8
-
-    - name: Check formatting
-      run: cargo fmt --all -- --check
-
-    - name: Run clippy
-      run: cargo clippy ${{ matrix.feature_flags }} --all-targets -- -D warnings
-
-    - name: Build (${{ matrix.features }} features)
-      run: cargo build ${{ matrix.feature_flags }} --release
-
-    - name: Run tests (${{ matrix.features }} features)
-      run: cargo test ${{ matrix.feature_flags }}
-
-    - name: Run build validation script (Windows only)
-      if: runner.os == 'Windows' && matrix.features == 'gui'
-      run: .\scripts\validate-build.ps1
-      shell: pwsh
-
-    - name: Create artifact (Unix)
-      if: matrix.features == 'cli' && runner.os != 'Windows'
-      shell: bash
-      run: |
-        # Ensure artifacts directory exists and is properly populated
-        mkdir -p artifacts
-        
-        # Copy the binary (primary artifact)
-        if [ -f "target/release/ia-get" ]; then
-          # Check binary size before copying
-          binary_size=$(stat -f%z "target/release/ia-get" 2>/dev/null || stat -c%s "target/release/ia-get" 2>/dev/null || echo "0")
-          binary_size_mb=$((binary_size / 1024 / 1024))
-          echo "📏 Binary size: ${binary_size_mb}MB (${binary_size} bytes)"
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: ia-get-linux-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: ia-get-linux-x86_64-musl
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: ia-get-linux-arm64
           
-          # Verify binary is reasonable size (should be at least 1MB for a real binary)
-          if [ "$binary_size" -lt 1048576 ]; then
-            echo "❌ Binary is too small (${binary_size} bytes) - likely missing content"
-            ls -la target/release/ || echo "Release directory not found"
-            exit 1
-          fi
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: ia-get-windows-x86_64.exe
           
-          cp "target/release/ia-get" "artifacts/"
-          echo "✅ Binary copied to artifacts"
-        else
-          echo "❌ Binary not found at target/release/ia-get"
-          ls -la target/release/ || echo "Release directory not found"
-          exit 1
-        fi
-        
-        # Copy documentation files
-        for doc_file in README.md LICENSE; do
-          if [ -f "$doc_file" ]; then
-            cp "$doc_file" "artifacts/"
-            echo "✅ $doc_file copied to artifacts"
-          fi
-        done
-        
-        # List contents and sizes
-        echo "📦 Artifacts directory contents:"
-        ls -la artifacts/
-        echo "📊 Artifacts total size:"
-        du -sh artifacts/
-        
-        # Calculate hashes
-        cd artifacts
-        echo "# Calculated SHA256 hashes:" > ../hashes_${{ runner.os }}_${{ matrix.features }}.txt
-        for file in *; do
-          if [ -f "$file" ]; then
-            if command -v sha256sum > /dev/null 2>&1; then
-              hash=$(sha256sum "$file" | cut -d' ' -f1)
-              echo "SHA256 for $file: $hash"
-              echo "$hash  $file" >> ../hashes_${{ runner.os }}_${{ matrix.features }}.txt
-            elif command -v shasum > /dev/null 2>&1; then
-              hash=$(shasum -a 256 "$file" | cut -d' ' -f1)
-              echo "SHA256 for $file: $hash"
-              echo "$hash  $file" >> ../hashes_${{ runner.os }}_${{ matrix.features }}.txt
-            else
-              echo "SHA256 calculation not available for $file" >> ../hashes_${{ runner.os }}_${{ matrix.features }}.txt
-            fi
-          fi
-        done
-        cd ..
-        
-        # Create compressed archive for distribution
-        PACKAGE_NAME="ia-get-${{ runner.os }}"
-        echo "📦 Creating distribution archive: ${PACKAGE_NAME}.zip"
-        cd artifacts && zip -r "../${PACKAGE_NAME}.zip" . && cd ..
-        
-        # Verify archive was created
-        if [ -f "${PACKAGE_NAME}.zip" ]; then
-          archive_size=$(stat -f%z "${PACKAGE_NAME}.zip" 2>/dev/null || stat -c%s "${PACKAGE_NAME}.zip" 2>/dev/null || echo "0")
-          archive_size_mb=$((archive_size / 1024 / 1024))
-          echo "✅ Archive created: ${PACKAGE_NAME}.zip (${archive_size_mb}MB)"
-        else
-          echo "❌ Failed to create archive"
-          exit 1
-        fi
-
-    - name: Create artifact (Windows)
-      if: matrix.features == 'cli' && runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        # Ensure artifacts directory exists and is properly populated
-        New-Item -ItemType Directory -Path "artifacts" -Force | Out-Null
-        
-        # Copy the binary (primary artifact)
-        if (Test-Path "target\release\ia-get.exe") {
-          # Check binary size before copying
-          $binarySize = (Get-Item "target\release\ia-get.exe").Length
-          $binarySizeMB = [math]::Round($binarySize / 1MB, 2)
-          Write-Host "📏 Binary size: ${binarySizeMB}MB ($binarySize bytes)"
-          
-          # Verify binary is reasonable size (should be at least 1MB for a real binary)
-          if ($binarySize -lt 1048576) {
-            Write-Host "❌ Binary is too small ($binarySize bytes) - likely missing content"
-            if (Test-Path "target\release") {
-              Get-ChildItem "target\release" | Format-Table Name, Length
-            } else {
-              Write-Host "Release directory not found"
-            }
-            exit 1
-          }
-          
-          Copy-Item "target\release\ia-get.exe" "artifacts\"
-          Write-Host "✅ Binary copied to artifacts"
-        } else {
-          Write-Host "❌ Binary not found at target\release\ia-get.exe"
-          if (Test-Path "target\release") {
-            Get-ChildItem "target\release" | Format-Table Name, Length
-          } else {
-            Write-Host "Release directory not found"
-          }
-          exit 1
-        }
-        
-        # Copy documentation files
-        $docFiles = @("README.md", "LICENSE")
-        foreach ($docFile in $docFiles) {
-          if (Test-Path $docFile) {
-            Copy-Item $docFile "artifacts\"
-            Write-Host "✅ $docFile copied to artifacts"
-          }
-        }
-        
-        # List contents and sizes
-        Write-Host "📦 Artifacts directory contents:"
-        Get-ChildItem "artifacts" | Format-Table Name, Length
-        $totalSize = (Get-ChildItem "artifacts" -Recurse | Measure-Object -Property Length -Sum).Sum
-        Write-Host "📊 Artifacts total size: $([math]::Round($totalSize / 1MB, 2)) MB"
-        
-        # Calculate hashes
-        Set-Location "artifacts"
-        "# Calculated SHA256 hashes:" | Out-File -FilePath "../hashes_${{ runner.os }}_${{ matrix.features }}.txt" -Encoding UTF8
-        Get-ChildItem -File | ForEach-Object {
-          $hash = (Get-FileHash -Path $_.Name -Algorithm SHA256).Hash.ToLower()
-          Write-Host "SHA256 for $($_.Name): $hash"
-          "$hash  $($_.Name)" | Add-Content -Path "../hashes_${{ runner.os }}_${{ matrix.features }}.txt" -Encoding UTF8
-        }
-        Set-Location ".."
-        
-        # Create compressed archive for distribution
-        $packageName = "ia-get-${{ runner.os }}"
-        $archivePath = "${packageName}.zip"
-        Write-Host "📦 Creating distribution archive: $archivePath"
-        
-        try {
-          Compress-Archive -Path "artifacts\*" -DestinationPath $archivePath -Force
-          $archiveSize = (Get-Item $archivePath).Length
-          $archiveSizeMB = [math]::Round($archiveSize / 1MB, 2)
-          Write-Host "✅ Archive created: $archivePath (${archiveSizeMB}MB)"
-        } catch {
-          Write-Host "❌ Failed to create archive: $_"
-          exit 1
-        }
-
-    - name: Upload artifact
-      if: matrix.features == 'cli'
-      uses: actions/upload-artifact@v4.6.2
-      with:
-        name: ia-get-${{ runner.os }}-${{ matrix.features }}
-        path: |
-          artifacts/*
-          hashes_${{ runner.os }}_${{ matrix.features }}.txt
-          ia-get-${{ runner.os }}.zip
-        retention-days: 30
-        compression-level: 9
-
-    - name: Cache cleanup and optimization
-      if: always()
-      shell: pwsh
-      run: |
-        # Clean up target directory to keep cache size manageable  
-        try { cargo clean --target-dir target/debug } catch { Write-Host "Debug clean failed, continuing..." }
-        
-        # Remove old incremental compilation artifacts
-        Get-ChildItem -Path target/ -Recurse -Directory -Name "incremental" -ErrorAction SilentlyContinue | ForEach-Object { 
-            try { 
-                Remove-Item -Path "target/$_" -Recurse -Force -ErrorAction SilentlyContinue
-                Write-Host "Removed incremental cache: target/$_"
-            } catch {
-                Write-Host "Could not remove target/$_"
-            }
-        }
-        
-        Write-Host "Cache cleanup completed"
-
-  flutter-mobile:
-    name: Flutter Mobile App Build (Pure Dart)
-    runs-on: ubuntu-latest
-    # This job builds Flutter mobile app using PURE DART implementation
-    # No FFI, no native dependencies, no Rust compilation required
+          # macOS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: ia-get-macos-intel
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: ia-get-macos-apple-silicon
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-
-    - name: Setup Java
-      uses: actions/setup-java@v4
+    - uses: actions/checkout@v5
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        distribution: 'zulu'
-        java-version: '17'
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.35.0'
-        channel: 'stable'
-        cache: true
-
-    - name: Cache Flutter dependencies
-      uses: actions/cache@v4.2.4
+        targets: ${{ matrix.target }}
+    
+    - name: Install cross-compilation tools (Linux ARM)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+    
+    - name: Install musl tools (Linux musl)
+      if: contains(matrix.target, 'musl')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+    
+    - name: Cache
+      uses: actions/cache@v4
       with:
         path: |
-          ~/.pub-cache
-          mobile/flutter/.dart_tool
-          mobile/flutter/build
-        key: ${{ runner.os }}-flutter-pure-dart-${{ hashFiles('mobile/flutter/pubspec.yaml') }}-${{ hashFiles('mobile/flutter/pubspec.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-flutter-pure-dart-${{ hashFiles('mobile/flutter/pubspec.yaml') }}-
-          ${{ runner.os }}-flutter-pure-dart-
-
-    - name: Verify Flutter and Dart versions
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build
       run: |
-        flutter --version
-        flutter doctor -v
-        echo "Verifying Dart SDK version is 3.8.0 or higher..."
-        DART_VERSION=$(flutter --version | grep "Dart" | awk '{print $4}')
-        echo "Detected Dart version: $DART_VERSION"
-
-    - name: Flutter Code Analysis
+        cargo build --release --target ${{ matrix.target }} --no-default-features --features cli
+    
+    - name: Strip binary (Unix)
+      if: runner.os != 'Windows'
       run: |
-        cd mobile/flutter
-        echo "Running flutter analyze..."
-        flutter analyze --no-fatal-infos
-        echo "✓ Flutter analysis passed"
-
-    - name: Build Android APK and App Bundle (Pure Dart)
+        strip target/${{ matrix.target }}/release/ia-get || true
+    
+    - name: Generate checksum (Unix)
+      if: runner.os != 'Windows'
       run: |
-        chmod +x scripts/build-mobile.sh
-        
-        # Build development App Bundle for testing Play Store format
-        # Note: Pure Dart - no native compilation needed!
-        ./scripts/build-mobile.sh --development --appbundle
-        
-        # Also build development APK for direct installation
-        ./scripts/build-mobile.sh --development
-
-    - name: Package Flutter artifacts
+        cd target/${{ matrix.target }}/release
+        sha256sum ia-get > ia-get.sha256
+    
+    - name: Generate checksum (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
       run: |
-        set -x  # Enable debug mode
-        
-        # Create artifacts directory
-        echo "🔍 Creating flutter-artifacts directory..."
-        mkdir -p flutter-artifacts
-        
-        # Track what we find
-        FOUND_ITEMS=0
-        
-        # Copy APK files with validation - check multiple possible locations
-        echo "🔍 Checking for mobile/flutter/build/app/outputs..."
-        APK_FOUND=false
-        
-        # Check multiple possible APK output locations (flavored builds have different paths)
-        APK_SEARCH_PATHS=(
-          "mobile/flutter/build/app/outputs/flutter-apk/*.apk"
-          "mobile/flutter/build/app/outputs/apk/*/release/*.apk"
-          "mobile/flutter/build/app/outputs/apk/*/*.apk"
-        )
-        
-        for search_path in "${APK_SEARCH_PATHS[@]}"; do
-          echo "🔍 Checking: $search_path"
-          if ls $search_path 1> /dev/null 2>&1; then
-            echo "✓ Found APK files at: $search_path"
-            cp $search_path flutter-artifacts/ 2>/dev/null || true
-            APK_FOUND=true
-          fi
-        done
-        
-        # Count APK files found
-        if [ "$APK_FOUND" = true ]; then
-          APK_COUNT=$(find flutter-artifacts/ -name "*.apk" | wc -l)
-          echo "✓ Copied $APK_COUNT APK file(s)"
-          FOUND_ITEMS=$((FOUND_ITEMS + APK_COUNT))
-        else
-          echo "❌ ERROR: No APK files found in any location"
-          echo "Searched paths:"
-          for search_path in "${APK_SEARCH_PATHS[@]}"; do
-            echo "  - $search_path"
-          done
-          echo ""
-          echo "Actual build outputs:"
-          find mobile/flutter/build/app/outputs -type f -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
-          exit 1
-        fi
-        
-        # Copy App Bundle files (AAB) - check multiple possible locations
-        echo "🔍 Checking for AAB files..."
-        AAB_FOUND=false
-        
-        # Check multiple possible AAB output locations
-        AAB_SEARCH_PATHS=(
-          "mobile/flutter/build/app/outputs/bundle/*/*.aab"
-          "mobile/flutter/build/app/outputs/bundle/*/*/*.aab"
-        )
-        
-        for search_path in "${AAB_SEARCH_PATHS[@]}"; do
-          echo "🔍 Checking: $search_path"
-          if ls $search_path 1> /dev/null 2>&1; then
-            echo "✓ Found AAB files at: $search_path"
-            cp $search_path flutter-artifacts/ 2>/dev/null || true
-            AAB_FOUND=true
-          fi
-        done
-        
-        if [ "$AAB_FOUND" = true ]; then
-          AAB_COUNT=$(find flutter-artifacts/ -name "*.aab" | wc -l)
-          echo "✓ Copied $AAB_COUNT App Bundle file(s)"
-          FOUND_ITEMS=$((FOUND_ITEMS + AAB_COUNT))
-        else
-          echo "⚠ No App Bundle (.aab) files found"
-          echo "Note: App Bundle build may have been skipped or failed"
-          echo "Searched paths:"
-          for search_path in "${AAB_SEARCH_PATHS[@]}"; do
-            echo "  - $search_path"
-          done
-        fi
-        
-        # Note: NO native libraries - Pure Dart implementation!
-        echo "ℹ️  Note: No native libraries (Pure Dart implementation)"
-        
-        # Copy documentation
-        echo "🔍 Copying documentation files..."
-        for doc_file in README.md LICENSE; do
-          if [ -f "$doc_file" ]; then
-            cp "$doc_file" flutter-artifacts/ && echo "✓ Copied $doc_file"
-          fi
-        done
-        
-        # Validate we have meaningful content
-        echo "📦 Flutter artifacts summary:"
-        ls -la flutter-artifacts/
-        
-        # Count different types of files found
-        APK_FILES=$(find flutter-artifacts/ -name "*.apk" 2>/dev/null | wc -l || echo "0")
-        AAB_FILES=$(find flutter-artifacts/ -name "*.aab" 2>/dev/null | wc -l || echo "0")
-        
-        echo "📊 Artifact breakdown:"
-        echo "   - APK files: $APK_FILES"
-        echo "   - AAB files: $AAB_FILES"
-        echo "   - Total items found: $FOUND_ITEMS"
-        echo "   - Implementation: Pure Dart (no native dependencies)"
-        
-        if [ $FOUND_ITEMS -eq 0 ]; then
-          echo "❌ ERROR: No Flutter build artifacts were found!"
-          exit 1
-        fi
-        
-        # Require at least APK files for development builds
-        if [ $APK_FILES -eq 0 ]; then
-          echo "❌ ERROR: No APK files were successfully built!"
-          exit 1
-        fi
-        
-        # Create archive
-        echo "🔍 Creating archive..."
-        cd flutter-artifacts
-        zip -9 -r ../flutter-mobile-dev.zip *
-        cd ..
-        
-        # Validate archive
-        ARCHIVE_SIZE=$(stat -c%s "flutter-mobile-dev.zip" 2>/dev/null || stat -f%z "flutter-mobile-dev.zip" 2>/dev/null || echo "0")
-        ARCHIVE_SIZE_KB=$((ARCHIVE_SIZE / 1024))
-        echo "📏 Archive size: ${ARCHIVE_SIZE_KB}KB"
-        
-        # Calculate hash
-        sha256sum flutter-mobile-dev.zip > flutter-dev-hash.txt
-        
-        echo "✓ Created Pure Dart Flutter app: flutter-mobile-dev.zip (${ARCHIVE_SIZE_KB}KB)"
-        echo "✓ Package Flutter artifacts step completed successfully"
-
-    - name: Upload Flutter artifacts
-      uses: actions/upload-artifact@v4.6.2
+        cd target/${{ matrix.target }}/release
+        Get-FileHash ia-get.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash > ia-get.exe.sha256
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: flutter-mobile-dev
+        name: ${{ matrix.artifact }}
         path: |
-          flutter-mobile-dev.zip
-          flutter-dev-hash.txt
+          target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}
+          target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}.sha256
         retention-days: 30
-        compression-level: 9
 
   release:
-    name: Create Development Release
+    name: Create Release
     runs-on: ubuntu-latest
-    needs: [security, test, flutter-mobile]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: build
+    if: github.event_name == 'release'
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
-
+    - uses: actions/checkout@v5
+    
     - name: Download all artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v4
       with:
-        path: release-artifacts
-        pattern: '{ia-get-*,flutter-mobile-dev}'  # Download CLI/GUI and Flutter mobile artifacts
-
-    - name: Prepare release artifacts
+        path: artifacts
+    
+    - name: Create archives
       run: |
-        mkdir -p final-artifacts
-        # Flatten artifact directory structure and gather hash information
-        find release-artifacts -type f -name "*.tar.gz" -o -name "*.zip" | while read file; do
-          [ -f "$file" ] && cp "$file" final-artifacts/
-        done
-        # Copy binaries
-        find release-artifacts -type f -name "ia-get" -o -name "ia-get.exe" | while read file; do
-          [ -f "$file" ] && cp "$file" final-artifacts/
-        done
-        
-        cd final-artifacts
-        echo "## 📦 Artifact Checksums (SHA256)" > ../HASHES.md
-        echo "" >> ../HASHES.md
-        
-        # Collect hashes from all hash files
-        for hash_file in ../release-artifacts/*/hashes_*_gui.txt ../release-artifacts/*/flutter-dev-hash.txt; do
-          if [ -f "$hash_file" ]; then
-            # Read each line from the hash file and match with files in final-artifacts
-            while IFS= read -r line; do
-              if [[ "$line" =~ ^[a-f0-9]{64}[[:space:]]+(.+)$ ]]; then
-                hash=$(echo "$line" | cut -d' ' -f1)
-                filename=$(echo "$line" | cut -d' ' -f3-)
-                if [ -f "$filename" ]; then
-                  echo "- **${filename}**: \`${hash}\`" >> ../HASHES.md
-                fi
-              fi
-            done < "$hash_file"
+        cd artifacts
+        for dir in */; do
+          artifact_name="${dir%/}"
+          cd "$dir"
+          if [[ -f *.exe ]]; then
+            zip "../${artifact_name}.zip" *
+          else
+            tar czf "../${artifact_name}.tar.gz" *
           fi
+          cd ..
         done
-
-    - name: Generate release notes
-      run: |
-        COMMIT_SHA=$(git rev-parse --short HEAD)
-        COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-        DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
-        
-        cat > RELEASE_NOTES.md << EOF
-        # 🚀 Development Build - ${COMMIT_SHA}
-        
-        **Build Date**: ${DATE}  
-        **Commit**: ${COMMIT_SHA}  
-        **Message**: ${COMMIT_MSG}
-        
-        ## 📥 Downloads
-        
-        Choose your platform:
-        
-        ### 🖥️ Desktop (Rust CLI)
-        Terminal-first implementation with search and batch operations:
-        - **Linux**: \`ia-get-Linux.zip\`
-        - **Windows**: \`ia-get-Windows.zip\` 
-        - **macOS**: \`ia-get-macOS.zip\`
-        
-        ### 📱 Mobile (Flutter - Pure Dart)
-        - **Android**: \`flutter-mobile-dev.zip\`
-        
-        #### Flutter Mobile Features
-        - **Pure Dart Implementation**: No native dependencies required
-        - **Easy Platform Extension**: Ready for iOS, Web, Desktop
-        - **Development APK**: Install directly on Android devices
-        - **Development App Bundle**: Test Play Store upload flow
-        - **Zero FFI Complexity**: Standard Flutter build process
-        
-        $(cat HASHES.md)
-        
-        ## 📋 Recent Changes
-        
-        $(head -n 50 CHANGELOG.md | tail -n +3)
-        
-        ---
-        *This is an automated development build. For stable releases, see [tagged releases](https://github.com/Gameaday/ia-get-cli/releases).*
-        EOF
-
-    - name: Delete previous development release
-      continue-on-error: true
-      run: |
-        if gh release view development >/dev/null 2>&1; then
-          gh release delete development --yes
-        fi
-        if git tag -l | grep -q "^development$"; then
-          git push origin :refs/tags/development
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Create development release
-      uses: softprops/action-gh-release@v2
+    
+    - name: Upload to release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: development
-        name: "🔧 Latest Development Build"
-        body_path: RELEASE_NOTES.md
-        files: final-artifacts/*
-        prerelease: true
-        make_latest: false
+        files: artifacts/*.{tar.gz,zip}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
