@@ -1,10 +1,13 @@
 # Internet Archive Helper - Privacy Policy
 
-**Last updated: September 26, 2024**
+**Last updated: October 8, 2025**  
+**Effective Date: October 8, 2025**
 
 ## Overview
 
 Internet Archive Helper is designed with privacy as a core principle. We believe that your personal data should remain private and under your control.
+
+**Important**: This app is an independent client for accessing Internet Archive content. It is not affiliated with, endorsed by, or officially connected to the Internet Archive.
 
 ## Data Collection
 
@@ -49,22 +52,42 @@ All communications are:
 
 ## Permissions
 
-The app requests only essential permissions:
+The app requests only essential permissions. Here's exactly why each permission is needed:
 
-### Storage Access
-- **Purpose**: To save downloaded files to your device
-- **Scope**: Only files you choose to download
+### Required Permissions
+
+#### Internet Access (`android.permission.INTERNET`)
+- **Purpose**: Connect to archive.org to search, browse, and download content
+- **Scope**: Only communicates with Internet Archive servers
+- **Data**: No personal data is transmitted
+
+#### Network State (`android.permission.ACCESS_NETWORK_STATE`)
+- **Purpose**: Check if you're connected to Wi-Fi or mobile data for smart download scheduling
+- **Scope**: Only checks connection type locally
+- **Data**: No network data is transmitted to us
+
+#### Storage Access (`WRITE_EXTERNAL_STORAGE`, `READ_EXTERNAL_STORAGE`)
+- **Purpose**: Save downloaded files to your device storage
+- **Scope**: Only files you explicitly choose to download
 - **Control**: You can revoke this permission anytime in Android settings
+- **Data**: No data collected, only saves files you request
 
-### Network Access
-- **Purpose**: To connect to Internet Archive servers
-- **Scope**: Only to archive.org domains for file downloads and metadata
-- **Control**: App cannot function without this permission
+#### Wake Lock (`android.permission.WAKE_LOCK`)
+- **Purpose**: Keep downloads running when screen is off
+- **Scope**: Only active during downloads
+- **Control**: Downloads pause if you force-stop the app
 
-### Notifications
-- **Purpose**: To show download progress and completion status
-- **Scope**: Only download-related notifications
-- **Control**: You can disable notifications in Android settings
+### Optional Permissions
+
+No optional permissions are currently requested.
+
+### No Permissions Requested For
+- Location (GPS or network-based)
+- Camera or microphone
+- Contacts, calendar, or SMS
+- Phone calls or carrier information
+- Bluetooth or NFC
+- Body sensors or activity tracking
 
 ## Open Source
 
@@ -113,17 +136,49 @@ Given our commitment to not collecting data, future changes are unlikely to affe
 
 ## Contact Us
 
-For questions about this privacy policy:
+For questions about this privacy policy or the app:
 
 - **GitHub Issues**: [https://github.com/Gameaday/ia-get-cli/issues](https://github.com/Gameaday/ia-get-cli/issues)
+- **GitHub Discussions**: [https://github.com/Gameaday/ia-get-cli/discussions](https://github.com/Gameaday/ia-get-cli/discussions)
 - **Email**: gameaday@users.noreply.github.com
+
+For questions about Internet Archive content or services:
+- **Internet Archive Contact**: https://archive.org/about/contact.php
+- **Email**: info@archive.org
 
 ## Legal Compliance
 
 This privacy policy complies with:
-- Google Play Store requirements
-- Android app privacy guidelines
-- General privacy best practices
+- **Google Play Store** Data Safety requirements
+- **Google Play Developer Program Policies**
+- **Android** app privacy guidelines
+- **GDPR** (EU General Data Protection Regulation) principles
+- **CCPA** (California Consumer Privacy Act) principles
+- **COPPA** (Children's Online Privacy Protection Act)
+
+### Your Rights
+
+**GDPR Rights (EU Users)**:
+- Right to access: All data is on your device
+- Right to rectification: Edit in the app
+- Right to erasure: Clear data or uninstall
+- Right to data portability: Standard formats used
+- Right to object: N/A (no processing occurs)
+
+**CCPA Rights (California Users)**:
+- Right to know: No data collected
+- Right to delete: Clear in-app or uninstall
+- Right to opt-out: N/A (no data sales)
+
+**Since we don't collect personal data, most regulatory obligations don't apply, but we follow their principles anyway.**
+
+### Google Play Data Safety Declaration
+
+In Google Play's Data Safety section, this app declares:
+- **Data collection**: None
+- **Data sharing**: None
+- **Data security**: N/A (no data collected)
+- **Data retention and deletion**: User controls local data
 
 **Note**: Since we don't collect personal data, most privacy regulations (GDPR, CCPA, etc.) don't apply to our data practices, but we follow their principles anyway.
 

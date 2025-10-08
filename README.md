@@ -59,7 +59,7 @@
 <div align="center">
 
 ### 📱 Flutter Mobile & Web
-[🤖 Android APK](https://github.com/Gameaday/ia-get-cli/releases/latest/download/app-release.apk) | [🌐 Try Web App](https://gameaday.github.io/ia-get-cli)
+[🤖 Android APK](https://github.com/Gameaday/ia-get-cli/releases) | [🌐 Try Web App](https://gameaday.github.io/ia-get-cli/)
 
 ### 🖥️ Rust CLI & Server
 [🐧 Linux](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🪟 Windows](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🍎 macOS](https://github.com/Gameaday/ia-get-cli/releases/latest)
