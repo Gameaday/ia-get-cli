@@ -9,6 +9,7 @@ This directory contains technical documentation for the ia-get Rust CLI tool.
 ### Reference
 - **[Quick Reference](QUICK_REFERENCE.md)** - Common development workflows and security setup
 - **[Format Categories](guides/format-categories.md)** - File format filtering and presets
+- **[Rust Cleanup Summary](RUST_CLEANUP_SUMMARY.md)** - Recent improvements and optimizations
 - **[Migration Complete](MIGRATION_COMPLETE.md)** - Historical record of repository split
 - **[TODO](TODO.md)** - Current work items
 
@@ -20,6 +21,7 @@ This directory contains technical documentation for the ia-get Rust CLI tool.
 docs/
 ├── README.md                    # This file
 ├── QUICK_REFERENCE.md          # Development quick reference
+├── RUST_CLEANUP_SUMMARY.md     # Recent cleanup improvements
 ├── MIGRATION_COMPLETE.md       # Repository split history
 ├── TODO.md                     # Current tasks
 └── guides/
