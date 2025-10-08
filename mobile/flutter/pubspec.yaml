@@ -60,8 +60,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  integration_test:
-    sdk: flutter
+  # integration_test:
+  #   sdk: flutter
+  # Commented out: Causes compilation errors in release builds
+  # The plugin gets registered but isn't included in release dependencies
   flutter_lints: ^6.0.0  # Latest lints for Dart 3.8+
   mockito: ^5.4.4
   

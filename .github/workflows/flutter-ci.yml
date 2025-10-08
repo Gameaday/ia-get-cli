@@ -96,14 +96,17 @@ jobs:
       working-directory: mobile/flutter
       run: flutter pub get
     
+    - name: Clean build directory
+      working-directory: mobile/flutter
+      run: flutter clean
+    
     - name: Build APK (optimized)
       working-directory: mobile/flutter
       run: |
         # Build with optimizations:
         # --no-tree-shake-icons: Skip font tree-shaking to save build time (reduces 1-2 minutes)
         # --release: Production build with optimizations
-        # --no-pub: Don't run pub get again (already done above)
-        flutter build apk --release --no-tree-shake-icons --no-pub
+        flutter build apk --release --no-tree-shake-icons
       env:
         # Gradle JVM memory settings to prevent OOM during native lib processing
         # GitHub Actions runners have 7GB RAM, allocate 4GB to Gradle JVM
@@ -159,8 +162,7 @@ jobs:
         # --release: Production build with optimizations
         # --no-tree-shake-icons: Skip font tree-shaking to save build time
         # --base-href: Set base path for GitHub Pages
-        # --no-pub: Don't run pub get again (already done above)
-        flutter build web --release --no-tree-shake-icons --base-href /ia-get-cli/ --no-pub
+        flutter build web --release --no-tree-shake-icons --base-href /ia-get-cli/
     
     - name: Create web archive
       working-directory: mobile/flutter/build
