@@ -36,8 +36,8 @@ void main() {
     test('should create complex search query', () {
       final query = const SearchQuery(
         query: 'internet archive',
-        fieldQueries: const {'title': 'example'},
-        mediatypes: const ['texts'],
+        fieldQueries: {'title': 'example'},
+        mediatypes: ['texts'],
         rows: 50,
       );
 
@@ -189,7 +189,7 @@ void main() {
     test('should preserve unmodified fields', () {
       final original = const SearchQuery(
         query: 'test',
-        mediatypes: const ['texts'],
+        mediatypes: ['texts'],
         rows: 20,
       );
       final modified = original.copyWith(page: 2);
