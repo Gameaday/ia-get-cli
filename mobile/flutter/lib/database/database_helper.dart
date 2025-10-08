@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
+import '../models/download_task.dart';
+import '../models/download_progress.dart';
 
 /// Database helper for managing SQLite database operations
 /// Used for metadata caching and file preview caching with versioning and migrations
@@ -587,5 +589,92 @@ class DatabaseHelper {
     } catch (e) {
       debugPrint('Error vacuuming database: $e');
     }
+  }
+
+  // ===========================================================================
+  // Download Tasks Methods (Phase 4 Task 3)
+  // ===========================================================================
+
+  /// Insert or update a download task
+  Future<void> upsertDownloadTask(DownloadTask task) async {
+    final db = await database;
+    await db.insert(
+      tableDownloadTasks,
+      task.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Update an existing download task
+  Future<void> updateDownloadTask(DownloadTask task) async {
+    final db = await database;
+    await db.update(
+      tableDownloadTasks,
+      task.toJson(),
+      where: 'id = ?',
+      whereArgs: [task.id],
+    );
+  }
+
+  /// Get a download task by ID
+  Future<DownloadTask?> getDownloadTask(String taskId) async {
+    final db = await database;
+    final results = await db.query(
+      tableDownloadTasks,
+      where: 'id = ?',
+      whereArgs: [taskId],
+      limit: 1,
+    );
+
+    if (results.isEmpty) return null;
+    return DownloadTask.fromJson(results.first);
+  }
+
+  /// Get all download tasks with optional status filter
+  Future<List<DownloadTask>> getDownloadTasks({
+    DownloadStatus? status,
+    int? limit,
+  }) async {
+    final db = await database;
+    
+    String? whereClause;
+    List<dynamic>? whereArgs;
+    
+    if (status != null) {
+      whereClause = 'status = ?';
+      whereArgs = [status.index];
+    }
+
+    final results = await db.query(
+      tableDownloadTasks,
+      where: whereClause,
+      whereArgs: whereArgs,
+      orderBy: 'priority DESC, created_at ASC',
+      limit: limit,
+    );
+
+    return results.map((json) => DownloadTask.fromJson(json)).toList();
+  }
+
+  /// Delete a download task
+  Future<void> deleteDownloadTask(String taskId) async {
+    final db = await database;
+    await db.delete(
+      tableDownloadTasks,
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  /// Delete all completed tasks older than specified days
+  Future<int> deleteOldCompletedTasks(int daysOld) async {
+    final db = await database;
+    final cutoffDate = DateTime.now().subtract(Duration(days: daysOld));
+    
+    return await db.delete(
+      tableDownloadTasks,
+      where: 'status = ? AND completed_at < ?',
+      whereArgs: [DownloadStatus.completed.index, cutoffDate.millisecondsSinceEpoch],
+    );
   }
 }
