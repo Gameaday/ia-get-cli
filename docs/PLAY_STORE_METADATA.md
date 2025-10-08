@@ -1,19 +1,19 @@
 # Play Store Metadata
 
 ## App Information
-- **App Name**: IA Get
-- **Package Name**: com.gameaday.iagetcli
+- **App Name**: IA Helper
+- **Package Name**: com.gameaday.iahelper
 - **Category**: Tools
 - **Target Audience**: Everyone
 
 ## Short Description (80 characters)
-Download files from Internet Archive (archive.org) quickly and easily.
+Your Internet Archive companion - download, search, and organize with ease.
 
 ## Full Description (max 4000 characters)
 
-**Download Internet Archive Files with Ease**
+**Your Complete Internet Archive Companion**
 
-IA Get is a powerful, user-friendly tool for downloading files from the Internet Archive (archive.org), the world's largest digital library. Whether you're archiving historical documents, downloading classic software, or accessing public domain media, IA Get makes it simple and fast.
+IA Helper is a powerful, beautifully designed mobile app for accessing the Internet Archive (archive.org), the world's largest digital library. Whether you're downloading historical documents, discovering classic media, or building your personal digital archive, IA Helper makes it effortless.
 
 **Key Features:**
 
@@ -73,9 +73,9 @@ IA Get is a powerful, user-friendly tool for downloading files from the Internet
 - Related items recommendations
 - Collection browsing
 
-**Why IA Get?**
+**Why IA Helper?**
 
-The Internet Archive preserves petabytes of cultural artifacts, from historical texts to vintage software. IA Get makes accessing this treasure trove effortless. Whether you're a researcher, historian, librarian, educator, or digital enthusiast, IA Get provides the tools you need to efficiently download and manage content from archive.org.
+The Internet Archive preserves petabytes of cultural artifacts, from historical texts to vintage software. IA Helper makes accessing this treasure trove effortless. Whether you're a researcher, historian, librarian, educator, or digital enthusiast, IA Helper provides the tools you need to efficiently download and manage content from archive.org.
 
 **Perfect for:**
 - Researchers archiving historical documents
@@ -86,17 +86,17 @@ The Internet Archive preserves petabytes of cultural artifacts, from historical 
 - Anyone interested in preserving digital history
 
 **No Subscription Required**
-IA Get is completely free with no hidden costs, subscriptions, or in-app purchases. All features are available to all users.
+IA Helper is completely free with no hidden costs, subscriptions, or in-app purchases. All features are available to all users.
 
 **Open Source**
-IA Get is open source software. View the code, report issues, or contribute at: github.com/gameaday/ia-get-cli
+IA Helper is open source software. View the code, report issues, or contribute at: github.com/gameaday/ia-helper
 
 **Not Affiliated with Internet Archive**
-IA Get is an independent third-party client and is not officially affiliated with or endorsed by the Internet Archive.
+IA Helper is an independent third-party client and is not officially affiliated with or endorsed by the Internet Archive.
 
 ---
 
-Download IA Get today and start exploring the world's knowledge!
+Download IA Helper today and start exploring the world's knowledge!
 
 ## Key Feature Bullets (for Screenshots)
 1. 📥 **Smart Downloads** - Resume, queue, and schedule downloads
@@ -107,9 +107,9 @@ Download IA Get today and start exploring the world's knowledge!
 6. 🔐 **Privacy First** - No tracking, no ads, local storage only
 
 ## What's New (Initial Release)
-🎉 **Welcome to IA Get 1.0!**
+🎉 **Welcome to IA Helper 1.0!**
 
-The first public release of IA Get is here! Download files from Internet Archive with ease.
+The first public release of IA Helper is here! Your complete companion for the Internet Archive.
 
 **In This Release:**
 - 📥 Full download management with resume capability
@@ -127,7 +127,7 @@ The first public release of IA Get is here! Download files from Internet Archive
 - Collection management
 - And much more!
 
-Thank you for trying IA Get. We'd love your feedback!
+Thank you for trying IA Helper. We'd love your feedback!
 
 ## Content Rating Questionnaire Answers
 
@@ -162,7 +162,7 @@ Thank you for trying IA Get. We'd love your feedback!
 ### App Icon
 - **Size**: 512 x 512 px
 - **Format**: PNG (32-bit with alpha)
-- **Content**: Internet Archive logo-inspired design with "IA Get" branding
+- **Content**: Internet Archive logo-inspired design with "IA Helper" branding
 - **Status**: ⏳ TODO
 
 ### Feature Graphic
@@ -240,7 +240,7 @@ Thank you for trying IA Get. We'd love your feedback!
 - research tools
 
 **App Store Optimization (ASO)**:
-- Title includes primary keyword: "IA Get - Internet Archive Downloader"
+- Title includes primary keyword: "IA Helper - Internet Archive Companion"
 - Short description emphasizes core functionality
 - Full description includes keyword variations naturally
 - Feature bullets highlight unique value propositions
@@ -252,7 +252,7 @@ Thank you for trying IA Get. We'd love your feedback!
 2. Generic download managers (not IA-specific)
 3. Web browser download (basic functionality)
 
-**IA Get Advantages**:
+**IA Helper Advantages**:
 - ✅ Purpose-built for Internet Archive
 - ✅ Advanced search and filtering
 - ✅ Queue management with priorities
@@ -317,8 +317,8 @@ Current status: ~78% MD3 compliant
 ## Contact & Support
 
 **Developer Contact**: gameaday.project@gmail.com
-**GitHub Issues**: github.com/gameaday/ia-get-cli/issues
-**Documentation**: github.com/gameaday/ia-get-cli
+**GitHub Issues**: github.com/gameaday/ia-helper/issues
+**Documentation**: github.com/gameaday/ia-helper
 
 ---
 
