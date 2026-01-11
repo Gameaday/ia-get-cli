@@ -46,6 +46,8 @@ The **Flutter mobile app** has moved to its own repository for better developmen
 **IA Get** is a high-performance command-line tool for downloading from Internet Archive:
 
 - **⚡ Concurrent Downloads** - Parallel downloading with intelligent session management
+- **🧠 Smart Resume** - Intelligent local file validation to resume large downloads instantly without API overhead
+- **🛡️ API Compliance** - Built-in caching and rate-limiting respect Internet Archive guidelines
 - **🖼️ Desktop GUI** - Native desktop interface (egui framework)
 - **⌨️ CLI Mode** - Powerful command-line for automation and scripts
 - **🗜️ Compression** - HTTP compression and automatic archive extraction

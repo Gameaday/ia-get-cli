@@ -70,7 +70,7 @@ pub async fn batch_download(config: BatchConfig) -> Result<Vec<BatchItemResult>>
         let total = identifiers.len();
 
         let handle = tokio::spawn(async move {
-            let _permit = sem.acquire().await.unwrap();
+            let _permit = sem.acquire().await.expect("Semaphore closed unexpectedly");
 
             println!(
                 "{} [{}/{}] Processing: {}",

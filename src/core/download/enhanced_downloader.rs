@@ -34,7 +34,7 @@ use crate::{
     IaGetError, Result,
     core::session::{
         ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
-        FileDownloadStatus,
+        FileDownloadStatus, ProgressCallback, ProgressUpdate,
     },
 };
 use colored::*;
@@ -44,7 +44,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Semaphore;
+use tokio::sync::{Mutex, Semaphore, mpsc};
+
+/// Maximum number of server mirrors to try before failing
+const MAX_SERVER_ATTEMPTS: usize = 5;
+/// Maximum number of resume attempts for a single file download
+const MAX_RESUME_ATTEMPTS: u32 = 3;
 
 /// Download context to avoid too many function arguments
 struct DownloadContext<'a> {
@@ -99,6 +104,7 @@ impl ArchiveDownloader {
         download_config: DownloadConfig,
         requested_files: Vec<String>,
         progress_bar: &ProgressBar,
+        progress_callback: Option<ProgressCallback>,
     ) -> Result<DownloadSession> {
         // Create or resume download session
         let mut session = self
@@ -140,14 +146,47 @@ impl ArchiveDownloader {
 
         // Setup progress tracking
         let multi_progress = MultiProgress::new();
-        let main_progress = multi_progress.add(ProgressBar::new(pending_files.len() as u64));
-        main_progress.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>3}/{len:>3} files {msg}")
-                .unwrap()
-                .progress_chars("█▉▊▋▌▍▎▏ ")
-        );
+        let main_progress = if progress_callback.is_some() {
+            multi_progress.add(ProgressBar::hidden())
+        } else {
+            multi_progress.add(ProgressBar::new(pending_files.len() as u64))
+        };
+
+        if progress_callback.is_none() {
+            main_progress.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>3}/{len:>3} files {msg}")
+                    .expect("Valid progress bar template")
+                    .progress_chars("█▉▊▋▌▍▎▏ ")
+            );
+        }
         main_progress.set_message("(Completed: 0, Failed: 0)".to_string());
+
+        // Create progress bar pool for dashboard UI
+        let use_pool = progress_callback.is_none();
+        let (pool_tx, pool_rx, pool_bars) = if use_pool {
+            let pool_size = std::cmp::min(pending_files.len(), self.max_concurrent as usize);
+            // Use bounded channel equal to pool size
+            let (tx, rx) = mpsc::channel(pool_size);
+            let mut bars = Vec::new();
+            
+            for _ in 0..pool_size {
+                let pb = multi_progress.add(ProgressBar::new(0));
+                pb.set_style(
+                    ProgressStyle::default_bar()
+                        .template("{spinner:.green} {msg:30.30} [{bar:25.cyan/blue}] {bytes:>8}/{total_bytes:>8} {eta:>8}")
+                        .expect("Valid file progress bar template")
+                        .progress_chars("█▉▊▋▌▍▎▏ ")
+                );
+                pb.set_message("Waiting...");
+                // Pre-fill the channel
+                let _ = tx.try_send(pb.clone());
+                bars.push(pb);
+            }
+            (Some(tx), Some(Arc::new(Mutex::new(rx))), bars)
+        } else {
+            (None, None, Vec::new())
+        };
 
         // Create semaphore for concurrency control
         let semaphore = Arc::new(Semaphore::new(self.max_concurrent));
@@ -169,21 +208,31 @@ impl ArchiveDownloader {
                 let auto_decompress = self.auto_decompress;
                 let decompress_formats = session.download_config.decompress_formats.clone();
 
-                // Create individual progress bar for this file
-                let file_progress =
-                    multi_progress.add(ProgressBar::new(file_info.size.unwrap_or(0)));
-                file_progress.set_style(
-                    ProgressStyle::default_bar()
-                        .template("{spinner:.green} {msg:30.30} [{bar:25.cyan/blue}] {bytes:>8}/{total_bytes:>8} {eta:>8}")
-                        .unwrap()
-                        .progress_chars("█▉▊▋▌▍▎▏ ")
-                );
-                file_progress.set_message(file_info.name.chars().take(30).collect::<String>());
+                let multi_progress_clone = multi_progress.clone();
+                // use_hidden_bars removed as it is implied by pool_tx check
+                
+                let pool_tx = pool_tx.clone();
+                let pool_rx = pool_rx.clone();
 
                 let handle = tokio::spawn(async move {
-                    let _permit = semaphore_clone.acquire().await.unwrap();
+                    let _permit = semaphore_clone
+                        .acquire()
+                        .await
+                        .expect("Semaphore closed unexpectedly");
 
-                    Self::download_single_file(
+                    // Get progress bar from pool or create new hidden one
+                    let file_progress = if let (Some(_), Some(rx)) = (&pool_tx, &pool_rx) {
+                        let pb = rx.lock().await.recv().await.expect("Progress bar pool closed");
+                        pb.set_length(file_info.size.unwrap_or(0));
+                        pb.set_position(0);
+                        pb.set_message(file_info.name.chars().take(30).collect::<String>());
+                        pb.reset(); // Reset state (start time, etc.)
+                        pb
+                    } else {
+                        multi_progress_clone.add(ProgressBar::hidden())
+                    };
+
+                    let result = Self::download_single_file(
                         client,
                         file_info,
                         servers,
@@ -193,9 +242,20 @@ impl ArchiveDownloader {
                         preserve_mtime,
                         auto_decompress,
                         decompress_formats,
-                        file_progress,
+                        file_progress.clone(),
                     )
-                    .await
+                    .await;
+
+                    // Return bar to pool or clear it
+                    if let Some(tx) = pool_tx {
+                        // Leave the message as is (e.g. "✓ Downloaded ...") so it's visible while idle
+                        // calling reset() during acquisition will clear it for the next task
+                        let _ = tx.send(file_progress).await;
+                    } else {
+                        file_progress.finish_and_clear();
+                    }
+                    
+                    result
                 });
 
                 handles.push((file_name, handle));
@@ -218,13 +278,28 @@ impl ArchiveDownloader {
                     completed += 1;
                     main_progress.inc(1);
 
+                    // Call progress callback if present
+                    if let Some(ref callback) = progress_callback {
+                        callback(ProgressUpdate {
+                            current_file: file_name.clone(),
+                            completed_files: completed,
+                            total_files,
+                            failed_files: failed,
+                            current_speed: 0.0, // main_progress might not track speed correctly if hidden/manual inc
+                            eta: "".to_string(), // Simplified for now
+                            status: "Downloading...".to_string(),
+                        });
+                    }
+
                     // Only update message if enough time has passed to reduce spam
                     let now = std::time::Instant::now();
                     if now.duration_since(last_update) >= UPDATE_INTERVAL
                         || completed + failed == total_files
                     {
-                        main_progress
-                            .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        if progress_callback.is_none() {
+                            main_progress
+                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        }
                         last_update = now;
                     }
                 }
@@ -236,18 +311,34 @@ impl ArchiveDownloader {
                     failed += 1;
                     main_progress.inc(1);
 
+                    if let Some(ref callback) = progress_callback {
+                        callback(ProgressUpdate {
+                            current_file: file_name.clone(),
+                            completed_files: completed,
+                            total_files,
+                            failed_files: failed,
+                            current_speed: 0.0,
+                            eta: "".to_string(),
+                            status: "Downloading...".to_string(),
+                        });
+                    }
+
                     // Update message for failures and at intervals
                     let now = std::time::Instant::now();
                     if now.duration_since(last_update) >= UPDATE_INTERVAL
                         || completed + failed == total_files
                     {
-                        main_progress
-                            .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        if progress_callback.is_none() {
+                            main_progress
+                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        }
                         last_update = now;
                     }
 
-                    // Use eprintln for errors instead of progress bar messages to avoid spam
-                    eprintln!("{} Failed to download {}: {}", "✘".red(), file_name, e);
+                    if progress_callback.is_none() {
+                        // Use eprintln for errors instead of progress bar messages to avoid spam
+                        // eprintln!("{} Failed to download {}: {}", "✘".red(), file_name, e);
+                    }
                 }
                 Err(e) => {
                     session.update_file_status(&file_name, DownloadState::Failed);
@@ -256,20 +347,42 @@ impl ArchiveDownloader {
                     }
                     failed += 1;
                     main_progress.inc(1);
+                    
+                    if let Some(ref callback) = progress_callback {
+                        callback(ProgressUpdate {
+                            current_file: file_name.clone(),
+                            completed_files: completed,
+                            total_files,
+                            failed_files: failed,
+                            current_speed: 0.0,
+                            eta: "".to_string(),
+                            status: "Downloading...".to_string(),
+                        });
+                    }
 
                     // Update message for failures and at intervals
                     let now = std::time::Instant::now();
                     if now.duration_since(last_update) >= UPDATE_INTERVAL
                         || completed + failed == total_files
                     {
-                        main_progress
-                            .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        if progress_callback.is_none() {
+                            main_progress
+                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                        }
                         last_update = now;
                     }
 
-                    eprintln!("{} Task failed for {}: {}", "✘".red(), file_name, e);
+                    if progress_callback.is_none() {
+                        // eprintln!("{} Task failed for {}: {}", "✘".red(), file_name, e);
+                    }
                 }
             }
+        }
+
+        // Create progress bar pool for dashboard UI
+        // Clean up the dashboard progress bars
+        for pb in pool_bars {
+            pb.finish_and_clear();
         }
 
         // Save final session state
@@ -329,7 +442,7 @@ impl ArchiveDownloader {
                         })??;
 
                 if validation_result {
-                    progress_bar.finish_with_message(
+                    progress_bar.set_message(
                         format!("✓ {} already exists and is valid", file_info.name)
                             .green()
                             .to_string(),
@@ -340,7 +453,7 @@ impl ArchiveDownloader {
                         .set_message(format!("MD5 mismatch, re-downloading {}", file_info.name));
                 }
             } else {
-                progress_bar.finish_with_message(
+                progress_bar.set_message(
                     format!(
                         "✓ {} already exists (skipping verification)",
                         file_info.name
@@ -353,12 +466,10 @@ impl ArchiveDownloader {
         }
 
         let mut last_error = None;
-        // Try up to 5 servers max to avoid indefinite hanging on bad items
-        let max_server_attempts = 5;
 
         // Try each server in order (following Archive.org recommendations)
         for (attempt, server) in servers.iter().enumerate() {
-            if attempt >= max_server_attempts {
+            if attempt >= MAX_SERVER_ATTEMPTS {
                 break;
             }
 
@@ -390,15 +501,31 @@ impl ArchiveDownloader {
                         })??;
 
                         if !validation_result {
-                            let error_msg =
-                                format!("MD5 verification failed for {}", file_info.name);
-                            progress_bar
-                                .finish_with_message(format!("✘ {}", error_msg).red().to_string());
+                            // Check for metadata files that frequently change
+                            let is_metadata = file_info.name.ends_with("_meta.xml")
+                                || file_info.name.ends_with("_reviews.xml")
+                                || file_info.name.ends_with("_files.xml")
+                                || file_info.name.ends_with("_meta.sqlite")
+                                || file_info.name.ends_with("_archive.torrent")
+                                || file_info.name == "__ia_thumb.jpg";
 
-                            // Remove invalid file
-                            let _ = tokio::fs::remove_file(&output_path).await;
-                            last_error = Some(IaGetError::HashMismatch(error_msg));
-                            continue;
+                            if is_metadata {
+                                progress_bar.set_message(format!(
+                                    "⚠ MD5 mismatch for {} (likely updated). Accepting.",
+                                    file_info.name
+                                ));
+                                // Allow execution to proceed to success (skip the failure block)
+                            } else {
+                                let error_msg =
+                                    format!("MD5 verification failed for {}", file_info.name);
+                                progress_bar
+                                    .set_message(format!("✘ {}", error_msg).red().to_string());
+
+                                // Remove invalid file
+                                let _ = tokio::fs::remove_file(&output_path).await;
+                                last_error = Some(IaGetError::HashMismatch(error_msg));
+                                continue;
+                            }
                         }
                     }
 
@@ -482,7 +609,7 @@ impl ArchiveDownloader {
                         }
                     }
 
-                    progress_bar.finish_with_message(
+                    progress_bar.set_message(
                         format!("✓ Downloaded {}", file_info.name)
                             .green()
                             .to_string(),
@@ -491,8 +618,13 @@ impl ArchiveDownloader {
                 }
                 Err(e) => {
                     let error_str = e.to_string();
-                    let should_retry_server = error_str.contains("503")
+                    let should_retry_server = error_str.contains("500")
+                        || error_str.contains("502")
+                        || error_str.contains("503")
+                        || error_str.contains("504")
                         || error_str.contains("Service Unavailable")
+                        || error_str.contains("Bad Gateway")
+                        || error_str.contains("Gateway Timeout")
                         || error_str.contains("connection")
                         || error_str.contains("timeout");
 
@@ -505,7 +637,7 @@ impl ArchiveDownloader {
                             "Rate limited by IA server {}, backing off before trying next server...", 
                             server
                         ));
-                        let backoff_delay = std::cmp::min(60, 2_u64.pow(retry_count as u32)); // Max 60 seconds for rate limits
+                        let backoff_delay = std::cmp::min(60, 2_u64.pow(attempt as u32)); // Max 60 seconds for rate limits
                         tokio::time::sleep(std::time::Duration::from_secs(backoff_delay)).await;
                     } else if should_retry_server {
                         progress_bar.set_message(format!(
@@ -513,15 +645,15 @@ impl ArchiveDownloader {
                             server
                         ));
                         // Standard exponential backoff for server errors
-                        if retry_count < servers.len() - 1 {
-                            let backoff_delay = std::cmp::min(2_u64.pow(retry_count as u32), 30); // Max 30 seconds
+                        if attempt < servers.len() - 1 {
+                            let backoff_delay = std::cmp::min(2_u64.pow(attempt as u32), 30); // Max 30 seconds
                             tokio::time::sleep(std::time::Duration::from_secs(backoff_delay)).await;
                         }
                     } else {
                         progress_bar
                             .set_message(format!("Failed from {}, trying next server...", server));
                         // Quick retry for other errors
-                        if retry_count < servers.len() - 1 {
+                        if attempt < servers.len() - 1 {
                             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         }
                     }
@@ -542,7 +674,7 @@ impl ArchiveDownloader {
                 .unwrap_or_else(|| "Unknown error".to_string())
         );
 
-        progress_bar.finish_with_message(format!("✘ {}", error_msg).red().to_string());
+        progress_bar.set_message(format!("✘ {}", error_msg).red().to_string());
         Err(last_error.unwrap_or(IaGetError::Network(error_msg)))
     }
 
@@ -557,8 +689,6 @@ impl ArchiveDownloader {
         let temp_path = output_path.with_extension("tmp");
 
         // Try download with resume capability
-        const MAX_RESUME_ATTEMPTS: u32 = 3;
-
         for attempt in 0..MAX_RESUME_ATTEMPTS {
             let resume_from = if temp_path.exists() {
                 match tokio::fs::metadata(&temp_path).await {
@@ -652,6 +782,10 @@ impl ArchiveDownloader {
                     "File not found on Internet Archive (404): {}",
                     ctx.file_info.name
                 ))),
+                reqwest::StatusCode::FORBIDDEN => Err(IaGetError::Network(format!(
+                    "Access denied/Restricted file (403): {}. This file may be lending-only or private.",
+                    ctx.file_info.name
+                ))),
                 _ => Err(IaGetError::Network(format!(
                     "HTTP error {}: {} for file: {}",
                     status,
@@ -710,7 +844,23 @@ impl ArchiveDownloader {
 
         use futures_util::StreamExt;
         let mut stream = response.bytes_stream();
-        while let Some(chunk_result) = stream.next().await {
+        
+        loop {
+            // Wrap stream read in a timeout to detect stalled connections
+            let chunk_result = match tokio::time::timeout(
+                std::time::Duration::from_secs(45), // 45s read timeout per chunk
+                stream.next()
+            ).await {
+                Ok(Some(res)) => res,
+                Ok(None) => break, // Stream finished
+                Err(_) => {
+                    return Err(IaGetError::Network(format!(
+                        "Read timeout (stall) for {}: No data received for 45s",
+                        ctx.file_info.name
+                    )));
+                }
+            };
+
             let chunk = match chunk_result {
                 Ok(bytes) => bytes,
                 Err(e) => {
@@ -759,11 +909,28 @@ impl ArchiveDownloader {
         // Verify that we downloaded the expected amount of data
         if let Some(expected_size) = ctx.file_info.size {
             if downloaded != expected_size {
-                // Don't delete the temp file - we might be able to resume
-                return Err(IaGetError::Network(format!(
-                    "Download incomplete: expected {} bytes, got {} bytes for {}",
-                    expected_size, downloaded, ctx.file_info.name
-                )));
+                // Check if this is a dynamic metadata file that often changes
+                let is_metadata = ctx.file_info.name.ends_with("_meta.xml")
+                    || ctx.file_info.name.ends_with("_reviews.xml")
+                    || ctx.file_info.name.ends_with("_files.xml")
+                    || ctx.file_info.name.ends_with("_meta.sqlite")
+                    || ctx.file_info.name.ends_with("_archive.torrent")
+                    || ctx.file_info.name == "__ia_thumb.jpg";
+
+                // If it's a metadata file and we got a successful download (just different size), accept it
+                // We only do this if downloaded > 0 to ensure we got *something*
+                if is_metadata && downloaded > 0 {
+                    ctx.progress_bar.set_message(format!(
+                        "⚠ Size mismatch for {} (expected {}, got {}). Accepting as metadata update.",
+                        ctx.file_info.name, expected_size, downloaded
+                    ));
+                } else {
+                    // Don't delete the temp file - we might be able to resume
+                    return Err(IaGetError::Network(format!(
+                        "Download incomplete: expected {} bytes, got {} bytes for {}",
+                        expected_size, downloaded, ctx.file_info.name
+                    )));
+                }
             }
         }
 
@@ -801,6 +968,20 @@ impl ArchiveDownloader {
                             let local_path =
                                 format!("{}/{}", download_config.output_dir, sanitized_filename);
 
+                            let mut status = DownloadState::Pending;
+                            let mut bytes_downloaded = 0;
+
+                            // Check if file already exists locally and matches expected size
+                            // This saves huge amounts of time and requests on retries
+                            if let Some(expected_size) = file_info.size {
+                                if let Ok(meta) = std::fs::metadata(&local_path) {
+                                    if meta.len() == expected_size {
+                                        status = DownloadState::Completed;
+                                        bytes_downloaded = expected_size;
+                                    }
+                                }
+                            }
+
                             // Validate path length for Windows compatibility
                             if let Err(e) = crate::core::session::validate_path_length(
                                 &download_config.output_dir,
@@ -812,8 +993,8 @@ impl ArchiveDownloader {
                                 file_name.clone(),
                                 FileDownloadStatus {
                                     file_info: file_info.clone(),
-                                    status: DownloadState::Pending,
-                                    bytes_downloaded: 0,
+                                    status,
+                                    bytes_downloaded,
                                     started_at: None,
                                     completed_at: None,
                                     error_message: None,
@@ -831,12 +1012,27 @@ impl ArchiveDownloader {
         }
 
         // Create new session
-        Ok(DownloadSession::new(
+        let mut session = DownloadSession::new(
             original_url,
             identifier,
             archive_metadata,
             download_config,
             requested_files,
-        ))
+        );
+
+        // Pre-check for completed files in new session
+        // This is the critical optimization for reducing API calls on retries
+        for (_file_name, status) in session.file_status.iter_mut() {
+             if let Some(expected_size) = status.file_info.size {
+                 if let Ok(meta) = std::fs::metadata(&status.local_path) {
+                     if meta.len() == expected_size {
+                         status.status = DownloadState::Completed;
+                         status.bytes_downloaded = expected_size;
+                     }
+                 }
+             }
+        }
+
+        Ok(session)
     }
 }

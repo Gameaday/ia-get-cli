@@ -7,7 +7,7 @@ use crate::{
     IaGetError, Result,
     core::archive::fetch_json_metadata,
     core::download::ArchiveDownloader,
-    core::session::{ArchiveFile, DownloadConfig, DownloadSession},
+    core::session::{ArchiveFile, DownloadConfig, DownloadSession, ProgressCallback, ProgressUpdate},
     infrastructure::api::{ApiStats, ArchiveOrgApiClient, validate_identifier},
     infrastructure::config::Config,
     interface::cli::SourceType,
@@ -118,21 +118,6 @@ impl DownloadRequest {
     }
 }
 
-/// Progress update callback function type
-pub type ProgressCallback = Box<dyn Fn(ProgressUpdate) + Send + Sync>;
-
-/// Progress update information
-#[derive(Debug, Clone)]
-pub struct ProgressUpdate {
-    pub current_file: String,
-    pub completed_files: usize,
-    pub total_files: usize,
-    pub failed_files: usize,
-    pub current_speed: f64,
-    pub eta: String,
-    pub status: String,
-}
-
 /// Download operation result
 #[derive(Debug)]
 pub enum DownloadResult {
@@ -150,7 +135,13 @@ impl DownloadService {
     pub fn new() -> Result<Self> {
         let client = Client::builder()
             .user_agent(get_user_agent())
-            .timeout(std::time::Duration::from_secs(30))
+            // No global timeout for downloads, as large files can take a long time
+            // We rely on connect timeouts and TCP keepalive instead
+            .connect_timeout(std::time::Duration::from_secs(30))
+            // Enable TCP keepalive to detect dropped connections
+            .tcp_keepalive(std::time::Duration::from_secs(60))
+            // Enforce a pool idle timeout to clean up stale connections
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
             .build()
             .map_err(|e| IaGetError::Network(format!("Failed to create HTTP client: {}", e)))?;
 
@@ -223,12 +214,21 @@ impl DownloadService {
             format!("https://archive.org/details/{}", request.identifier)
         };
 
-        // Fetch metadata using compliant API client
+        // Create session directory path for cache
+        let session_dir = request.output_dir.join(".ia-get-sessions");
+        
+        // Fetch metadata using compliant API client with caching
         let progress = indicatif::ProgressBar::new_spinner();
+        progress.enable_steady_tick(std::time::Duration::from_millis(100));
+        
         let (metadata, _base_url) =
-            match fetch_json_metadata(&archive_url, api_client.client(), &progress).await {
-                Ok(result) => result,
+            match fetch_json_metadata(&archive_url, api_client.client(), &progress, Some(&session_dir)).await {
+                Ok(result) => {
+                    progress.finish_and_clear();
+                    result
+                },
                 Err(e) => {
+                    progress.finish_and_clear();
                     return Ok(DownloadResult::Error(format!(
                         "Failed to fetch metadata: {}",
                         e
@@ -430,6 +430,7 @@ impl DownloadService {
                 download_config,
                 requested_files,
                 &progress_bar,
+                progress_callback, // Consume the callback here
             )
             .await
         {
@@ -602,7 +603,11 @@ impl DownloadService {
                     status.status,
                     crate::core::session::DownloadState::Completed
                 ) {
-                    println!("  • {} - {:?}", filename, status.status);
+                    if let Some(err) = &status.error_message {
+                        println!("  • {} - Failed: {}", filename, err.red());
+                    } else {
+                        println!("  • {} - {:?}", filename, status.status);
+                    }
                 }
             }
             println!(

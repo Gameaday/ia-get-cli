@@ -8,6 +8,7 @@ use crate::{
 };
 use egui::Ui;
 use std::collections::{HashMap, HashSet};
+use std::sync::mpsc;
 
 /// File browser panel for archive exploration and selective downloading
 #[derive(Default)]
@@ -43,6 +44,9 @@ pub struct FileBrowserPanel {
 
     // Runtime handle for async operations
     rt_handle: Option<tokio::runtime::Handle>,
+
+    // Async communication
+    metadata_rx: Option<mpsc::Receiver<Result<ArchiveMetadata, String>>>,
 }
 
 /// Represents a node in the file tree structure
@@ -65,6 +69,17 @@ impl FileBrowserPanel {
     }
 
     pub fn render(&mut self, ui: &mut Ui, config: &Config) {
+        // Check for async results from metadata fetch
+        if let Some(rx) = &self.metadata_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.metadata_rx = None; // Request completed
+                match result {
+                    Ok(metadata) => self.set_archive_metadata(metadata),
+                    Err(e) => self.set_error(e),
+                }
+            }
+        }
+
         ui.heading("File Browser & Selector");
         ui.separator();
 
@@ -352,11 +367,12 @@ impl FileBrowserPanel {
             self.success_message = None;
 
             let identifier = self.archive_identifier.clone();
+            let (tx, rx) = mpsc::channel();
+            self.metadata_rx = Some(rx);
 
             rt_handle.spawn(async move {
-                let _result = Self::fetch_metadata_async(identifier).await;
-                // TODO: Send result back to UI through a proper channel
-                // For now, this is a placeholder implementation
+                let result = Self::fetch_metadata_async(identifier).await;
+                let _ = tx.send(result);
             });
         }
     }
@@ -471,7 +487,7 @@ impl FileBrowserPanel {
                 );
             } else {
                 // This is a directory
-                current_node
+                current_node = current_node
                     .children
                     .entry(part.to_string())
                     .or_insert_with(|| FileTreeNode {
@@ -482,8 +498,6 @@ impl FileBrowserPanel {
                         children: HashMap::new(),
                         size: None,
                     });
-
-                current_node = current_node.children.get_mut(*part).unwrap();
             }
         }
     }

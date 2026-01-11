@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use colored::*;
 use serde::{Deserialize, Serialize};
+use crate::utilities::{common::format_number, filters::format_size};
 
 /// Search results from Internet Archive
 #[derive(Debug, Deserialize, Serialize)]
@@ -139,7 +140,9 @@ pub fn display_search_results(results: &SearchResults) {
         }
 
         if let Some(size) = doc.item_size {
-            println!("   {}: {}", "Size".green(), format_size(size as usize));
+            // Convert i64 to u64 for format_size, treating negative (invalid) sizes as 0
+            let size_u64 = if size >= 0 { size as u64 } else { 0 };
+            println!("   {}: {}", "Size".green(), format_size(size_u64));
         }
 
         if let Some(desc) = &doc.description {
@@ -162,34 +165,3 @@ pub fn display_search_results(results: &SearchResults) {
     }
 }
 
-/// Format a number with thousand separators
-fn format_number(n: i64) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    let mut count = 0;
-
-    for c in s.chars().rev() {
-        if count == 3 {
-            result.push(',');
-            count = 0;
-        }
-        result.push(c);
-        count += 1;
-    }
-
-    result.chars().rev().collect()
-}
-
-/// Format size in human-readable format
-fn format_size(bytes: usize) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-    let mut size = bytes as f64;
-    let mut unit_idx = 0;
-
-    while size >= 1024.0 && unit_idx < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit_idx += 1;
-    }
-
-    format!("{:.2} {}", size, UNITS[unit_idx])
-}

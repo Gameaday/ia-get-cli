@@ -210,8 +210,14 @@ pub fn validate_identifier(identifier: &str) -> Result<()> {
     }
 
     // Check start/end characters
-    let first_char = identifier.chars().next().unwrap();
-    let last_char = identifier.chars().last().unwrap();
+    let first_char = identifier
+        .chars()
+        .next()
+        .ok_or_else(|| IaGetError::UrlFormat("Archive identifier cannot be empty".to_string()))?;
+    let last_char = identifier
+        .chars()
+        .last()
+        .ok_or_else(|| IaGetError::UrlFormat("Archive identifier cannot be empty".to_string()))?;
 
     if !first_char.is_alphanumeric() || !last_char.is_alphanumeric() {
         return Err(IaGetError::UrlFormat(

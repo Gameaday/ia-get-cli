@@ -337,9 +337,7 @@ impl IaGetApp {
         });
 
         // Error/Success messages
-        let show_error = self.error_message.is_some();
-        if show_error {
-            let error_msg = self.error_message.clone().unwrap();
+        if let Some(error_msg) = self.error_message.clone() {
             egui::Window::new("❌ Error")
                 .collapsible(false)
                 .resizable(true)
@@ -359,9 +357,7 @@ impl IaGetApp {
                 });
         }
 
-        let show_success = self.success_message.is_some();
-        if show_success {
-            let success_msg = self.success_message.clone().unwrap();
+        if let Some(success_msg) = self.success_message.clone() {
             egui::Window::new("✅ Success")
                 .collapsible(false)
                 .resizable(true)

@@ -30,7 +30,7 @@
 //!     let progress = ProgressBar::new_spinner();
 //!     
 //!     // Fetch archive metadata
-//!     let (metadata, _url) = fetch_json_metadata("identifier", &client, &progress).await?;
+//!     let (metadata, _url) = fetch_json_metadata("identifier", &client, &progress, None).await?;
 //!
 //!     // Download with enhanced features
 //!     let downloader = ArchiveDownloader::new(
@@ -68,11 +68,11 @@ pub use core::archive::{
 };
 pub use core::download::{
     DownloadRequest, DownloadResult, DownloadService, DownloadStats, FileDownloadResult,
-    ProgressUpdate, SimpleConcurrentDownloader, download_files_with_retries,
+    SimpleConcurrentDownloader, download_files_with_retries,
 };
 pub use core::session::{
     ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
-    sanitize_filename_for_filesystem,
+    ProgressUpdate, sanitize_filename_for_filesystem,
 };
 pub use infrastructure::api::{
     ApiStats, ArchiveOrgApiClient, EnhancedArchiveApiClient, ItemDetails, ServiceStatus,
@@ -88,7 +88,7 @@ pub use interface::gui::IaGetApp;
 pub use utilities::common::{
     AdaptiveBufferManager, PerformanceMetrics, PerformanceMonitor, StringTruncate,
     construct_download_url, construct_metadata_url, extract_identifier_from_url, get_user_agent,
-    is_archive_url, normalize_archive_identifier, validate_and_process_url,
+    is_archive_url, normalize_archive_identifier, validate_and_process_url, format_number,
 };
 pub use utilities::compression::*;
 pub use utilities::filters::{

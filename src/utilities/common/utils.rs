@@ -109,6 +109,28 @@ pub fn format_size(size: u64) -> String {
     }
 }
 
+/// Format a number with thousand separators
+pub fn format_number(n: i64) -> String {
+    let s = n.abs().to_string(); // Handle negative numbers gracefully if needed, though usually counts are positive
+    let mut result = String::new();
+    let mut count = 0;
+
+    for c in s.chars().rev() {
+        if count == 3 {
+            result.push(',');
+            count = 0;
+        }
+        result.push(c);
+        count += 1;
+    }
+
+    if n < 0 {
+        result.push('-');
+    }
+
+    result.chars().rev().collect()
+}
+
 /// Format transfer rate to appropriate units
 pub fn format_transfer_rate(bytes_per_sec: f64) -> (f64, &'static str) {
     const KB: f64 = 1024.0;

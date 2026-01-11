@@ -188,7 +188,7 @@ impl eframe::App for AppWrapper {
 
         // Check if we should switch to CLI mode
         if self.app.should_switch_to_cli() {
-            *self.switch_checker.lock().unwrap() = true;
+            *self.switch_checker.lock().expect("Failed to lock switch_checker mutex") = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
@@ -396,6 +396,9 @@ async fn main() -> Result<()> {
                 Some(("show", _)) => {
                     commands::handle_config_command(ia_get::interface::cli::ConfigAction::Show)
                         .await?;
+                }
+                Some(("set", set_matches)) => {
+                    let key = set_matches
                         .get_one::<String>("key")
                         .expect("Key argument is required")
                         .clone();
@@ -413,10 +416,7 @@ async fn main() -> Result<()> {
                     let key = unset_matches
                         .get_one::<String>("key")
                         .expect("Key argument is required")
-                        
-                }
-                Some(("unset", unset_matches)) => {
-                    let key = unset_matches.get_one::<String>("key").unwrap().clone();
+                        .clone();
                     commands::handle_config_command(ia_get::interface::cli::ConfigAction::Unset {
                         key,
                     })
@@ -564,7 +564,7 @@ async fn main() -> Result<()> {
                 }
             } else {
                 println!(
-                    "{} Command-line envexpect("Identifier should be present here (logic check)"t detected, using interactive menu...",
+                    "{} Command-line environment detected, using interactive menu...",
                     "💻".green()
                 );
                 return show_interactive_menu().await;
@@ -573,7 +573,7 @@ async fn main() -> Result<()> {
         return Ok(()); // This shouldn't be reached due to subcommand handling above
     }
 
-    let raw_identifier = raw_identifier.unwrap();
+    let raw_identifier = raw_identifier.expect("Identifier should have been verified by interactive check logic");
 
     // Normalize the identifier - extract just the identifier portion if it's a URL
     let identifier = ia_get::utilities::common::normalize_archive_identifier(raw_identifier)

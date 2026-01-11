@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("URL: {}", test_url);
 
     // Fetch metadata using the new JSON API
-    match fetch_json_metadata(test_url, &client, &progress).await {
+    match fetch_json_metadata(test_url, &client, &progress, None).await {
         Ok((metadata, _base_url)) => {
             progress.finish_with_message("✓ Successfully fetched JSON metadata");
 

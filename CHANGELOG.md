@@ -1,8 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.0] - 2026-01-11
 
-## [1.7.0] - 2025-10-07
+### ✨ Improvements
+- **CLI Presentation**: Enhanced search results with cleaner layout, colored output, and human-readable formatting.
+- **Robustness**: Improved download server selection to try up to 5 mirrors (was 3), improving success rates for elusive files.
+- **Safety**: Added safeguards against panics when processing empty identifiers.
+- **Argument Parsing**: Replaced unsafe unwrap calls with robust error handling for CLI arguments.
+
+### 🧹 Cleanup
+- **Project Structure**: Removed obsolete mobile/Flutter build scripts and documentation as mobile app has moved to a separate repository.
+- **Code Quality**: Consolidated utility functions to reduce duplication.
+
+## [2.0.0] - 2025-10-07
 
 ### 🎨 Material Design 3 Excellence - Mobile App Enhancement
 

@@ -8,6 +8,7 @@ use crate::{
     infrastructure::config::{Config, ConfigManager, FilterPreset},
     utilities::filters::parse_size_string,
 };
+use anyhow::Context;
 use colored::*;
 use std::io::{self, Write};
 
@@ -488,10 +489,10 @@ impl InteractiveMenu {
     fn get_user_choice(&self, prompt: &str) -> Result<usize> {
         loop {
             print!("{} (1-9): ", prompt.bold());
-            io::stdout().flush().unwrap();
+            io::stdout().flush().context("Failed to flush stdout")?;
 
             let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
+            io::stdin().read_line(&mut input).context("Failed to read input")?;
 
             match input.trim().parse::<usize>() {
                 Ok(choice) => return Ok(choice),
@@ -502,19 +503,23 @@ impl InteractiveMenu {
 
     fn get_string_input(&self, prompt: &str) -> Result<String> {
         print!("{}: ", prompt.bold());
-        io::stdout().flush().unwrap();
+        io::stdout().flush().context("Failed to flush stdout")?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input).context("Failed to read input")?;
 
         Ok(input.trim().to_string())
     }
 
     fn pause(&self) {
         print!("\n{}", "Press Enter to continue...".dimmed());
-        io::stdout().flush().unwrap();
+        if let Err(e) = io::stdout().flush() {
+            eprintln!("Failed to flush stdout: {}", e);
+        }
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        if let Err(e) = io::stdin().read_line(&mut input) {
+            eprintln!("Failed to read input: {}", e);
+        }
     }
 
     // Configuration setters
