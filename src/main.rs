@@ -311,7 +311,10 @@ async fn main() -> Result<()> {
         Some(("search", search_matches)) => {
             use ia_get::interface::cli::advanced_commands;
 
-            let query = search_matches.get_one::<String>("query").unwrap().clone();
+            let query = search_matches
+                .get_one::<String>("query")
+                .expect("Query argument is required")
+                .clone();
             let limit = search_matches
                 .get_one::<String>("limit")
                 .and_then(|s| s.parse::<usize>().ok())
@@ -339,7 +342,10 @@ async fn main() -> Result<()> {
         Some(("batch", batch_matches)) => {
             use ia_get::interface::cli::advanced_commands;
 
-            let file_path = batch_matches.get_one::<String>("file").unwrap().clone();
+            let file_path = batch_matches
+                .get_one::<String>("file")
+                .expect("File argument is required")
+                .clone();
             let output_dir = batch_matches.get_one::<String>("output").cloned();
             let parallel = batch_matches
                 .get_one::<String>("parallel")
@@ -390,15 +396,24 @@ async fn main() -> Result<()> {
                 Some(("show", _)) => {
                     commands::handle_config_command(ia_get::interface::cli::ConfigAction::Show)
                         .await?;
-                }
-                Some(("set", set_matches)) => {
-                    let key = set_matches.get_one::<String>("key").unwrap().clone();
-                    let value = set_matches.get_one::<String>("value").unwrap().clone();
+                        .get_one::<String>("key")
+                        .expect("Key argument is required")
+                        .clone();
+                    let value = set_matches
+                        .get_one::<String>("value")
+                        .expect("Value argument is required")
+                        .clone();
                     commands::handle_config_command(ia_get::interface::cli::ConfigAction::Set {
                         key,
                         value,
                     })
                     .await?;
+                }
+                Some(("unset", unset_matches)) => {
+                    let key = unset_matches
+                        .get_one::<String>("key")
+                        .expect("Key argument is required")
+                        
                 }
                 Some(("unset", unset_matches)) => {
                     let key = unset_matches.get_one::<String>("key").unwrap().clone();
@@ -434,7 +449,7 @@ async fn main() -> Result<()> {
                 Some(("show", show_matches)) => {
                     let limit = show_matches
                         .get_one::<String>("limit")
-                        .unwrap()
+                        .expect("Limit argument required (has default)")
                         .parse()
                         .unwrap_or(10);
                     let status = show_matches.get_one::<String>("status").cloned();
@@ -454,7 +469,10 @@ async fn main() -> Result<()> {
                     .await?;
                 }
                 Some(("remove", remove_matches)) => {
-                    let id = remove_matches.get_one::<String>("id").unwrap().clone();
+                    let id = remove_matches
+                        .get_one::<String>("id")
+                        .expect("ID argument is required")
+                        .clone();
                     commands::handle_history_command(
                         ia_get::interface::cli::HistoryAction::Remove { id },
                     )
@@ -546,7 +564,7 @@ async fn main() -> Result<()> {
                 }
             } else {
                 println!(
-                    "{} Command-line environment detected, using interactive menu...",
+                    "{} Command-line envexpect("Identifier should be present here (logic check)"t detected, using interactive menu...",
                     "💻".green()
                 );
                 return show_interactive_menu().await;

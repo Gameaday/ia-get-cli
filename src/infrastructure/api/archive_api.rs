@@ -193,6 +193,12 @@ pub fn validate_identifier(identifier: &str) -> Result<()> {
         ));
     }
 
+    if identifier.is_empty() {
+        return Err(IaGetError::UrlFormat(
+            "Archive identifier cannot be empty".to_string(),
+        ));
+    }
+
     // Check for valid characters
     if !identifier
         .chars()

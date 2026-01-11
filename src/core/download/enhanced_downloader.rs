@@ -353,11 +353,12 @@ impl ArchiveDownloader {
         }
 
         let mut last_error = None;
-        let max_retries = 3;
+        // Try up to 5 servers max to avoid indefinite hanging on bad items
+        let max_server_attempts = 5;
 
         // Try each server in order (following Archive.org recommendations)
-        for (retry_count, server) in servers.iter().enumerate() {
-            if retry_count >= max_retries {
+        for (attempt, server) in servers.iter().enumerate() {
+            if attempt >= max_server_attempts {
                 break;
             }
 
