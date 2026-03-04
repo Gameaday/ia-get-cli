@@ -25,61 +25,8 @@ use ia_get::{
 #[cfg(feature = "gui")]
 use ia_get::interface::gui::IaGetApp;
 
-/// Detect if GUI mode is available and appropriate
-pub fn can_use_gui() -> bool {
-    // Check if GUI features are compiled in
-    #[cfg(not(feature = "gui"))]
-    return false;
-
-    #[cfg(feature = "gui")]
-    {
-        // Platform-specific GUI detection
-        #[cfg(target_os = "windows")]
-        {
-            // On Windows, assume GUI is available unless we're in a Windows Terminal
-            // that explicitly indicates headless mode
-            std::env::var("WT_SESSION").is_ok() || std::env::var("SESSIONNAME").is_ok()
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            // On macOS, check for common GUI indicators
-            // Most macOS environments have GUI available
-            std::env::var("DISPLAY").is_ok()
-                || std::env::var("TERM_PROGRAM").is_ok()
-                || std::env::var("Apple_PubSub_Socket_Render").is_ok()
-        }
-
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-        {
-            // On Linux and other Unix-like systems
-            // If we're in SSH or explicit terminal contexts, prefer CLI
-            if std::env::var("SSH_CONNECTION").is_ok()
-                || std::env::var("SSH_CLIENT").is_ok()
-                || std::env::var("SSH_TTY").is_ok()
-            {
-                return false;
-            }
-
-            // Check for X11 or Wayland display
-            if std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok() {
-                return true;
-            }
-
-            // Check for desktop environment variables
-            if std::env::var("XDG_CURRENT_DESKTOP").is_ok()
-                || std::env::var("DESKTOP_SESSION").is_ok()
-                || std::env::var("GNOME_DESKTOP_SESSION_ID").is_ok()
-                || std::env::var("KDE_FULL_SESSION").is_ok()
-            {
-                return true;
-            }
-
-            // Default to false for headless/server environments
-            false
-        }
-    }
-}
+// Use `can_use_gui()` from the library to avoid duplication
+use ia_get::can_use_gui;
 
 /// Launch GUI mode with graceful fallback
 #[cfg(feature = "gui")]
@@ -188,7 +135,10 @@ impl eframe::App for AppWrapper {
 
         // Check if we should switch to CLI mode
         if self.app.should_switch_to_cli() {
-            *self.switch_checker.lock().expect("Failed to lock switch_checker mutex") = true;
+            *self
+                .switch_checker
+                .lock()
+                .expect("Failed to lock switch_checker mutex") = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
@@ -573,7 +523,8 @@ async fn main() -> Result<()> {
         return Ok(()); // This shouldn't be reached due to subcommand handling above
     }
 
-    let raw_identifier = raw_identifier.expect("Identifier should have been verified by interactive check logic");
+    let raw_identifier =
+        raw_identifier.expect("Identifier should have been verified by interactive check logic");
 
     // Normalize the identifier - extract just the identifier portion if it's a URL
     let identifier = ia_get::utilities::common::normalize_archive_identifier(raw_identifier)

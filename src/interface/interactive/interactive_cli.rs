@@ -159,7 +159,7 @@ impl InteractiveCli {
         // Clear screen and move cursor to top-left
         print!("\x1B[2J\x1B[H");
         if let Err(e) = io::stdout().flush() {
-           eprintln!("Failed to clear screen: {}", e);
+            eprintln!("Failed to clear screen: {}", e);
         }
     }
 
@@ -1274,7 +1274,8 @@ impl InteractiveCli {
                 loop {
                     if last_update.elapsed() >= Duration::from_millis(100) {
                         {
-                            let state = state.lock().expect("Progress display state mutex poisoned");
+                            let state =
+                                state.lock().expect("Progress display state mutex poisoned");
                             Self::update_progress_display(&state);
                         }
                         last_update = Instant::now();
@@ -1313,7 +1314,11 @@ impl InteractiveCli {
         let mut buffer = String::new();
 
         // 1. Header (Compact)
-        let _ = writeln!(buffer, "{}", "╔══ Internet Archive Downloader ═════════════════════════════════════════════╗".cyan());
+        let _ = writeln!(
+            buffer,
+            "{}",
+            "╔══ Internet Archive Downloader ═════════════════════════════════════════════╗".cyan()
+        );
 
         // 2. Statistics Grid
         let time_elapsed = state.start_time.map(|t| t.elapsed()).unwrap_or_default();
@@ -1332,46 +1337,70 @@ impl InteractiveCli {
         };
 
         let speed_str = format_speed(state.current_speed);
-        
-        let _ = writeln!(buffer, "║  {:<20} {:<35} Time: {:<14} ║", 
-            "Status:".bold(), status_color, format_duration(time_elapsed).bright_magenta());
-        
-        let _ = writeln!(buffer, "║  {:<20} {:<35} Speed: {:<13} ║", 
-            "Progress:".bold(), format!("{:.1}%", progress).bright_green(), speed_str.yellow());
-            
-        let files_status = format!("{}/{} ({} Failed)", 
-            state.completed_files, state.total_files, state.failed_files).bright_white();
+
+        let _ = writeln!(
+            buffer,
+            "║  {:<20} {:<35} Time: {:<14} ║",
+            "Status:".bold(),
+            status_color,
+            format_duration(time_elapsed).bright_magenta()
+        );
+
+        let _ = writeln!(
+            buffer,
+            "║  {:<20} {:<35} Speed: {:<13} ║",
+            "Progress:".bold(),
+            format!("{:.1}%", progress).bright_green(),
+            speed_str.yellow()
+        );
+
+        let files_status = format!(
+            "{}/{} ({} Failed)",
+            state.completed_files, state.total_files, state.failed_files
+        )
+        .bright_white();
         let eta_display = if state.eta.is_empty() || state.eta == "Unknown" {
-             "--:--:--".dimmed()
+            "--:--:--".dimmed()
         } else {
-             state.eta.bright_blue()
+            state.eta.bright_blue()
         };
 
-        let _ = writeln!(buffer, "║  {:<20} {:<35} ETA: {:<15} ║", 
-            "Files:".bold(), files_status, eta_display);
-            
-        let _ = writeln!(buffer, "╚════════════════════════════════════════════════════════════════════════════╝");
+        let _ = writeln!(
+            buffer,
+            "║  {:<20} {:<35} ETA: {:<15} ║",
+            "Files:".bold(),
+            files_status,
+            eta_display
+        );
+
+        let _ = writeln!(
+            buffer,
+            "╚════════════════════════════════════════════════════════════════════════════╝"
+        );
         let _ = writeln!(buffer);
 
         // 3. Current File (Prominent)
         if !state.current_file.is_empty() {
-             let display_file = if state.current_file.len() > 70 {
-                format!("...{}", &state.current_file[state.current_file.len() - 67..])
+            let display_file = if state.current_file.len() > 70 {
+                format!(
+                    "...{}",
+                    &state.current_file[state.current_file.len() - 67..]
+                )
             } else {
                 state.current_file.clone()
             };
-            
+
             let _ = writeln!(buffer, "📄 Current: {}", display_file.bold().cyan());
-            
+
             // Visual Progress Bar for File
-            // Since we don't have per-file percentage in the state struct passed here (it's overall), 
+            // Since we don't have per-file percentage in the state struct passed here (it's overall),
             // we'll use an indeterminate spinner or just a static bar if we can't calculate it.
-            // *Wait*, looking at `DownloadState` struct in `enhanced_downloader`, it has `total_bytes` and `downloaded_bytes`? 
-            // The local struct `DownloadState` in `interactive_cli.rs` (lines 1240-1250) only has file counts. 
+            // *Wait*, looking at `DownloadState` struct in `enhanced_downloader`, it has `total_bytes` and `downloaded_bytes`?
+            // The local struct `DownloadState` in `interactive_cli.rs` (lines 1240-1250) only has file counts.
             // We'll use a simple indicator since we lack granular file progress here.
-            let _ = writeln!(buffer, "   Running... 🔄"); 
+            let _ = writeln!(buffer, "   Running... 🔄");
         } else {
-             let _ = writeln!(buffer, "   Waiting for next file...");
+            let _ = writeln!(buffer, "   Waiting for next file...");
         }
         let _ = writeln!(buffer);
 
@@ -1821,7 +1850,7 @@ impl InteractiveCli {
             "║                                                                              ║"
                 .bright_green()
         );
-        
+
         let total_files = session.archive_metadata.files.len();
         let total_size: u64 = session
             .archive_metadata
@@ -1829,18 +1858,30 @@ impl InteractiveCli {
             .iter()
             .map(|f| f.size.unwrap_or(0))
             .sum();
-            
-        println!("║   ✅ Status:     {:<60}║", "Completed Successfully".green().bold());
-        println!("║   📦 Files:      {:<60}║", total_files.to_string().bright_white());
-        println!("║   💾 Size:       {:<60}║", format_size(total_size).bright_white());
-        println!("║   📂 Location:   {:<60}║", "Output Directory".bright_white());
-        
+
+        println!(
+            "║   ✅ Status:     {:<60}║",
+            "Completed Successfully".green().bold()
+        );
+        println!(
+            "║   📦 Files:      {:<60}║",
+            total_files.to_string().bright_white()
+        );
+        println!(
+            "║   💾 Size:       {:<60}║",
+            format_size(total_size).bright_white()
+        );
+        println!(
+            "║   📂 Location:   {:<60}║",
+            "Output Directory".bright_white()
+        );
+
         // Truncate path if too long
         let path_str = &session.download_config.output_dir;
         if path_str.len() > 50 {
-             println!("║     ...{:<70}║", &path_str[path_str.len()-50..]);
+            println!("║     ...{:<70}║", &path_str[path_str.len() - 50..]);
         } else {
-             println!("║     {:<73}║", path_str);
+            println!("║     {:<73}║", path_str);
         }
 
         println!(
@@ -1858,9 +1899,17 @@ impl InteractiveCli {
 
     fn show_error(&self, message: &str) {
         println!();
-        println!("{}", "╔══ ERROR ═════════════════════════════════════════════════════════════════════╗".red());
+        println!(
+            "{}",
+            "╔══ ERROR ═════════════════════════════════════════════════════════════════════╗"
+                .red()
+        );
         println!("║ {:<76} ║", message.red());
-        println!("{}", "╚══════════════════════════════════════════════════════════════════════════════╝".red());
+        println!(
+            "{}",
+            "╚══════════════════════════════════════════════════════════════════════════════╝"
+                .red()
+        );
         println!();
     }
 

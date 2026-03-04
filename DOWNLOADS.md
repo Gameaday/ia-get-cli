@@ -1,58 +1,8 @@
 # Downloads & Releases
 
-Get the latest version of Internet Archive Helper for your platform.
+Get the latest version of ia-get CLI for your platform.
 
-## 📱 Flutter Mobile & Web
-
-### Android
-**Universal APK** - Works on all Android devices (phones and tablets)
-
-```bash
-# Latest stable release
-https://github.com/Gameaday/ia-get-cli/releases/latest/download/app-release.apk
-
-# File size: ~15 MB
-# Architectures: arm64-v8a, armeabi-v7a, x86_64
-# Android version: 5.0 (API 21) or higher
-```
-
-**Installation:**
-1. Download APK file
-2. Enable "Install from Unknown Sources" in Android Settings
-3. Open APK to install
-
-**Features:**
-- 🎨 Material Design 3 (78% compliant)
-- 📱 Responsive design (phone, tablet, desktop web)
-- 🔗 Deep linking (archive.org URLs)
-- 📥 Background downloads
-- ♿ WCAG 2.1 Level AA accessibility
-
-### Web (Desktop)
-**Browser-based application** - No installation required
-
-```bash
-# Try online
-https://gameaday.github.io/ia-get-cli
-
-# Status: Experimental
-# Recommended: Desktop browsers (Chrome, Firefox, Edge, Safari)
-# Works best on: Tablets and desktops (840dp+)
-```
-
-**Download for self-hosting:**
-```bash
-# Get web bundle
-https://github.com/Gameaday/ia-get-cli/releases/latest/download/web-bundle.tar.gz
-
-# Extract and serve
-tar xzf web-bundle.tar.gz
-python3 -m http.server 8000 -d web
-```
-
----
-
-## 🖥️ Rust CLI & Server
+## 🖥️ Rust CLI
 
 ### Quick Install
 
@@ -88,7 +38,7 @@ sudo mv ia-get /usr/local/bin/
 **Features:**
 - ⚡ Concurrent downloads (configurable workers)
 - 🗜️ HTTP compression & archive extraction
-- 🖼️ Desktop GUI (egui framework)
+- 🖼️ Desktop GUI (egui framework, optional)
 - ⌨️ CLI for automation and scripts
 - 📊 Real-time performance metrics
 
@@ -119,10 +69,6 @@ if ($hash -eq $expected) { Write-Host "✓ Verified" } else { Write-Host "✗ Fa
 
 ## 📋 Version Information
 
-### Current Versions
-- **Rust CLI/Server:** v1.6.0
-- **Flutter Mobile/Web:** v1.7.0-beta (Material Design 3)
-
 ### Release Channels
 
 **Stable** (Recommended)
@@ -144,9 +90,6 @@ if ($hash -eq $expected) { Write-Host "✓ Verified" } else { Write-Host "✗ Fa
 ### Windows SmartScreen Warning
 Windows binaries are code-signed, but you may still see a SmartScreen warning on first run. Click "More info" → "Run anyway".
 
-### Android Unknown Sources
-Enable "Install from Unknown Sources" in Android Settings → Security → Unknown Sources (or Apps → Special Access → Install Unknown Apps).
-
 ### macOS Gatekeeper
 ```bash
 # Remove quarantine attribute
@@ -163,22 +106,17 @@ chmod +x ia-get
 
 ## 📦 Build from Source
 
-### Rust CLI/Server
 ```bash
 git clone https://github.com/Gameaday/ia-get-cli.git
 cd ia-get-cli
 cargo build --release --no-default-features --features cli
 ```
 
-### Flutter Mobile/Web
-```bash
-cd mobile/flutter
-flutter pub get
-flutter build apk          # Android
-flutter build web          # Web
-```
+---
 
-See [Development Guide](docs/DEVELOPMENT.md) for detailed instructions.
+## 📱 Mobile App
+
+The mobile app has moved to its own repository: [ia-helper](https://github.com/gameaday/ia-helper)
 
 ---
 

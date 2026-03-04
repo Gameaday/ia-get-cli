@@ -1,3 +1,6 @@
+// Allow collapsible_if for now - can be refactored in separate PR
+#![allow(clippy::collapsible_if)]
+
 //! # ia-get
 //!
 //! A robust command-line tool for downloading files from the Internet Archive.
@@ -18,9 +21,6 @@
 //! ```rust,no_run
 //! use ia_get::{metadata::fetch_json_metadata, enhanced_downloader::ArchiveDownloader};
 //! use reqwest::Client;
-
-// Allow collapsible_if for now - can be refactored in separate PR
-#![allow(clippy::collapsible_if)]
 //! use indicatif::ProgressBar;
 //! use std::path::PathBuf;
 //!
@@ -71,8 +71,8 @@ pub use core::download::{
     SimpleConcurrentDownloader, download_files_with_retries,
 };
 pub use core::session::{
-    ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
-    ProgressUpdate, sanitize_filename_for_filesystem,
+    ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState, ProgressUpdate,
+    sanitize_filename_for_filesystem,
 };
 pub use infrastructure::api::{
     ApiStats, ArchiveOrgApiClient, EnhancedArchiveApiClient, ItemDetails, ServiceStatus,
@@ -87,8 +87,8 @@ pub use interface::cli::{Cli, SourceType};
 pub use interface::gui::IaGetApp;
 pub use utilities::common::{
     AdaptiveBufferManager, PerformanceMetrics, PerformanceMonitor, StringTruncate,
-    construct_download_url, construct_metadata_url, extract_identifier_from_url, get_user_agent,
-    is_archive_url, normalize_archive_identifier, validate_and_process_url, format_number,
+    construct_download_url, construct_metadata_url, extract_identifier_from_url, format_number,
+    get_user_agent, is_archive_url, normalize_archive_identifier, validate_and_process_url,
 };
 pub use utilities::compression::*;
 pub use utilities::filters::{

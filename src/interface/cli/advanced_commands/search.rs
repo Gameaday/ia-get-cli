@@ -3,10 +3,10 @@
 //! Provides comprehensive search capabilities with filtering, sorting,
 //! and detailed result display.
 
+use crate::utilities::{common::format_number, filters::format_size};
 use anyhow::{Context, Result};
 use colored::*;
 use serde::{Deserialize, Serialize};
-use crate::utilities::{common::format_number, filters::format_size};
 
 /// Search results from Internet Archive
 #[derive(Debug, Deserialize, Serialize)]
@@ -164,4 +164,3 @@ pub fn display_search_results(results: &SearchResults) {
         println!();
     }
 }
-
