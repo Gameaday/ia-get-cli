@@ -492,7 +492,9 @@ impl InteractiveMenu {
             io::stdout().flush().context("Failed to flush stdout")?;
 
             let mut input = String::new();
-            io::stdin().read_line(&mut input).context("Failed to read input")?;
+            io::stdin()
+                .read_line(&mut input)
+                .context("Failed to read input")?;
 
             match input.trim().parse::<usize>() {
                 Ok(choice) => return Ok(choice),
@@ -506,7 +508,9 @@ impl InteractiveMenu {
         io::stdout().flush().context("Failed to flush stdout")?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).context("Failed to read input")?;
+        io::stdin()
+            .read_line(&mut input)
+            .context("Failed to read input")?;
 
         Ok(input.trim().to_string())
     }

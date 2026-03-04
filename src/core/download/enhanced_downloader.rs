@@ -170,7 +170,7 @@ impl ArchiveDownloader {
             // Use bounded channel equal to pool size
             let (tx, rx) = mpsc::channel(pool_size);
             let mut bars = Vec::new();
-            
+
             for _ in 0..pool_size {
                 let pb = multi_progress.add(ProgressBar::new(0));
                 pb.set_style(
@@ -211,7 +211,7 @@ impl ArchiveDownloader {
 
                 let multi_progress_clone = multi_progress.clone();
                 // use_hidden_bars removed as it is implied by pool_tx check
-                
+
                 let pool_tx = pool_tx.clone();
                 let pool_rx = pool_rx.clone();
 
@@ -223,7 +223,12 @@ impl ArchiveDownloader {
 
                     // Get progress bar from pool or create new hidden one
                     let file_progress = if let (Some(_), Some(rx)) = (&pool_tx, &pool_rx) {
-                        let pb = rx.lock().await.recv().await.expect("Progress bar pool closed");
+                        let pb = rx
+                            .lock()
+                            .await
+                            .recv()
+                            .await
+                            .expect("Progress bar pool closed");
                         pb.set_length(file_info.size.unwrap_or(0));
                         pb.set_position(0);
                         pb.set_message(file_info.name.chars().take(30).collect::<String>());
@@ -255,7 +260,7 @@ impl ArchiveDownloader {
                     } else {
                         file_progress.finish_and_clear();
                     }
-                    
+
                     result
                 });
 
@@ -298,8 +303,10 @@ impl ArchiveDownloader {
                         || completed + failed == total_files
                     {
                         if progress_callback.is_none() {
-                            main_progress
-                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                            main_progress.set_message(format!(
+                                "(Completed: {}, Failed: {})",
+                                completed, failed
+                            ));
                         }
                         last_update = now;
                     }
@@ -330,8 +337,10 @@ impl ArchiveDownloader {
                         || completed + failed == total_files
                     {
                         if progress_callback.is_none() {
-                            main_progress
-                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                            main_progress.set_message(format!(
+                                "(Completed: {}, Failed: {})",
+                                completed, failed
+                            ));
                         }
                         last_update = now;
                     }
@@ -348,7 +357,7 @@ impl ArchiveDownloader {
                     }
                     failed += 1;
                     main_progress.inc(1);
-                    
+
                     if let Some(ref callback) = progress_callback {
                         callback(ProgressUpdate {
                             current_file: file_name.clone(),
@@ -367,8 +376,10 @@ impl ArchiveDownloader {
                         || completed + failed == total_files
                     {
                         if progress_callback.is_none() {
-                            main_progress
-                                .set_message(format!("(Completed: {}, Failed: {})", completed, failed));
+                            main_progress.set_message(format!(
+                                "(Completed: {}, Failed: {})",
+                                completed, failed
+                            ));
                         }
                         last_update = now;
                     }
@@ -845,13 +856,15 @@ impl ArchiveDownloader {
 
         use futures_util::StreamExt;
         let mut stream = response.bytes_stream();
-        
+
         loop {
             // Wrap stream read in a timeout to detect stalled connections
             let chunk_result = match tokio::time::timeout(
                 std::time::Duration::from_secs(45), // 45s read timeout per chunk
-                stream.next()
-            ).await {
+                stream.next(),
+            )
+            .await
+            {
                 Ok(Some(res)) => res,
                 Ok(None) => break, // Stream finished
                 Err(_) => {
@@ -1024,14 +1037,14 @@ impl ArchiveDownloader {
         // Pre-check for completed files in new session
         // This is the critical optimization for reducing API calls on retries
         for (_file_name, status) in session.file_status.iter_mut() {
-             if let Some(expected_size) = status.file_info.size {
-                 if let Ok(meta) = std::fs::metadata(&status.local_path) {
-                     if meta.len() == expected_size {
-                         status.status = DownloadState::Completed;
-                         status.bytes_downloaded = expected_size;
-                     }
-                 }
-             }
+            if let Some(expected_size) = status.file_info.size {
+                if let Ok(meta) = std::fs::metadata(&status.local_path) {
+                    if meta.len() == expected_size {
+                        status.status = DownloadState::Completed;
+                        status.bytes_downloaded = expected_size;
+                    }
+                }
+            }
         }
 
         Ok(session)

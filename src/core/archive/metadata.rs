@@ -117,42 +117,42 @@ pub async fn fetch_json_metadata(
 ) -> Result<(ArchiveMetadata, reqwest::Url)> {
     // Generate JSON metadata URL
     let json_url = get_json_url(details_url);
-    
+
     // Attempt to load from cache if cache_dir is provided
     if let Some(dir) = cache_dir {
         // Extract identifier safely for filename
         let identifier = json_url.rsplit('/').next().unwrap_or("unknown");
         let cache_file = dir.join(format!("metadata_{}.json", identifier));
-        
+
         if cache_file.exists() {
-             // Check if cache is recent (< 24 hours) to respect API guidelines but reduce calls on immediate retries
-             if let Ok(metadata) = std::fs::metadata(&cache_file) {
-                 if let Ok(modified) = metadata.modified() {
-                     if let Ok(age) = modified.elapsed() {
-                         if age < std::time::Duration::from_secs(86400) {
-                             let duration_str = format!("{}h", age.as_secs() / 3600);
-                             progress.set_message(format!(
-                                 "{} Using cached metadata ({} old)",
-                                 "📂".blue(),
-                                 duration_str
-                             ));
-                             
-                             if let Ok(content) = fs::read_to_string(&cache_file).await {
-                                 match serde_json::from_str::<ArchiveMetadata>(&content) {
-                                     Ok(parsed) => {
-                                         if let Ok(url) = reqwest::Url::parse(&json_url) {
-                                             return Ok((parsed, url));
-                                         }
-                                     },
-                                     Err(_) => {
-                                         // Cache invalid, proceed to download
-                                     }
-                                 }
-                             }
-                         }
-                     }
-                 }
-             }
+            // Check if cache is recent (< 24 hours) to respect API guidelines but reduce calls on immediate retries
+            if let Ok(metadata) = std::fs::metadata(&cache_file) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(age) = modified.elapsed() {
+                        if age < std::time::Duration::from_secs(86400) {
+                            let duration_str = format!("{}h", age.as_secs() / 3600);
+                            progress.set_message(format!(
+                                "{} Using cached metadata ({} old)",
+                                "📂".blue(),
+                                duration_str
+                            ));
+
+                            if let Ok(content) = fs::read_to_string(&cache_file).await {
+                                match serde_json::from_str::<ArchiveMetadata>(&content) {
+                                    Ok(parsed) => {
+                                        if let Ok(url) = reqwest::Url::parse(&json_url) {
+                                            return Ok((parsed, url));
+                                        }
+                                    }
+                                    Err(_) => {
+                                        // Cache invalid, proceed to download
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -294,12 +294,12 @@ pub async fn fetch_json_metadata(
     if let Some(dir) = cache_dir {
         let identifier = json_url.rsplit('/').next().unwrap_or("unknown");
         let cache_file = dir.join(format!("metadata_{}.json", identifier));
-        
+
         // Ensure directory exists
         if !dir.exists() {
             let _ = fs::create_dir_all(dir).await;
         }
-        
+
         // Write invalid JSON simply fails silently, we don't want to stop the process for caching errors
         let _ = fs::write(&cache_file, &json_content).await;
     }
@@ -383,7 +383,8 @@ pub mod enhanced {
         let mut api_client = EnhancedArchiveApiClient::new(client.clone());
 
         // Fetch basic metadata using existing function
-        let (basic_metadata, _url) = fetch_json_metadata(identifier, client, progress, None).await?;
+        let (basic_metadata, _url) =
+            fetch_json_metadata(identifier, client, progress, None).await?;
 
         let mut enhanced = EnhancedMetadata {
             basic_metadata,

@@ -135,7 +135,10 @@ impl eframe::App for AppWrapper {
 
         // Check if we should switch to CLI mode
         if self.app.should_switch_to_cli() {
-            *self.switch_checker.lock().expect("Failed to lock switch_checker mutex") = true;
+            *self
+                .switch_checker
+                .lock()
+                .expect("Failed to lock switch_checker mutex") = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
     }
@@ -520,7 +523,8 @@ async fn main() -> Result<()> {
         return Ok(()); // This shouldn't be reached due to subcommand handling above
     }
 
-    let raw_identifier = raw_identifier.expect("Identifier should have been verified by interactive check logic");
+    let raw_identifier =
+        raw_identifier.expect("Identifier should have been verified by interactive check logic");
 
     // Normalize the identifier - extract just the identifier portion if it's a URL
     let identifier = ia_get::utilities::common::normalize_archive_identifier(raw_identifier)

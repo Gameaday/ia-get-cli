@@ -7,7 +7,9 @@ use crate::{
     IaGetError, Result,
     core::archive::fetch_json_metadata,
     core::download::ArchiveDownloader,
-    core::session::{ArchiveFile, DownloadConfig, DownloadSession, ProgressCallback, ProgressUpdate},
+    core::session::{
+        ArchiveFile, DownloadConfig, DownloadSession, ProgressCallback, ProgressUpdate,
+    },
     infrastructure::api::{ApiStats, ArchiveOrgApiClient, validate_identifier},
     infrastructure::config::Config,
     interface::cli::SourceType,
@@ -216,25 +218,31 @@ impl DownloadService {
 
         // Create session directory path for cache
         let session_dir = request.output_dir.join(".ia-get-sessions");
-        
+
         // Fetch metadata using compliant API client with caching
         let progress = indicatif::ProgressBar::new_spinner();
         progress.enable_steady_tick(std::time::Duration::from_millis(100));
-        
-        let (metadata, _base_url) =
-            match fetch_json_metadata(&archive_url, api_client.client(), &progress, Some(&session_dir)).await {
-                Ok(result) => {
-                    progress.finish_and_clear();
-                    result
-                },
-                Err(e) => {
-                    progress.finish_and_clear();
-                    return Ok(DownloadResult::Error(format!(
-                        "Failed to fetch metadata: {}",
-                        e
-                    )));
-                }
-            };
+
+        let (metadata, _base_url) = match fetch_json_metadata(
+            &archive_url,
+            api_client.client(),
+            &progress,
+            Some(&session_dir),
+        )
+        .await
+        {
+            Ok(result) => {
+                progress.finish_and_clear();
+                result
+            }
+            Err(e) => {
+                progress.finish_and_clear();
+                return Ok(DownloadResult::Error(format!(
+                    "Failed to fetch metadata: {}",
+                    e
+                )));
+            }
+        };
 
         // Check API usage statistics and warn if needed
         let stats = api_client.get_stats();

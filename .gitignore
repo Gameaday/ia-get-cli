@@ -47,21 +47,6 @@ Thumbs.db
 *.log
 logs/
 
-# Mobile Flutter/Android build artifacts
-mobile/flutter/.dart_tool/
-mobile/flutter/build/
-mobile/flutter/android/.gradle/
-mobile/flutter/android/app/build/
-mobile/flutter/android/local.properties
-# Note: gradlew files should be committed for reproducible builds
-mobile/flutter/.flutter-plugins
-mobile/flutter/.flutter-plugins-dependencies
-mobile/flutter/pubspec.lock
-
-# Rust mobile build artifacts
-mobile/rust-ffi/target/
-mobile/rust-ffi/Cargo.lock
-
 # Local secrets (code signing certificates and passwords)
 .secrets/
 *.pfx
