@@ -427,10 +427,10 @@ async fn reset_config(persistence: &ConfigPersistence) -> Result<()> {
         "{} This will reset ALL configuration to defaults. Continue? [y/N]: ",
         "⚠️".yellow()
     );
-    io::stdout().flush().unwrap();
+    io::stdout().flush()?;
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    io::stdin().read_line(&mut input)?;
 
     if !matches!(input.trim().to_lowercase().as_str(), "y" | "yes") {
         println!("Configuration reset cancelled.");
@@ -613,10 +613,10 @@ async fn clear_history(history_path: &std::path::Path, force: bool) -> Result<()
             "{} This will clear ALL download history. Continue? [y/N]: ",
             "⚠️".yellow()
         );
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input)?;
 
         if !matches!(input.trim().to_lowercase().as_str(), "y" | "yes") {
             println!("History clear cancelled.");

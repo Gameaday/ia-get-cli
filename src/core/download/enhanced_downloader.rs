@@ -96,6 +96,7 @@ impl ArchiveDownloader {
     }
 
     /// Download files using comprehensive metadata and session management
+    #[allow(clippy::too_many_arguments)]
     pub async fn download_with_metadata(
         &self,
         original_url: String,
@@ -165,7 +166,7 @@ impl ArchiveDownloader {
         // Create progress bar pool for dashboard UI
         let use_pool = progress_callback.is_none();
         let (pool_tx, pool_rx, pool_bars) = if use_pool {
-            let pool_size = std::cmp::min(pending_files.len(), self.max_concurrent as usize);
+            let pool_size = std::cmp::min(pending_files.len(), self.max_concurrent);
             // Use bounded channel equal to pool size
             let (tx, rx) = mpsc::channel(pool_size);
             let mut bars = Vec::new();

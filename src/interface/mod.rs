@@ -2,10 +2,7 @@
 //!
 //! This module contains all user interface components including CLI, GUI, and interactive interfaces.
 //!
-//! ## Architecture Note
-//!
-//! The Flutter mobile app now uses a pure Dart implementation and no longer depends on FFI.
-//! The Rust implementation focuses on CLI and GUI desktop applications.
+//! The Rust implementation provides CLI and optional GUI desktop applications.
 
 pub mod cli;
 

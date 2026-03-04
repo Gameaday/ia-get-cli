@@ -1,3 +1,6 @@
+// Allow collapsible_if for now - can be refactored in separate PR
+#![allow(clippy::collapsible_if)]
+
 //! # ia-get
 //!
 //! A robust command-line tool for downloading files from the Internet Archive.
@@ -18,9 +21,6 @@
 //! ```rust,no_run
 //! use ia_get::{metadata::fetch_json_metadata, enhanced_downloader::ArchiveDownloader};
 //! use reqwest::Client;
-
-// Allow collapsible_if for now - can be refactored in separate PR
-#![allow(clippy::collapsible_if)]
 //! use indicatif::ProgressBar;
 //! use std::path::PathBuf;
 //!

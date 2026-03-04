@@ -21,7 +21,7 @@
 //!     let progress = ProgressBar::new_spinner();
 //!     
 //!     // Fetch metadata for an archive
-//!     let (metadata, _url) = fetch_json_metadata("internetarchive", &client, &progress).await?;
+//!     let (metadata, _url) = fetch_json_metadata("internetarchive", &client, &progress, None).await?;
 //!     println!("Found {} files", metadata.files.len());
 //!
 //!     // List all file names

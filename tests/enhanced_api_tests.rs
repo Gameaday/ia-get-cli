@@ -145,7 +145,7 @@ async fn test_metadata_analysis() {
     let progress = ProgressBar::new_spinner();
 
     // Fetch basic metadata first
-    let metadata_result = ia_get::fetch_json_metadata("luigi", &client, &progress).await;
+    let metadata_result = ia_get::fetch_json_metadata("luigi", &client, &progress, None).await;
 
     match metadata_result {
         Ok((basic_metadata, _url)) => {
