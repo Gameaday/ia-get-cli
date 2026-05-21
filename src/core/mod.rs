@@ -4,9 +4,11 @@
 
 pub mod archive;
 pub mod download;
+pub mod orchestrator;
 pub mod session;
 
 // Re-export commonly used core types
 pub use archive::*;
 pub use download::*;
+pub use orchestrator::*;
 pub use session::*;
