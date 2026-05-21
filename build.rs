@@ -5,6 +5,7 @@ fn main() {
     // Compile protobuf definitions
     tonic_build::compile_protos("proto/download_service.proto")
         .expect("Failed to compile proto files");
+    println!("cargo:rerun-if-changed=proto/download_service.proto");
 
     // Handle Windows-specific manifest for long path support
     #[cfg(target_os = "windows")]
