@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package download_service;
+
+message DownloadTaskRequest {
+    string identifier = 1;
+    string output_dir = 2;
+    uint32 max_concurrent = 3;
+    repeated string include_formats = 4;
+    repeated string exclude_formats = 5;
+    optional uint64 min_size = 6;
+    optional uint64 max_size = 7;
+    bool verify_md5 = 8;
+    bool preserve_mtime = 9;
+    string user_agent = 10;
+    bool enable_compression = 11;
+    bool auto_decompress = 12;
+    repeated string decompress_formats = 13;
+}
+
+message StatusResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+service DownloadService {
+    rpc SubmitTask(DownloadTaskRequest) returns (StatusResponse);
+}

@@ -2,6 +2,10 @@ fn main() {
     // Generate C header for simplified FFI interface
     generate_simplified_ffi_header();
 
+    // Compile protobuf definitions
+    tonic_build::compile_protos("proto/download_service.proto")
+        .expect("Failed to compile proto files");
+
     // Handle Windows-specific manifest for long path support
     #[cfg(target_os = "windows")]
     embed_windows_manifest();
