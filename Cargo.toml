@@ -19,8 +19,8 @@ indicatif = "0.18.0"
 md5 = "0.8.0"
 sha1 = "0.10"
 sha2 = "0.10"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "blocking", "json"] }
-tokio = { version = "1.47", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream", "blocking", "json"] }
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 url = "2.5"
@@ -45,10 +45,10 @@ urlencoding = "2.1"
 sys-info = "0.9.1"
 
 # GUI dependencies (optional)
-eframe = { version = "0.32.1", optional = true }
-egui = { version = "0.32.1", optional = true }
-egui_extras = { version = "0.32.1", features = ["default"], optional = true }
-rfd = { version = "0.15.0", optional = true }
+eframe = { version = "0.34.2", optional = true }
+egui = { version = "0.34.2", optional = true }
+egui_extras = { version = "0.34.2", features = ["default"], optional = true }
+rfd = { version = "0.17.2", optional = true }
 env_logger = { version = "0.11.0", optional = true }
 
 [lib]
@@ -61,7 +61,7 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3.0"
-criterion = { version = "0.7.0", features = ["html_reports"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
 
 [target.'cfg(windows)'.build-dependencies]
 embed-manifest = "1.4.0"
