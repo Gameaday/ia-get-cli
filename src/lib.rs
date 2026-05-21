@@ -57,6 +57,7 @@ pub mod error;
 pub mod infrastructure;
 pub mod interface;
 pub mod utilities;
+pub mod worker;
 
 // Re-export the error types for convenience
 pub use error::{IaGetError, Result};
