@@ -1,12 +1,8 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 
-use ia_get::{
-    core::download::concurrent_simple::SimpleConcurrentDownloader,
-    core::session::metadata_storage::{ArchiveFile, ArchiveMetadata},
-};
+use ia_get::core::session::{ArchiveFile, ArchiveMetadata};
 
 /// Mock archive metadata for benchmarking
 fn create_mock_metadata(file_count: usize, file_size: u64) -> ArchiveMetadata {
@@ -47,28 +43,8 @@ fn create_mock_metadata(file_count: usize, file_size: u64) -> ArchiveMetadata {
     }
 }
 
-/// Benchmark concurrent downloader creation
-fn bench_downloader_creation(c: &mut Criterion) {
-    let mut group = c.benchmark_group("downloader_creation");
-
-    for concurrent_limit in [1, 2, 4, 8, 16].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("concurrent_limit", concurrent_limit),
-            concurrent_limit,
-            |b, &concurrent_limit| {
-                b.iter(|| {
-                    SimpleConcurrentDownloader::new(black_box(concurrent_limit))
-                        .expect("Failed to create downloader")
-                });
-            },
-        );
-    }
-    group.finish();
-}
-
 /// Benchmark metadata processing performance
 fn bench_metadata_processing(c: &mut Criterion) {
-    let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("metadata_processing");
 
     for file_count in [10, 50, 100, 500, 1000].iter() {
@@ -77,13 +53,16 @@ fn bench_metadata_processing(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("file_count", file_count),
             &metadata,
-            |b, _metadata| {
+            |b, metadata| {
                 b.iter(|| {
-                    rt.block_on(async {
-                        let downloader = SimpleConcurrentDownloader::new(4).unwrap();
-                        let stats = downloader.get_stats().await;
-                        black_box(stats);
-                    });
+                    // Summarize the metadata (file count + total size) - representative
+                    // of the per-item work the downloader performs before scheduling files.
+                    let total: u64 = metadata
+                        .files
+                        .iter()
+                        .map(|f| f.size.unwrap_or(0))
+                        .sum();
+                    black_box((metadata.files.len(), total));
                 });
             },
         );
@@ -93,7 +72,7 @@ fn bench_metadata_processing(c: &mut Criterion) {
 
 /// Benchmark size parsing operations
 fn bench_size_parsing(c: &mut Criterion) {
-    use ia_get::filters::{format_size, parse_size_string};
+    use ia_get::utilities::filters::{format_size, parse_size_string};
 
     let mut group = c.benchmark_group("size_parsing");
 
@@ -128,7 +107,7 @@ fn bench_size_parsing(c: &mut Criterion) {
 
 /// Benchmark URL processing operations
 fn bench_url_processing(c: &mut Criterion) {
-    use ia_get::url_processing::{extract_identifier_from_url, validate_and_process_url};
+    use ia_get::utilities::common::{extract_identifier_from_url, validate_and_process_url};
 
     let mut group = c.benchmark_group("url_processing");
 
@@ -163,7 +142,6 @@ fn bench_url_processing(c: &mut Criterion) {
 
 /// Memory usage benchmark for large file operations
 fn bench_memory_usage(c: &mut Criterion) {
-    let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
     group.measurement_time(Duration::from_secs(10));
 
@@ -174,21 +152,17 @@ fn bench_memory_usage(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("large_metadata", file_count),
             &metadata,
-            |b, _metadata| {
+            |b, metadata| {
                 b.iter(|| {
-                    rt.block_on(async {
-                        let _downloader = SimpleConcurrentDownloader::new(8).unwrap();
+                    // Simulate selecting files to download from large metadata
+                    let files_to_download: Vec<String> = metadata
+                        .files
+                        .iter()
+                        .take(100) // Only take first 100 to avoid actual downloads
+                        .map(|f| f.name.clone())
+                        .collect();
 
-                        // Simulate processing large amounts of metadata
-                        let files_to_download: Vec<String> = _metadata
-                            .files
-                            .iter()
-                            .take(100) // Only take first 100 to avoid actual downloads
-                            .map(|f| f.name.clone())
-                            .collect();
-
-                        black_box(files_to_download);
-                    });
+                    black_box(files_to_download);
                 });
             },
         );
@@ -198,7 +172,6 @@ fn bench_memory_usage(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    bench_downloader_creation,
     bench_metadata_processing,
     bench_url_processing,
     bench_size_parsing,

@@ -2,10 +2,10 @@
 //!
 //! Contains functionality for working with Internet Archive metadata and archive operations.
 
+pub use analysis::*;
 pub use archive_metadata::*;
 pub use metadata::*;
-pub use metadata_new::*;
 
+pub mod analysis;
 pub mod archive_metadata;
 pub mod metadata;
-pub mod metadata_new;

@@ -17,8 +17,8 @@
 //!
 //! ```rust,no_run
 //! use ia_get::{
-//!     enhanced_downloader::ArchiveDownloader,
-//!     metadata_storage::DownloadConfig,
+//!     core::download::ArchiveDownloader,
+//!     core::session::DownloadConfig,
 //! };
 //! use reqwest::Client;
 //! use std::path::PathBuf;

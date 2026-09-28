@@ -19,7 +19,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use ia_get::{metadata::fetch_json_metadata, enhanced_downloader::ArchiveDownloader};
+//! use ia_get::{core::archive::fetch_json_metadata, core::download::ArchiveDownloader};
 //! use reqwest::Client;
 //! use indicatif::ProgressBar;
 //! use std::path::PathBuf;
@@ -45,7 +45,6 @@
 //!
 //! - [`metadata`]: JSON metadata fetching and parsing
 //! - [`enhanced_downloader`]: Main download engine with session support
-//! - [`concurrent_simple`]: Enhanced concurrent downloader
 //! - [`metadata_storage`]: Session and file tracking structures
 //! - [`compression`]: Automatic decompression utilities
 //! - [`filters`]: File filtering and formatting utilities
@@ -66,10 +65,7 @@ pub use core::archive::{
     AdvancedMetadataProcessor, MetadataAnalysis, fetch_json_metadata, get_json_url,
     parse_archive_metadata,
 };
-pub use core::download::{
-    DownloadRequest, DownloadResult, DownloadService, DownloadStats, FileDownloadResult,
-    SimpleConcurrentDownloader, download_files_with_retries,
-};
+pub use core::download::{DownloadRequest, DownloadResult, DownloadService};
 pub use core::session::{
     ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState, ProgressUpdate,
     sanitize_filename_for_filesystem,
@@ -130,14 +126,6 @@ pub mod file_formats {
 
 pub mod progress {
     pub use crate::utilities::common::*;
-}
-
-pub mod concurrent_simple {
-    pub use crate::core::download::*;
-}
-
-pub mod enhanced_downloader {
-    pub use crate::core::download::*;
 }
 
 pub mod compression {
