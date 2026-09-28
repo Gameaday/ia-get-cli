@@ -42,11 +42,11 @@
 //!
 //! ## Architecture
 //!
-//! - [`metadata`]: JSON metadata fetching and parsing
-//! - [`enhanced_downloader`]: Main download engine with session support
-//! - [`metadata_storage`]: Session and file tracking structures
-//! - [`compression`]: Automatic decompression utilities
-//! - [`filters`]: File filtering and formatting utilities
+//! - [`core::archive`]: JSON metadata fetching and parsing
+//! - [`core::download`]: Download engines and session-backed downloads
+//! - [`core::session`]: Session and file tracking structures
+//! - [`utilities::compression`]: Automatic decompression utilities
+//! - [`utilities::filters`]: File filtering and formatting utilities
 
 // Organized module structure
 pub mod core;
@@ -86,44 +86,3 @@ pub use utilities::compression::*;
 pub use utilities::filters::{
     FileFormats, FormatCategory, filter_files, format_size, parse_size_string,
 };
-
-// Legacy compatibility re-exports for external tests and examples
-pub mod metadata {
-    pub use crate::core::archive::*;
-}
-
-pub mod metadata_storage {
-    pub use crate::core::session::*;
-}
-
-pub mod url_processing {
-    pub use crate::utilities::common::*;
-}
-
-pub mod constants {
-    pub use crate::utilities::common::*;
-}
-
-pub mod cli {
-    pub use crate::interface::cli::*;
-}
-
-pub mod archive_metadata {
-    pub use crate::core::archive::*;
-}
-
-pub mod filters {
-    pub use crate::utilities::filters::*;
-}
-
-pub mod file_formats {
-    pub use crate::utilities::filters::*;
-}
-
-pub mod progress {
-    pub use crate::utilities::common::*;
-}
-
-pub mod compression {
-    pub use crate::utilities::compression::*;
-}

@@ -1,7 +1,7 @@
 use ia_get::{
-    archive_metadata::JsonFile,
-    cli::{Cli, SourceType},
-    filters::filter_files,
+    core::archive::JsonFile,
+    interface::cli::{Cli, SourceType},
+    utilities::filters::filter_files,
 };
 
 #[test]

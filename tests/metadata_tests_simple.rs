@@ -4,8 +4,8 @@
 
 use ia_get::{
     DownloadRequest, DownloadResult, DownloadService,
-    metadata::{get_json_url, parse_archive_metadata},
-    url_processing::{construct_metadata_url, extract_identifier_from_url},
+    core::archive::{get_json_url, parse_archive_metadata},
+    utilities::common::{construct_metadata_url, extract_identifier_from_url},
 };
 use std::path::PathBuf;
 
@@ -205,7 +205,7 @@ async fn test_mario_archive_dry_run() {
         preserve_mtime: true,
         verbose: true,
         resume: true,
-        source_types: vec![ia_get::cli::SourceType::Original], // Default to original files
+        source_types: vec![ia_get::interface::cli::SourceType::Original], // Default to original files
     };
 
     // Execute the dry-run request

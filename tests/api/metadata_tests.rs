@@ -5,9 +5,9 @@
 //! handling, and error handling in metadata processing.
 
 use ia_get::{
-    metadata::get_json_url,
-    metadata_storage::{ArchiveFile, ArchiveMetadata},
-    url_processing::{construct_metadata_url, extract_identifier_from_url},
+    core::archive::get_json_url,
+    core::session::{ArchiveFile, ArchiveMetadata},
+    utilities::common::{construct_metadata_url, extract_identifier_from_url},
 };
 
 /// Test JSON URL generation from different input formats

@@ -5,8 +5,8 @@
 //! and display formatting.
 
 use ia_get::{
-    archive_metadata::JsonFile,
-    filters::{FilterOptions, filter_files, format_size, parse_size_string},
+    core::archive::JsonFile,
+    utilities::filters::{FilterOptions, filter_files, format_size, parse_size_string},
 };
 
 /// Test size string parsing with various units
@@ -172,7 +172,7 @@ struct TestFilterOptions {
     include_ext: Option<String>,
     exclude_ext: Option<String>,
     max_file_size: Option<String>,
-    source_types: Vec<ia_get::cli::SourceType>,
+    source_types: Vec<ia_get::interface::cli::SourceType>,
 }
 
 impl FilterOptions for TestFilterOptions {
@@ -188,7 +188,7 @@ impl FilterOptions for TestFilterOptions {
         &self.max_file_size
     }
 
-    fn source_types(&self) -> Vec<ia_get::cli::SourceType> {
+    fn source_types(&self) -> Vec<ia_get::interface::cli::SourceType> {
         self.source_types.clone()
     }
 }
@@ -201,7 +201,7 @@ fn test_filter_files_include_extensions() {
         include_ext: Some("pdf,jpg".to_string()),
         exclude_ext: None,
         max_file_size: None,
-        source_types: vec![ia_get::cli::SourceType::Original],
+        source_types: vec![ia_get::interface::cli::SourceType::Original],
     };
 
     let filtered = filter_files(files, &options);
@@ -219,9 +219,9 @@ fn test_filter_files_exclude_extensions() {
         exclude_ext: Some("xml,bin".to_string()),
         max_file_size: None,
         source_types: vec![
-            ia_get::cli::SourceType::Original,
-            ia_get::cli::SourceType::Derivative,
-            ia_get::cli::SourceType::Metadata,
+            ia_get::interface::cli::SourceType::Original,
+            ia_get::interface::cli::SourceType::Derivative,
+            ia_get::interface::cli::SourceType::Metadata,
         ],
     };
 
@@ -240,9 +240,9 @@ fn test_filter_files_size_limits() {
         exclude_ext: None,
         max_file_size: Some("10MB".to_string()),
         source_types: vec![
-            ia_get::cli::SourceType::Original,
-            ia_get::cli::SourceType::Derivative,
-            ia_get::cli::SourceType::Metadata,
+            ia_get::interface::cli::SourceType::Original,
+            ia_get::interface::cli::SourceType::Derivative,
+            ia_get::interface::cli::SourceType::Metadata,
         ],
     };
 
@@ -260,7 +260,7 @@ fn test_filter_files_source_types() {
         include_ext: None,
         exclude_ext: None,
         max_file_size: None,
-        source_types: vec![ia_get::cli::SourceType::Original],
+        source_types: vec![ia_get::interface::cli::SourceType::Original],
     };
 
     let filtered = filter_files(files, &options);
@@ -276,7 +276,7 @@ fn test_filter_files_complex_combinations() {
         include_ext: Some("pdf,jpg,mp4".to_string()),
         exclude_ext: None,
         max_file_size: Some("2MB".to_string()),
-        source_types: vec![ia_get::cli::SourceType::Original],
+        source_types: vec![ia_get::interface::cli::SourceType::Original],
     };
 
     let filtered = filter_files(files, &options);
@@ -289,7 +289,7 @@ fn test_filter_files_complex_combinations() {
 /// Test file filtering with format categories
 #[test]
 fn test_filter_files_format_categories() {
-    use ia_get::file_formats::{FileFormats, FormatCategory};
+    use ia_get::utilities::filters::{FileFormats, FormatCategory};
 
     let _files = create_test_files();
     let file_formats = FileFormats::new();
@@ -316,7 +316,7 @@ fn test_filter_files_format_categories() {
 /// Test format suggestion functionality
 #[test]
 fn test_format_suggestions() {
-    use ia_get::file_formats::FileFormats;
+    use ia_get::utilities::filters::FileFormats;
 
     let file_formats = FileFormats::new();
 
@@ -331,7 +331,7 @@ fn test_format_suggestions() {
 /// Test predefined format presets
 #[test]
 fn test_format_presets() {
-    use ia_get::file_formats::FileFormats;
+    use ia_get::utilities::filters::FileFormats;
 
     let presets = FileFormats::get_common_presets();
     assert!(!presets.is_empty());
@@ -347,7 +347,7 @@ fn test_format_presets() {
 /// Test format category completeness
 #[test]
 fn test_format_category_completeness() {
-    use ia_get::file_formats::{FileFormats, FormatCategory};
+    use ia_get::utilities::filters::{FileFormats, FormatCategory};
 
     let file_formats = FileFormats::new();
 

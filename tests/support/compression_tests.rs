@@ -3,7 +3,7 @@
 //! Tests for compression detection, format identification, and decompression
 //! functionality in the support layer.
 
-use ia_get::compression::CompressionFormat;
+use ia_get::utilities::compression::CompressionFormat;
 
 #[test]
 fn test_compression_format_detection() {

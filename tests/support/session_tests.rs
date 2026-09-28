@@ -3,7 +3,7 @@
 //! Tests for download session functionality including session creation,
 //! persistence, file status tracking, and progress monitoring.
 
-use ia_get::metadata_storage::{
+use ia_get::core::session::{
     ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
     generate_session_filename,
 };

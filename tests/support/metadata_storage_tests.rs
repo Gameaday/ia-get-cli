@@ -3,7 +3,7 @@
 //! Tests for metadata storage functionality including filename sanitization,
 //! path validation, session management, and file metadata handling.
 
-use ia_get::metadata_storage::{
+use ia_get::core::session::{
     ArchiveFile, DownloadState, generate_session_filename, sanitize_filename_for_filesystem,
     validate_path_length,
 };
@@ -13,49 +13,49 @@ use tempfile::Builder;
 #[test]
 fn test_sanitize_identifier_normal() {
     let identifier = "normal-identifier_123";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "normal-identifier_123");
 }
 
 #[test]
 fn test_sanitize_identifier_with_invalid_characters() {
     let identifier = "test<>:|?*\\";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "test");
 }
 
 #[test]
 fn test_sanitize_identifier_with_spaces() {
     let identifier = "test with spaces";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "test_with_spaces");
 }
 
 #[test]
 fn test_sanitize_identifier_windows_problematic() {
     let identifier = "file<name>:with|invalid?chars*";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "filenamewithinvalidchars");
 }
 
 #[test]
 fn test_sanitize_identifier_consecutive_separators() {
     let identifier = "test--with__consecutive___separators";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "test-with_consecutive_separators");
 }
 
 #[test]
 fn test_sanitize_identifier_trim_edges() {
     let identifier = "--test_identifier--";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "test_identifier");
 }
 
 #[test]
 fn test_sanitize_identifier_empty_after_cleaning() {
     let identifier = "!$%^&*()";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "archive");
 }
 
@@ -63,7 +63,7 @@ fn test_sanitize_identifier_empty_after_cleaning() {
 fn test_sanitize_identifier_long_identifier() {
     // Create an identifier longer than 200 characters
     let long_identifier = "a".repeat(250);
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(&long_identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(&long_identifier);
 
     // Should be truncated and include a hash
     assert!(result.len() <= 200);
@@ -74,7 +74,7 @@ fn test_sanitize_identifier_long_identifier() {
 #[test]
 fn test_sanitize_identifier_real_world_case() {
     let identifier = "ikaos-som-dragon-ball-complete-001-153-r2j-dragon-box-multi-audio-v4_202301";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     // This identifier is already valid, should remain unchanged
     assert_eq!(result, identifier);
 }
@@ -82,7 +82,7 @@ fn test_sanitize_identifier_real_world_case() {
 #[test]
 fn test_sanitize_identifier_control_characters() {
     let identifier = "test\x00\x01\x02\x03identifier";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, "testidentifier");
 }
 
@@ -163,15 +163,15 @@ fn test_windows_filename_edge_cases() {
 #[test]
 fn test_sanitize_preserves_reasonable_length() {
     let identifier = "moderately-long-but-reasonable-identifier-name";
-    let result = ia_get::metadata_storage::sanitize_identifier_for_filesystem(identifier);
+    let result = ia_get::core::session::sanitize_identifier_for_filesystem(identifier);
     assert_eq!(result, identifier);
 }
 
 #[test]
 fn test_hash_consistency_for_long_identifiers() {
     let long_identifier = "a".repeat(250);
-    let result1 = ia_get::metadata_storage::sanitize_identifier_for_filesystem(&long_identifier);
-    let result2 = ia_get::metadata_storage::sanitize_identifier_for_filesystem(&long_identifier);
+    let result1 = ia_get::core::session::sanitize_identifier_for_filesystem(&long_identifier);
+    let result2 = ia_get::core::session::sanitize_identifier_for_filesystem(&long_identifier);
 
     // Should generate the same result for the same input
     assert_eq!(result1, result2);
@@ -232,9 +232,8 @@ fn test_validate_path_length() {
         #[cfg(target_os = "windows")]
         {
             // Be more defensive with Windows long path detection as it can fail for various reasons
-            match std::panic::catch_unwind(|| {
-                ia_get::metadata_storage::is_windows_long_path_enabled()
-            }) {
+            match std::panic::catch_unwind(|| ia_get::core::session::is_windows_long_path_enabled())
+            {
                 Ok(true) => {
                     assert!(
                         result.is_ok(),

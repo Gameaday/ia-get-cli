@@ -11,7 +11,7 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use ia_get::metadata::fetch_json_metadata;
+//! use ia_get::core::archive::fetch_json_metadata;
 //! use reqwest::Client;
 //! use indicatif::ProgressBar;
 //!
@@ -63,7 +63,7 @@ use tokio::fs;
 /// ## Examples
 ///
 /// ```rust
-/// use ia_get::metadata::get_json_url;
+/// use ia_get::core::archive::get_json_url;
 ///
 /// // Convert details URL
 /// let url = get_json_url("https://archive.org/details/internetarchive");

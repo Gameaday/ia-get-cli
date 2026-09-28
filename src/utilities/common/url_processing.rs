@@ -116,7 +116,7 @@ pub fn construct_download_url(identifier: &str) -> String {
 /// # Examples
 ///
 /// ```rust
-/// use ia_get::url_processing::normalize_archive_identifier;
+/// use ia_get::utilities::common::normalize_archive_identifier;
 ///
 /// assert_eq!(normalize_archive_identifier("mario").unwrap(), "mario");
 /// assert_eq!(normalize_archive_identifier("https://archive.org/details/mario").unwrap(), "mario");

@@ -3,7 +3,7 @@
 //! Tests for URL validation, identifier extraction, and URL construction
 //! functionality in the support layer.
 
-use ia_get::url_processing::{
+use ia_get::utilities::common::{
     construct_download_url, construct_metadata_url, extract_identifier_from_url, is_archive_url,
     normalize_archive_identifier, validate_and_process_url,
 };

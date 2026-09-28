@@ -3,7 +3,7 @@
 //! Tests for download progress tracking, statistics calculation,
 //! and display formatting functionality.
 
-use ia_get::progress::{DownloadStats, StringTruncate};
+use ia_get::utilities::common::{DownloadStats, StringTruncate};
 
 #[test]
 fn test_download_stats() {

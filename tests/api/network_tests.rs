@@ -4,7 +4,7 @@
 //! error handling and retry logic, timeout behavior, user agent generation,
 //! and connection management.
 
-use ia_get::constants::get_user_agent;
+use ia_get::utilities::common::get_user_agent;
 use reqwest::Client;
 
 /// Test user agent string generation

@@ -13,7 +13,7 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use ia_get::filters::{parse_size_string, format_size};
+//! use ia_get::utilities::filters::{parse_size_string, format_size};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Parse size strings
