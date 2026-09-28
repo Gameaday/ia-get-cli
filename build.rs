@@ -1,47 +1,8 @@
 fn main() {
-    // Generate C header for simplified FFI interface
-    generate_simplified_ffi_header();
-
-    // Handle Windows-specific manifest for long path support
+    // Embed the Windows application manifest (enables long-path support and
+    // declares compatibility). This is a no-op on non-Windows targets.
     #[cfg(target_os = "windows")]
     embed_windows_manifest();
-
-    // Check if we're building for Android and provide guidance
-    // Note: Flutter mobile app uses pure Dart - no Rust native libraries needed
-    if let Ok(target) = std::env::var("TARGET")
-        && target.contains("android")
-    {
-        println!("cargo:warning=Building Rust for Android target: {}", target);
-        println!(
-            "cargo:warning=Note: The Flutter mobile app uses pure Dart and does NOT need Rust native libraries."
-        );
-        println!(
-            "cargo:warning=For Flutter Android APK/AAB builds: ./scripts/build-mobile.sh [--development|--production] [--appbundle]"
-        );
-        println!(
-            "cargo:warning=This Rust Android target build is only needed if you plan to use Rust via FFI in the future."
-        );
-    }
-
-    // Note: Full artifact packaging is handled by CI/CD workflow after build completion
-    // The build script runs before the binary is created, so we can't package it here
-    // Both development and production builds create complete APK/AAB files via Flutter build
-    println!("cargo:warning=Build script completed - complete artifacts created by CI/CD workflow");
-}
-
-/// Generate C header for simplified FFI interface
-///
-/// This is optional - if cbindgen is not available, the build will continue
-/// The header can also be generated manually with: cbindgen -c cbindgen_simple.toml -o include/ia_get_simple.h
-fn generate_simplified_ffi_header() {
-    // Check if we should generate FFI headers
-    if std::env::var("CARGO_FEATURE_FFI").is_ok() {
-        println!(
-            "cargo:warning=FFI feature enabled - C header can be generated with: cbindgen -c cbindgen_simple.toml -o include/ia_get_simple.h"
-        );
-        println!("cargo:rerun-if-changed=src/interface/ffi_simple.rs");
-        println!("cargo:rerun-if-changed=cbindgen_simple.toml");
-    }
 }
 
 #[cfg(target_os = "windows")]

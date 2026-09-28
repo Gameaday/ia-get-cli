@@ -1,14 +1,7 @@
-//! Command-line interface module for ia-get
-//!
-//! Contains the CLI structure and argument parsing logic.
-
-pub mod commands;
+//! CLI types shared across the command-line interface.
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
-
-// Re-export the command handlers for use in main.rs
-pub use commands::{handle_config_command, handle_history_command};
 
 // Export the action enums for main.rs to use
 #[derive(Debug, Clone)]

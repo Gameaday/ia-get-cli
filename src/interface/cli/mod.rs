@@ -1,8 +1,17 @@
-//! Command-line interface module
+//! Command-line interface
 //!
-//! Contains CLI argument parsing and command handling.
+//! - [`definition`]: the clap command/argument tree
+//! - [`types`]: CLI types (`SourceType`, config/history actions)
+//! - [`commands`]: command handlers (config, history, api-health, analyze)
+//! - [`advanced_commands`]: search and batch operations
 
-pub use main::*;
+pub mod advanced_commands;
+pub mod commands;
+pub mod definition;
+pub mod types;
 
-pub mod advanced_commands; // New batch and search commands (WIP)
-pub mod main; // Main CLI structure and existing commands
+pub use commands::{
+    analyze_archive_metadata, display_api_health, handle_config_command, handle_history_command,
+};
+pub use definition::{build_cli, get_source_types_from_matches};
+pub use types::*;
