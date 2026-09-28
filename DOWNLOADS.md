@@ -38,7 +38,6 @@ sudo mv ia-get /usr/local/bin/
 **Features:**
 - ⚡ Concurrent downloads (configurable workers)
 - 🗜️ HTTP compression & archive extraction
-- 🖼️ Desktop GUI (egui framework, optional)
 - ⌨️ CLI for automation and scripts
 - 📊 Real-time performance metrics
 

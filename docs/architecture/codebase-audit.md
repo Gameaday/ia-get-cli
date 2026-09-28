@@ -187,14 +187,15 @@ Each finding lists **Evidence**, **Impact** and **Recommendation**.
   onto `Config`/`ConfigManager` (or vice-versa) and remove the destructive migration. Add
   `#[serde(default)]` so unknown/missing keys are tolerated across versions.
 
-#### B5. Two interactive UIs; one is unreachable
-- **Evidence:** `interactive_cli.rs` (1 965 LOC) is launched by `show_interactive_menu`
-  (`src/main.rs:96,184`). `interactive_menu.rs` (885 LOC) exposes `launch_config_menu` — grep shows
-  no caller. Its main-menu options duplicate `interactive_cli`'s `configure_settings` and the
-  `config` subcommand.
-- **Impact:** ~885 LOC of dead code plus a third way to edit config.
-- **Recommendation:** delete `interactive_menu.rs`; keep the single interactive UI (and consider
-  trimming it too — 1.9k LOC of `println!` menus is a maintenance tax for an automation-first tool).
+#### B5. Three ways to edit configuration
+- **Correction (later verified):** an earlier draft of this audit claimed `interactive_menu.rs`
+  was dead. It is **not** — `interactive_cli.rs` calls `launch_config_menu()` for its
+  "configure settings" option. So the config-editing surface is genuinely triplicated.
+- **Evidence:** `interactive_cli.rs` (1 965 LOC, launched from `main.rs` with no args) delegates to
+  `interactive_menu.rs` (885 LOC); the `ia-get config` subcommand is a third path.
+- **Impact:** three divergent config editors (over two config backends, see §B4).
+- **Recommendation:** after unifying config storage (§B4), collapse to one editor — keep the
+  interactive menu and make the `config` subcommand delegate to it (or vice versa).
 
 #### B6. Orphaned files that are never compiled
 - **Evidence:** `src/interface/gui/tests.rs` exists but `src/interface/gui/mod.rs` declares only
@@ -445,3 +446,33 @@ that would otherwise need to be updated by every later change.
 *Everything above is verifiable with `git`, `grep` and `cargo clippy --all-targets --all-features`
 once a Rust toolchain is available.*
 
+---
+
+## 7. Progress log
+
+Work completed against this audit (all verified with `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings` and `cargo test --all-targets` on Rust 1.98):
+
+- **B1** removed the dead download engines (`concurrent_simple.rs`, `downloader.rs`, `downloads.rs`)
+  and re-pointed the benchmark.
+- **B2** removed the tests-only duplicate `metadata.rs::enhanced`; the production analysis module
+  was renamed `analysis.rs` (was `metadata_new.rs`).
+- **B3** deleted the legacy `lib.rs` alias modules and migrated every import/doc/test to canonical
+  paths.
+- **B4** deleted `ConfigPersistence`/`ConfigValue`/`ConfigSource`/`ConfigWithSources` (including
+  the destructive `config.toml` -> `ia-get.conf` migration); the `config` subcommand and the TUI
+  now share `Config`/`ConfigManager`.
+- **B6** deleted `src/bin/test_json_api.rs` and the orphan `interface/gui/tests.rs`.
+- **B7** the `batch` command now drives `DownloadService` per identifier instead of the 1-second
+  sleep stub.
+- **C1** the main download command now applies saved config (flag > config > default).
+- **C2** `--api-health` prints the real constants.
+- **E1** removed panics from the download hot path (semaphore/progress-pool `expect`, `SystemTime`
+  and path `unwrap`s).
+- **F3** CI clippy now lints `--all-targets`; the `gui` feature is gone so the GUI job is moot.
+- **G** removed the desktop GUI entirely (per decision), rewrote the README for CLI+TUI, deleted the
+  stale phase/history docs, and cleaned GUI/Flutter references from scripts and CI.
+
+**Still open (P2, larger features):** torrent/magnet + seed-after handling (§A2), S3-style upload
+(§A1), library ergonomics (observer abstraction + `cdylib`, §A4), a single shared rate-limit/retry
+policy (§D1/§D2), and the metadata cache claim (§D3).

@@ -28,18 +28,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/Gameaday/ia-get-cli.git
 cd ia-get-cli
 
-# Build CLI version (fastest for development)
-cargo build --no-default-features --features cli
-
-# Build with GUI support (optional)
-cargo build --features gui
+# Build the CLI (fastest for development)
+cargo build
 
 # Run tests
-cargo test --no-default-features --features cli
+cargo test
 
 # Check formatting and linting
 cargo fmt --check
-cargo clippy --no-default-features --features cli -- -D warnings
+cargo clippy --all-targets -- -D warnings
 ```
 
 ## 📝 Code Style Guidelines
