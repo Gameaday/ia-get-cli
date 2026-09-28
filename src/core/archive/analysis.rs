@@ -336,7 +336,7 @@ impl AdvancedMetadataProcessor {
         }
 
         // Sort largest files by size and keep top 10
-        largest_files.sort_by(|a, b| b.size.cmp(&a.size));
+        largest_files.sort_by_key(|f| std::cmp::Reverse(f.size));
         largest_files.truncate(10);
 
         // Calculate size distribution
@@ -865,7 +865,7 @@ impl AdvancedMetadataProcessor {
         if !analysis.file_types.is_empty() {
             println!("   File Types:");
             let mut types: Vec<_> = analysis.file_types.iter().collect();
-            types.sort_by(|a, b| b.1.count.cmp(&a.1.count));
+            types.sort_by_key(|item| std::cmp::Reverse(item.1.count));
 
             for (ext, info) in types.iter().take(5) {
                 let percentage = (info.count as f64 / analysis.file_count as f64) * 100.0;

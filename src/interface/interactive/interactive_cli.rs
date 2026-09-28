@@ -1,6 +1,6 @@
 //! Enhanced interactive CLI interface for ia-get
 //!
-//! Provides a comprehensive command-line interface that mirrors GUI functionality
+//! Provides a comprehensive interactive terminal UI (TUI)
 //! with live updating progress, non-scrolling interface, and unified API usage.
 
 use crate::{
@@ -58,12 +58,7 @@ impl InteractiveCli {
         loop {
             self.print_main_menu();
 
-            #[cfg(feature = "gui")]
-            let max_choice = if crate::can_use_gui() { 8 } else { 7 };
-            #[cfg(not(feature = "gui"))]
-            let max_choice = 7;
-
-            match self.get_user_choice("Select an option", max_choice)? {
+            match self.get_user_choice("Select an option", 7)? {
                 1 => self.download_archive().await?,
                 2 => self.quick_download().await?,
                 3 => self.browse_and_download().await?,
@@ -71,44 +66,11 @@ impl InteractiveCli {
                 5 => self.view_history().await?,
                 6 => self.check_api_health().await?,
                 7 => {
-                    #[cfg(feature = "gui")]
-                    {
-                        if crate::can_use_gui() {
-                            // Switch to GUI mode
-                            println!("{}", "\n🎨 Switching to GUI mode...".bright_cyan());
-                            self.launch_gui_mode().await?;
-                            break;
-                        } else {
-                            // Exit
-                            println!(
-                                "{}",
-                                "\n✨ Thanks for using ia-get! Goodbye! 👋".bright_cyan()
-                            );
-                            break;
-                        }
-                    }
-                    #[cfg(not(feature = "gui"))]
-                    {
-                        // Exit
-                        println!(
-                            "{}",
-                            "\n✨ Thanks for using ia-get! Goodbye! 👋".bright_cyan()
-                        );
-                        break;
-                    }
-                }
-                8 => {
-                    #[cfg(feature = "gui")]
-                    {
-                        if crate::can_use_gui() {
-                            // Exit
-                            println!(
-                                "{}",
-                                "\n✨ Thanks for using ia-get! Goodbye! 👋".bright_cyan()
-                            );
-                            break;
-                        }
-                    }
+                    println!(
+                        "{}",
+                        "\n✨ Thanks for using ia-get! Goodbye! 👋".bright_cyan()
+                    );
+                    break;
                 }
                 _ => {
                     self.show_error("Invalid choice. Please try again.");
@@ -118,41 +80,6 @@ impl InteractiveCli {
         }
 
         Ok(())
-    }
-
-    #[cfg(feature = "gui")]
-    async fn launch_gui_mode(&self) -> Result<()> {
-        #[cfg(feature = "gui")]
-        {
-            use std::process::Command;
-
-            // Try to launch GUI mode by spawning a new process
-            // This is a simple approach - we restart the program without arguments
-            // which will trigger the smart detection and launch GUI
-            let current_exe = std::env::current_exe()
-                .map_err(|e| anyhow::anyhow!("Failed to get current executable path: {}", e))?;
-
-            println!("{} Launching GUI interface...", "🚀".bright_green());
-
-            match Command::new(current_exe).spawn() {
-                Ok(_) => {
-                    println!("{} GUI launched successfully!", "✅".bright_green());
-                    Ok(())
-                }
-                Err(e) => {
-                    self.show_error(&format!("Failed to launch GUI: {}", e));
-                    self.wait_for_keypress();
-                    Ok(())
-                }
-            }
-        }
-
-        #[cfg(not(feature = "gui"))]
-        {
-            self.show_error("GUI features not compiled in this build");
-            self.wait_for_keypress();
-            Ok(())
-        }
     }
 
     fn clear_screen(&self) {
@@ -335,54 +262,13 @@ impl InteractiveCli {
             "│                                                                 │".blue()
         );
 
-        // Only show GUI option if GUI features are compiled and available
-        #[cfg(feature = "gui")]
-        {
-            if crate::can_use_gui() {
-                println!(
-                    "│  {} {} {}{}│",
-                    "7.".bright_green().bold(),
-                    "🎨".cyan(),
-                    "Switch to GUI Mode                                 ".normal(),
-                    " ".blue()
-                );
-                println!(
-                    "{}",
-                    "│     Launch graphical user interface                            │".dimmed()
-                );
-                println!(
-                    "{}",
-                    "│                                                                 │".blue()
-                );
-
-                println!(
-                    "│  {} {} {}{}│",
-                    "8.".bright_green().bold(),
-                    "🚪".cyan(),
-                    "Exit                                                ".normal(),
-                    " ".blue()
-                );
-            } else {
-                println!(
-                    "│  {} {} {}{}│",
-                    "7.".bright_green().bold(),
-                    "🚪".cyan(),
-                    "Exit                                                ".normal(),
-                    " ".blue()
-                );
-            }
-        }
-
-        #[cfg(not(feature = "gui"))]
-        {
-            println!(
-                "│  {} {} {}{}│",
-                "7.".bright_green().bold(),
-                "🚪".cyan(),
-                "Exit                                                ".normal(),
-                " ".blue()
-            );
-        }
+        println!(
+            "│  {} {} {}{}│",
+            "7.".bright_green().bold(),
+            "🚪".cyan(),
+            "Exit                                                ".normal(),
+            " ".blue()
+        );
 
         println!(
             "{}",

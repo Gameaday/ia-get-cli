@@ -179,7 +179,7 @@ impl DownloadHistory {
     /// Get recent entries (newest first)
     pub fn get_recent_entries(&self, limit: usize) -> Vec<&DownloadHistoryEntry> {
         let mut entries = self.entries.iter().collect::<Vec<_>>();
-        entries.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        entries.sort_by_key(|a| std::cmp::Reverse(a.started_at));
         entries.into_iter().take(limit).collect()
     }
 
@@ -193,7 +193,8 @@ impl DownloadHistory {
     fn cleanup_old_entries(&mut self) {
         if self.entries.len() > self.max_entries {
             // Sort by start time (newest first) and keep only max_entries
-            self.entries.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+            self.entries
+                .sort_by_key(|a| std::cmp::Reverse(a.started_at));
             self.entries.truncate(self.max_entries);
         }
     }

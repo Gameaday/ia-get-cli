@@ -1,18 +1,11 @@
 //! User interface layer
 //!
-//! This module contains all user interface components including CLI, GUI, and interactive interfaces.
-//!
-//! The Rust implementation provides CLI and optional GUI desktop applications.
+//! This module contains all user interface components: the command-line
+//! interface and the interactive terminal UI (TUI).
 
 pub mod cli;
-
-#[cfg(feature = "gui")]
-pub mod gui;
 pub mod interactive;
 
 // Re-export commonly used interface types
 pub use cli::*;
-
-#[cfg(feature = "gui")]
-pub use gui::*;
 pub use interactive::*;

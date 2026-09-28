@@ -57,11 +57,7 @@ fn bench_metadata_processing(c: &mut Criterion) {
                 b.iter(|| {
                     // Summarize the metadata (file count + total size) - representative
                     // of the per-item work the downloader performs before scheduling files.
-                    let total: u64 = metadata
-                        .files
-                        .iter()
-                        .map(|f| f.size.unwrap_or(0))
-                        .sum();
+                    let total: u64 = metadata.files.iter().map(|f| f.size.unwrap_or(0)).sum();
                     black_box((metadata.files.len(), total));
                 });
             },

@@ -7,8 +7,6 @@ use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use colored::Colorize;
 use std::path::PathBuf;
-#[cfg(feature = "gui")]
-use std::sync::{Arc, Mutex};
 use tokio::signal;
 
 use ia_get::{
@@ -21,164 +19,6 @@ use ia_get::{
     utilities::common::get_user_agent,
     utilities::filters::format_size,
 };
-
-#[cfg(feature = "gui")]
-use ia_get::interface::gui::IaGetApp;
-
-// Use `can_use_gui()` from the library to avoid duplication
-use ia_get::can_use_gui;
-
-/// Launch GUI mode with graceful fallback
-#[cfg(feature = "gui")]
-async fn launch_gui() -> Result<()> {
-    launch_gui_with_mode_switching().await
-}
-
-/// Launch GUI with support for switching to CLI mode
-#[cfg(feature = "gui")]
-async fn launch_gui_with_mode_switching() -> Result<()> {
-    use std::sync::{Arc, Mutex};
-
-    // Set up logging for GUI with error handling
-    if let Err(_e) = env_logger::try_init() {
-        // Only warn in debug builds to avoid noise
-        #[cfg(debug_assertions)]
-        eprintln!("Warning: Failed to initialize logger: {}", _e);
-    }
-
-    // Configure GUI options with better responsiveness
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1200.0, 800.0])
-            .with_min_inner_size([900.0, 700.0])
-            .with_max_inner_size([2000.0, 1200.0])
-            .with_resizable(true)
-            .with_title("ia-get - Internet Archive Downloader")
-            .with_icon(load_icon()),
-        ..Default::default()
-    };
-
-    // Shared state to detect mode switching
-    let switch_to_cli = Arc::new(Mutex::new(false));
-    let switch_checker = Arc::clone(&switch_to_cli);
-
-    // Try to run the GUI application
-    let gui_result = eframe::run_native(
-        "ia-get GUI",
-        options,
-        Box::new(move |cc| {
-            let app = IaGetApp::new(cc);
-            let app_with_checker = AppWrapper::new(app, switch_checker);
-            Ok(Box::new(app_with_checker))
-        }),
-    );
-
-    match gui_result {
-        Ok(()) => {
-            // Check if we should switch to CLI mode
-            let should_switch = match switch_to_cli.lock() {
-                Ok(guard) => *guard,
-                Err(e) => {
-                    eprintln!("Error checking mode switch state: {}", e);
-                    return Ok(());
-                }
-            };
-
-            if should_switch {
-                println!("{} Switching to CLI mode...", "🔄".blue());
-
-                // Reset terminal state after GUI closes
-                reset_terminal_for_cli();
-
-                // Give the terminal a moment to reset
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-                show_interactive_menu().await
-            } else {
-                // GUI closed normally
-                Ok(())
-            }
-        }
-        Err(e) => {
-            eprintln!("{} GUI launch failed: {}", "⚠️".yellow(), e);
-            eprintln!("{} Falling back to interactive CLI menu...", "🔄".blue());
-
-            // Reset terminal state for CLI fallback
-            reset_terminal_for_cli();
-
-            show_interactive_menu().await
-        }
-    }
-}
-
-/// Wrapper around IaGetApp to handle mode switching
-#[cfg(feature = "gui")]
-struct AppWrapper {
-    app: IaGetApp,
-    switch_checker: Arc<Mutex<bool>>,
-}
-
-#[cfg(feature = "gui")]
-impl AppWrapper {
-    fn new(app: IaGetApp, switch_checker: Arc<Mutex<bool>>) -> Self {
-        Self {
-            app,
-            switch_checker,
-        }
-    }
-}
-
-#[cfg(feature = "gui")]
-impl eframe::App for AppWrapper {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.app.update(ctx, frame);
-
-        // Check if we should switch to CLI mode
-        if self.app.should_switch_to_cli() {
-            *self
-                .switch_checker
-                .lock()
-                .expect("Failed to lock switch_checker mutex") = true;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
-    }
-}
-
-#[cfg(feature = "gui")]
-fn load_icon() -> egui::IconData {
-    // Create a simple icon (you can replace this with an actual icon file)
-    let icon_data = vec![
-        255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 255, 255,
-        255, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255,
-        255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255,
-    ];
-
-    egui::IconData {
-        rgba: icon_data,
-        width: 4,
-        height: 4,
-    }
-}
-
-/// Reset terminal state for CLI input after GUI closes
-#[cfg(feature = "gui")]
-fn reset_terminal_for_cli() {
-    use std::io::{self, Write};
-
-    // Clear any pending output
-    let _ = io::stdout().flush();
-    let _ = io::stderr().flush();
-
-    // Reset terminal to normal mode
-    // This clears the screen and moves cursor to home position
-    print!("\x1B[2J\x1B[H");
-
-    // Reset terminal colors and formatting
-    print!("\x1B[0m");
-
-    // Ensure the reset commands are sent
-    let _ = io::stdout().flush();
-}
 
 /// Show an interactive menu when no arguments are provided
 async fn show_interactive_menu() -> Result<()> {
@@ -224,31 +64,7 @@ async fn main() -> Result<()> {
                     "🚀".bright_blue()
                 );
 
-                if can_use_gui() {
-                    #[cfg(feature = "gui")]
-                    {
-                        println!(
-                            "{} GUI environment detected, launching graphical interface...",
-                            "🎨".bright_green()
-                        );
-                        return launch_gui().await;
-                    }
-                    #[cfg(not(feature = "gui"))]
-                    {
-                        println!(
-                            "{} GUI environment detected but GUI features not compiled in.",
-                            "⚠️".yellow()
-                        );
-                        println!("{} Using interactive CLI menu instead...", "📋".blue());
-                        return show_interactive_menu().await;
-                    }
-                } else {
-                    println!(
-                        "{} Command-line environment detected, using interactive menu...",
-                        "💻".green()
-                    );
-                    return show_interactive_menu().await;
-                }
+                return show_interactive_menu().await;
             } else {
                 // Other parsing errors, show them normally
                 e.exit();
@@ -494,31 +310,7 @@ async fn main() -> Result<()> {
                 "🚀".bright_blue()
             );
 
-            if can_use_gui() {
-                #[cfg(feature = "gui")]
-                {
-                    println!(
-                        "{} GUI environment detected, launching graphical interface...",
-                        "🎨".bright_green()
-                    );
-                    return launch_gui().await;
-                }
-                #[cfg(not(feature = "gui"))]
-                {
-                    println!(
-                        "{} GUI environment detected but GUI features not compiled in.",
-                        "⚠️".yellow()
-                    );
-                    println!("{} Using interactive CLI menu instead...", "📋".blue());
-                    return show_interactive_menu().await;
-                }
-            } else {
-                println!(
-                    "{} Command-line environment detected, using interactive menu...",
-                    "💻".green()
-                );
-                return show_interactive_menu().await;
-            }
+            return show_interactive_menu().await;
         }
         return Ok(()); // This shouldn't be reached due to subcommand handling above
     }

@@ -1036,7 +1036,7 @@ impl ArchiveDownloader {
 
         // Pre-check for completed files in new session
         // This is the critical optimization for reducing API calls on retries
-        for (_file_name, status) in session.file_status.iter_mut() {
+        for status in session.file_status.values_mut() {
             if let Some(expected_size) = status.file_info.size {
                 if let Ok(meta) = std::fs::metadata(&status.local_path) {
                     if meta.len() == expected_size {
