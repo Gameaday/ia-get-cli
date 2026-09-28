@@ -352,11 +352,11 @@ impl DownloadService {
                     file_status: std::collections::HashMap::new(),
                     session_start: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_secs(),
                     last_updated: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_secs(),
                 }),
                 Some(api_stats),

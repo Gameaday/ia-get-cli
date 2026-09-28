@@ -702,9 +702,18 @@ async fn display_api_health() -> Result<()> {
 
     println!("\n{} Current Configuration:", "⚙️".bright_magenta().bold());
     println!("  User Agent: {}", get_user_agent().bright_green());
-    println!("  Default Timeout: 30 seconds");
-    println!("  Min Request Delay: 100ms");
-    println!("  Max Concurrent: 5 connections");
+    println!(
+        "  Default Timeout: {} seconds",
+        ia_get::utilities::common::HTTP_TIMEOUT
+    );
+    println!(
+        "  Min Request Delay: {}ms",
+        ia_get::utilities::common::MIN_REQUEST_DELAY_MS
+    );
+    println!(
+        "  Max Concurrent: {} connections",
+        ia_get::utilities::common::MAX_CONCURRENT_CONNECTIONS
+    );
 
     Ok(())
 }

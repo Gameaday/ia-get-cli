@@ -309,7 +309,7 @@ impl DownloadSession {
     ) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
 
         let mut file_status = HashMap::new();
@@ -380,7 +380,7 @@ impl DownloadSession {
             file_status.status = status;
             self.last_updated = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs();
         }
     }
@@ -572,12 +572,9 @@ impl ArchiveFile {
                 use std::process::Command;
 
                 let _mtime_str = mtime.to_string();
+                let path_str = file_path.as_ref().to_string_lossy().into_owned();
                 Command::new("touch")
-                    .args([
-                        "-t",
-                        &format!("{}", mtime),
-                        file_path.as_ref().to_str().unwrap(),
-                    ])
+                    .args(["-t", &format!("{}", mtime), &path_str])
                     .output()
                     .map_err(|e| IaGetError::FileSystem(format!("Failed to set mtime: {}", e)))?;
             }
@@ -780,7 +777,7 @@ pub fn sanitize_identifier_for_filesystem(identifier: &str) -> String {
 pub fn generate_session_filename(identifier: &str) -> String {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_nanos();
     let sanitized_identifier = sanitize_identifier_for_filesystem(identifier);
     format!("ia-get-session-{}-{}.json", sanitized_identifier, timestamp)

@@ -7,8 +7,8 @@
 <p align="center"><b>Command-line tool for downloading from Internet Archive</b></p>
 <p align="center">
 <img alt="GitHub Downloads" src="https://img.shields.io/github/downloads/Gameaday/ia-get-cli/total?logo=github&label=Downloads">
-<img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/Gameaday/ia-get-cli/ci.yml?branch=main&logo=github&label=CI">
-<img alt="Rust" src="https://img.shields.io/badge/Rust-1.70+-orange?logo=rust">
+<img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/Gameaday/ia-get-cli/rust-ci.yml?branch=main&logo=github&label=CI">
+<img alt="Rust" src="https://img.shields.io/badge/Rust-1.92%2B-orange?logo=rust">
 </p>
 
 <p align="center">Built with ❤️ for the Internet Archive community</p>
@@ -43,12 +43,11 @@ The **Flutter mobile app** has moved to its own repository for better developmen
 
 ## 🖥️ Rust CLI Tool (This Repository)
 
-**IA Get** is a high-performance command-line tool for downloading from Internet Archive:
+**IA Get** is a high-performance command-line tool and Rust library for downloading from the Internet Archive:
 
 - **⚡ Concurrent Downloads** - Parallel downloading with intelligent session management
 - **🧠 Smart Resume** - Intelligent local file validation to resume large downloads instantly without API overhead
-- **🛡️ API Compliance** - Built-in caching and rate-limiting respect Internet Archive guidelines
-- **🖼️ Desktop GUI** - Native desktop interface (egui framework)
+- **🛡️ API Compliance** - Rate-limiting, retry/backoff and a descriptive User-Agent respect Internet Archive guidelines
 - **⌨️ CLI Mode** - Powerful command-line for automation and scripts
 - **🗜️ Compression** - HTTP compression and automatic archive extraction
 - **🎯 Advanced Filtering** - Filter by file type, size, patterns
@@ -65,7 +64,7 @@ The **Flutter mobile app** has moved to its own repository for better developmen
 
 <div align="center">
 
-### ️ Rust CLI & Desktop GUI
+### Rust CLI & Library
 [🐧 Linux](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🪟 Windows](https://github.com/Gameaday/ia-get-cli/releases/latest) | [🍎 macOS](https://github.com/Gameaday/ia-get-cli/releases/latest)
 
 **📋 [Complete Downloads & Installation Guide →](DOWNLOADS.md)**
@@ -84,328 +83,105 @@ Looking for the mobile app? Check out **[IA Helper](https://github.com/gameaday/
 
 ## ⚡ Quick Start
 
-**IA Get** provides both CLI and GUI interfaces with smart auto-detection:
+**ia-get** is a cross-platform CLI and Rust library for downloading from the Internet Archive. Run it with no arguments for an interactive terminal UI, or pass an identifier/URL directly:
 
 ```shell
-# Auto-detect best mode (GUI if available, menu otherwise)
+# Launch the interactive terminal UI
 ia-get
 
-# Download directly from command line
+# Download directly from the command line
 ia-get https://archive.org/details/<identifier>
+
+# Bare identifiers are accepted too
+ia-get <identifier>
 
 # Show help and available options
 ia-get --help
 ```
 
-**Smart Interface Detection**: Automatically chooses the best interface - GUI when display is available, falls back to interactive menu or CLI mode based on your environment.
-
 ## 🎯 Features
 
-### 🏗️ Architecture
-
-**Two Independent Implementations:**
-
-| Feature | Flutter Mobile/Web | Rust CLI/Server |
-|---------|-------------------|-----------------|
-| **Purpose** | Cross-platform GUI | High-performance automation |
-| **Platforms** | Android, Web, iOS (soon), Desktop (soon) | Linux, Windows, macOS |
-| **UI** | Material Design 3, Responsive | egui (desktop GUI) + CLI |
-| **Downloads** | Background, pause/resume | Concurrent, session management |
-| **Target Users** | Mobile users, casual browsing | Power users, automation, servers |
-
-Both implementations provide feature parity for core functionality.
-
----
-
-### Core Functionality (All Platforms)
-- 🔽 **Fast Concurrent Downloads** - Parallel downloading with configurable limits
-- 🌳 **Directory Structure** - Preserves original archive organization  
-- 🔄 **Smart Resume** - Automatically recovers from interruptions
-- 🎯 **Advanced Filtering** - Filter by file type, size, patterns
-- � **Progress Tracking** - Real-time speed and ETA information
-- 🔒 **Data Integrity** - MD5/SHA256 checksum verification
-
-### Flutter Mobile/Web Specific
-- 🎨 **Material Design 3** - Modern, accessible UI (78% compliant)
-- 📱 **Responsive Design** - Optimized for phones, tablets, desktop browsers
-- 🔗 **Deep Links** - Open archive.org URLs directly in app
-- 📥 **Background Downloads** - Continue when app is closed
-- 🌐 **Offline Mode** - Access cached metadata without internet
-- ♿ **Accessibility** - Screen reader support, dynamic type
-
-### Rust CLI/Server Specific
+- 🔽 **Fast concurrent downloads** - parallel file downloads with configurable limits
+- 🧠 **Smart resume** - byte-range resume of interrupted transfers, validated against local files
+- 🗂️ **Directory structure** - preserves the original archive layout
+- 🎯 **Advanced filtering** - by file format, size, and source type (original/derivative/metadata)
+- 📊 **Progress tracking** - human-readable progress and statistics
 - 🗜️ **Compression** - HTTP compression and automatic archive extraction
-- 🖼️ **Desktop GUI** - Native egui interface with visual controls
-- ⌨️ **CLI Mode** - Powerful command-line for automation
-- 📈 **Performance** - Zero-cost abstractions, minimal overhead
-- 🔧 **Scripting** - Batch operations and integration support
+- 🔒 **Data integrity** - MD5 checksum verification
+- 🛡️ **API compliance** - descriptive User-Agent, retry/backoff, and rate-limit handling
+- 🔍 **Search & batch** - search archive.org and download many identifiers from a list
 
 ## 🚀 Advanced Usage
 
 ```shell
-# Concurrent downloads with compression
-ia-get --compress --decompress https://archive.org/details/your_archive
+# Filter by file types and size
+ia-get --include pdf,epub --max-size 100MB https://archive.org/details/books_archive
 
-# Filter by file types
-ia-get --include-ext pdf,epub https://archive.org/details/books_archive
+# Only original files
+ia-get --original-only https://archive.org/details/software_archive
 
-# Limit file sizes  
-ia-get --max-file-size 100MB https://archive.org/details/data_archive
-
-# Specify output directory
+# Custom output directory
 ia-get --output ./downloads https://archive.org/details/software_archive
-```
 
-### GUI Features
-The GUI provides smart detection, easy archive input with validation, visual file filtering, real-time progress tracking, settings management, and download history. See [GUI_README.md](GUI_README.md) for detailed documentation.
+# Search and batch download
+ia-get search "vintage computers" --limit 20
+ia-get batch identifiers.txt --output ./downloads --parallel 3
+```
 
 ## 🛡️ Integrity Verification
 
-All releases include SHA256 checksums for security verification:
+All releases include SHA256 checksums:
 
 ```bash
-# Download and verify (example for Linux x86_64)
 curl -LO https://github.com/Gameaday/ia-get-cli/releases/latest/download/RELEASE_HASHES.txt
 sha256sum -c RELEASE_HASHES.txt
 ```
 
-## 🗜️ Compression & Decompression
-
-```bash
-# Enable compression and auto-decompression
-ia-get --compress --decompress https://archive.org/details/your_archive
-
-# Decompress specific formats only
-ia-get --decompress --decompress-formats gzip,bzip2 https://archive.org/details/your_archive
-```
-
-Supports gzip, bzip2, xz, tar, and combined formats. See [docs/COMPRESSION.md](docs/COMPRESSION.md) for details.
-
 ## 🏗️ Development
 
-### Rust CLI/Server Development
-
 ```shell
-# Standard Cargo workflow
-cargo build --release        # Optimized production build
-cargo build                  # Fast development build
-cargo test                   # Run test suite
-cargo clippy                 # Linting
-cargo fmt                    # Code formatting
-
-# Build CLI only (60% faster)
-cargo build --no-default-features --features cli
-
-# Build with desktop GUI
-cargo build --features gui
+cargo build --release     # optimized production build
+cargo build               # fast development build
+cargo test                # run the test suite
+cargo clippy --all-targets -- -D warnings
+cargo fmt
 
 # Fast development profile
-cargo build --profile fast-dev --no-default-features --features cli
+cargo build --profile fast-dev
 ```
 
-**Requirements:**
-- Rust 1.70+ (standard toolchain)
-- No external dependencies for CLI
-- egui for desktop GUI mode
-
----
-
-### Flutter Mobile/Web Development
-
-The Flutter app uses **pure Dart** - no native compilation or NDK required!
-
-```shell
-# Navigate to Flutter project
-cd mobile/flutter
-
-# Get dependencies
-flutter pub get
-
-# Run on device (auto-detects connected device/emulator)
-flutter run
-
-# Build for specific platforms
-flutter build apk           # Android APK
-flutter build web           # Web bundle
-flutter build ios           # iOS (coming soon)
-flutter build windows       # Windows desktop (coming soon)
-flutter build macos         # macOS desktop (coming soon)
-flutter build linux         # Linux desktop (coming soon)
-```
-
-**Requirements:**
-- Flutter 3.35.5+ / Dart 3.8.0+
-- No Android NDK needed
-- No Rust toolchain needed
-- Standard Flutter development workflow
-
-**Current Platform Status:**
-- ✅ **Android** - Full support (phones and tablets)
-- ✅ **Web** - Desktop browser support
-- 🔜 **iOS** - Coming soon (easy to add with pure Dart)
-- 🔜 **Windows/macOS/Linux Desktop** - Coming soon
-
-**Responsive Design:**
-- 📱 **Mobile** (< 600dp) - Phone-optimized layouts
-- 🖥️ **Tablet** (600-839dp) - Master-detail, two-column layouts
-- 💻 **Desktop** (840dp+) - Constrained width, multi-pane views
-
-See [mobile/flutter/README.md](mobile/flutter/README.md) for detailed documentation.
-- ✅ Standard Flutter build process
-- ✅ Faster builds (no native compilation)
-- ✅ Easy debugging with Flutter DevTools
-- ✅ Works on all Flutter platforms
-
-For Android deployment and Play Store submission, see **[ANDROID_DEPLOYMENT_GUIDE.md](ANDROID_DEPLOYMENT_GUIDE.md)**.
-
-### 🔧 Troubleshooting Build Issues
-
-**Having Flutter/Dart SDK version conflicts?** Run our quick-fix script:
-
-```shell
-./scripts/fix-flutter-deps.sh
-```
-
-**Common Issues:**
-- **Flutter version errors**: Ensure Flutter 3.35.0+ is installed (includes Dart 3.8.0+)
-- **Dependency conflicts**: Run `flutter clean` and `flutter pub get` in `mobile/flutter/`
-- **Build failures**: See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** for comprehensive solutions
-
-**Required Versions:**
-- Flutter: 3.35.0 or higher
-- Dart: 3.8.0 or higher (included with Flutter 3.35.0+)
-- Rust: Latest stable (1.75.0+)
+**Requirements:** a recent stable Rust toolchain (see `rust-version` in `Cargo.toml`). No system/FFI dependencies are required for the CLI or library.
 
 ### Build Profiles
-- **`dev`**: Fast compilation for development
-- **`fast-dev`**: Minimal optimization for quick iteration
-- **`release`**: Maximum optimization for production
-
-### 📊 Build Optimization
-
-The project includes significant build time optimizations:
-
-- **Feature Gates**: CLI and GUI components separated for faster compilation
-- **Build Profiles**: Multiple profiles optimized for different use cases  
-- **CLI-only builds**: ~60-70% faster than full builds
-- **Development iteration**: Additional 10-20% improvement with fast-dev profile
-
-```shell
-# Measure build performance
-./scripts/build-benchmark.sh
-
-# See full development guide  
-cat docs/DEVELOPMENT.md
-```
+- **`dev`**: fast compilation for development
+- **`fast-dev`**: minimal optimization for quick iteration
+- **`release`**: maximum optimization for production
 
 ## 🧪 Quality Assurance
 
 ```shell
-# Run tests (CLI only - fastest)
-cargo test --no-default-features --features cli
-
-# Check formatting and linting
+cargo test --all-targets
 cargo fmt --check
-cargo clippy --no-default-features --features cli -- -D warnings
-
-# Test CI locally
-./scripts/test-ci.sh
+cargo clippy --all-targets -- -D warnings
+./scripts/validate-build.sh   # runs the above plus security/outdated audits
 ```
-
-**Test Coverage**: 81+ tests passing across unit, integration, and API validation.
 
 ## CI/CD & Automated Builds 🔄
 
-### Separate Build Pipelines
+- **Platforms**: Linux (x86_64, musl, aarch64), Windows (x86_64, code-signed), macOS (Intel + Apple Silicon)
+- **Workflows**: `.github/workflows/rust-ci.yml` (test + build), `.github/workflows/release.yml` (tagged releases)
+- **Artifacts**: native binaries plus SHA256 checksums; signed Windows executables on tagged releases
 
-**Rust CLI/Server:**
-- **Platforms**: Linux (x86_64, ARM, musl), Windows (x86_64), macOS (Intel + Apple Silicon)
-- **Artifacts**: Native binaries, code-signed Windows executables
-- **Workflow**: `.github/workflows/ci.yml`
-- **Toolchain**: Standard Cargo, no cross-compilation dependencies
+## 🏗️ Architecture
 
-**Flutter Mobile/Web:**
-- **Platforms**: Android APK, Web bundle
-- **Artifacts**: Universal APK, web deployment files
-- **Workflow**: `.github/workflows/flutter-ci.yml` (coming soon)
-- **Toolchain**: Standard Flutter SDK, no native dependencies
+ia-get is organised in layers, and the same core powers both the CLI and the library:
 
-### Release Artifacts
+- `core` - archive metadata, download engine, session state
+- `infrastructure` - HTTP client, Archive.org API client, configuration, persistence
+- `utilities` - formatting, filters, compression, performance helpers
+- `interface` - the CLI and the interactive terminal UI
 
-**Every Commit** (Development Release):
-- All Rust binaries for desktop platforms
-- Android APK (debug build)
-- SHA256 checksums
-
-**Tagged Releases** (Production):
-- Optimized Rust binaries (all platforms)
-- Signed Android APK (release build)
-- Web deployment bundle
-- Comprehensive documentation
-
-### Quality Assurance
-
-```shell
-# Rust: Run tests, formatting, linting
-cargo test --no-default-features --features cli
-cargo fmt --check
-cargo clippy -- -D warnings
-
-# Flutter: Run tests and analysis
-cd mobile/flutter
-flutter test
-flutter analyze
-```
-
-**Test Coverage:**
-- Rust: 81+ unit and integration tests
-- Flutter: Comprehensive widget and unit tests
-- Both: Zero linting issues required for merge
-
----
-- **Android**: APK for all architectures (arm64-v8a, armeabi-v7a, x86_64)
-- **iOS**: Coming soon (pure Dart makes this easy)
-- **Web**: Experimental support
-- **Desktop**: Windows, macOS, Linux via Flutter
-
-## 🏗️ Architecture & Implementation
-
-### Two Independent, Optimized Implementations
-
-**Rust CLI/Server (High Performance):**
-- ⚡ **Zero-cost abstractions** - Minimal overhead for maximum speed
-- 🔄 **Modern JSON APIs** - Clean communication with Internet Archive
-- 🧪 **Comprehensive testing** - 81+ tests ensuring reliability
-- � **Memory safe** - No unsafe code (minimal unsafe blocks)
-- 📦 **Standard toolchain** - Just Cargo, no special setup
-
-**Flutter Mobile/Web (Cross-Platform GUI):**
-- 🎨 **Pure Dart** - No native dependencies or FFI complexity
-- 📱 **Responsive design** - Adaptive layouts for all screen sizes
-- 🚀 **Hot reload** - Fast iteration with Flutter DevTools
-- ♿ **Accessible** - Screen reader support, dynamic type
-- 🔧 **Standard workflow** - Just Flutter SDK, no Android NDK
-
-**Why Two Implementations?**
-- Each optimized for its target platform and use case
-- Rust: Maximum performance for servers and automation
-- Flutter: Best UX for mobile and casual users
-- No compromises - both implementations excel at their goals
-
----
-- **🔄 Modern HTTP Client**: Direct API communication using Dart's http package
-- **✅ Easy Testing**: Standard Flutter testing framework with no native complications
-
-**Architecture Benefits:**
-- ✅ Clear separation of concerns
-- ✅ Independent optimization for each platform
-- ✅ Simplified development and maintenance
-- ✅ Both implementations maintain full feature parity
-
-- **📦 Professional CI/CD**: Automated builds and testing across all supported platforms
-- **🎯 Cross-Platform Excellence**: Native performance on desktop, mobile, and embedded systems
-
-**Built for the future** with forward-compatible design and modern development practices.
+The library is published as the `ia_get` crate; the `ia-get` binary is a thin CLI over it.
 
 ## 🌐 Community & Contributions
 

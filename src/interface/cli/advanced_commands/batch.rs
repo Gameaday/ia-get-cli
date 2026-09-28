@@ -70,7 +70,17 @@ pub async fn batch_download(config: BatchConfig) -> Result<Vec<BatchItemResult>>
         let total = identifiers.len();
 
         let handle = tokio::spawn(async move {
-            let _permit = sem.acquire().await.expect("Semaphore closed unexpectedly");
+            let _permit = match sem.acquire().await {
+                Ok(permit) => permit,
+                Err(e) => {
+                    return BatchItemResult {
+                        identifier: id,
+                        success: false,
+                        error: Some(format!("Failed to acquire download slot: {}", e)),
+                        files_downloaded: 0,
+                    };
+                }
+            };
 
             println!(
                 "{} [{}/{}] Processing: {}",
@@ -162,8 +172,9 @@ fn read_identifiers(file_path: &str) -> Result<Vec<String>> {
 
         // Extract identifier from URL or use as-is
         let identifier = if line.starts_with("http") {
-            extract_identifier_from_url(line)
-                .ok_or_else(|| anyhow::anyhow!("Invalid URL on line {}: {}", line_num + 1, line))?
+            crate::utilities::common::extract_identifier_from_url(line).map_err(|e| {
+                anyhow::anyhow!("Invalid URL on line {}: {} ({})", line_num + 1, line, e)
+            })?
         } else {
             line.to_string()
         };
@@ -174,29 +185,42 @@ fn read_identifiers(file_path: &str) -> Result<Vec<String>> {
     Ok(identifiers)
 }
 
-/// Extract identifier from Internet Archive URL
-fn extract_identifier_from_url(url: &str) -> Option<String> {
-    if let Some(idx) = url.find("/details/") {
-        let after_details = &url[idx + 9..];
-        let identifier = after_details.split('/').next()?;
-        Some(identifier.to_string())
-    } else {
-        None
-    }
-}
-
-/// Download a single archive (simplified for batch operations)
+/// Download a single archive via the unified download service, returning the
+/// number of files that completed successfully.
 async fn download_single_archive(
-    _identifier: &str,
-    _output_dir: Option<&str>,
-    _resume: bool,
+    identifier: &str,
+    output_dir: Option<&str>,
+    resume: bool,
 ) -> Result<usize> {
-    // This is a placeholder - in real implementation, would use the full download service
-    // For now, simulate with a delay
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    use crate::core::download::{DownloadRequest, DownloadResult, DownloadService};
+    use crate::core::session::{DownloadState, sanitize_filename_for_filesystem};
 
-    // Return simulated file count
-    Ok(5)
+    let service = DownloadService::new()?;
+
+    let resolved_output = output_dir.map(std::path::PathBuf::from).unwrap_or_else(|| {
+        let mut current = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        current.push(sanitize_filename_for_filesystem(identifier));
+        current
+    });
+
+    let request = DownloadRequest {
+        identifier: identifier.to_string(),
+        output_dir: resolved_output,
+        resume,
+        ..Default::default()
+    };
+
+    match service.download(request, None).await? {
+        DownloadResult::Success(session, _stats, _dry_run) => {
+            let completed = session
+                .file_status
+                .values()
+                .filter(|status| matches!(status.status, DownloadState::Completed))
+                .count();
+            Ok(completed)
+        }
+        DownloadResult::Error(message) => Err(anyhow::anyhow!(message)),
+    }
 }
 
 /// Print summary of batch operation

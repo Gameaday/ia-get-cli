@@ -216,19 +216,27 @@ impl ArchiveDownloader {
                 let pool_rx = pool_rx.clone();
 
                 let handle = tokio::spawn(async move {
-                    let _permit = semaphore_clone
-                        .acquire()
-                        .await
-                        .expect("Semaphore closed unexpectedly");
+                    let _permit = match semaphore_clone.acquire().await {
+                        Ok(permit) => permit,
+                        Err(e) => {
+                            return Err(IaGetError::Network(format!(
+                                "Download scheduler closed for {}: {}",
+                                file_info.name, e
+                            )));
+                        }
+                    };
 
                     // Get progress bar from pool or create new hidden one
                     let file_progress = if let (Some(_), Some(rx)) = (&pool_tx, &pool_rx) {
-                        let pb = rx
-                            .lock()
-                            .await
-                            .recv()
-                            .await
-                            .expect("Progress bar pool closed");
+                        let pb = match rx.lock().await.recv().await {
+                            Some(pb) => pb,
+                            None => {
+                                return Err(IaGetError::Network(format!(
+                                    "Progress bar pool closed while starting {}",
+                                    file_info.name
+                                )));
+                            }
+                        };
                         pb.set_length(file_info.size.unwrap_or(0));
                         pb.set_position(0);
                         pb.set_message(file_info.name.chars().take(30).collect::<String>());
