@@ -24,7 +24,6 @@ print_status() {
 
 echo "📋 Checking prerequisites..."
 
-# Check required tools
 if ! command_exists cargo; then
     print_status "error" "cargo not found. Please install Rust."
     exit 1
@@ -48,62 +47,34 @@ else
 fi
 
 echo ""
-echo "📋 Step 2: Running clippy (CLI features)..."
-if cargo clippy --no-default-features --features cli --all-targets -- -D warnings; then
-    print_status "success" "Clippy (CLI) passed with no warnings"
+echo "📋 Step 2: Running clippy..."
+if cargo clippy --all-targets -- -D warnings; then
+    print_status "success" "Clippy passed with no warnings"
 else
-    print_status "error" "Clippy (CLI) found issues"
+    print_status "error" "Clippy found issues"
     exit 1
 fi
 
 echo ""
-echo "📋 Step 3: Running clippy (GUI features)..."
-if cargo clippy --features gui --all-targets -- -D warnings; then
-    print_status "success" "Clippy (GUI) passed with no warnings"
+echo "📋 Step 3: Checking compilation..."
+if cargo check --all-targets; then
+    print_status "success" "Compilation successful"
 else
-    print_status "error" "Clippy (GUI) found issues"
+    print_status "error" "Compilation failed"
     exit 1
 fi
 
 echo ""
-echo "📋 Step 4: Checking compilation (CLI)..."
-if cargo check --no-default-features --features cli; then
-    print_status "success" "CLI compilation successful"
+echo "📋 Step 4: Running tests..."
+if cargo test --quiet; then
+    print_status "success" "Tests passed"
 else
-    print_status "error" "CLI compilation failed"
+    print_status "error" "Tests failed"
     exit 1
 fi
 
 echo ""
-echo "📋 Step 5: Checking compilation (GUI)..."
-if cargo check --features gui; then
-    print_status "success" "GUI compilation successful"
-else
-    print_status "error" "GUI compilation failed"
-    exit 1
-fi
-
-echo ""
-echo "📋 Step 6: Running tests (CLI)..."
-if cargo test --no-default-features --features cli --quiet; then
-    print_status "success" "CLI tests passed"
-else
-    print_status "error" "CLI tests failed"
-    exit 1
-fi
-
-echo ""
-echo "📋 Step 7: Running tests (GUI)..."
-if cargo test --features gui --quiet; then
-    print_status "success" "GUI tests passed"
-else
-    print_status "error" "GUI tests failed"
-    exit 1
-fi
-
-echo ""
-echo "📋 Step 8: Checking for security vulnerabilities..."
-# Install cargo-audit if not present (but don't fail if it can't be installed)
+echo "📋 Step 5: Checking for security vulnerabilities..."
 if ! command_exists cargo-audit; then
     print_status "info" "Installing cargo-audit for security scanning..."
     if cargo install cargo-audit --quiet; then
@@ -124,8 +95,7 @@ else
 fi
 
 echo ""
-echo "📋 Step 9: Checking for outdated dependencies..."
-# Install cargo-outdated if not present (but don't fail if it can't be installed)
+echo "📋 Step 6: Checking for outdated dependencies..."
 if ! command_exists cargo-outdated; then
     print_status "info" "Installing cargo-outdated for dependency checking..."
     if cargo install cargo-outdated --quiet; then
@@ -150,11 +120,8 @@ echo "🎉 Build validation completed successfully!"
 echo ""
 echo "📊 Summary:"
 echo "   - Code formatting: ✅"
-echo "   - Clippy (CLI): ✅"
-echo "   - Clippy (GUI): ✅"
-echo "   - Compilation (CLI): ✅"
-echo "   - Compilation (GUI): ✅"
-echo "   - Tests (CLI): ✅"
-echo "   - Tests (GUI): ✅"
+echo "   - Clippy: ✅"
+echo "   - Compilation: ✅"
+echo "   - Tests: ✅"
 echo ""
 echo "💡 Your code is ready for commit and CI/CD pipeline!"

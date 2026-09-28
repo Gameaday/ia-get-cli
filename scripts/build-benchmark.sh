@@ -60,15 +60,12 @@ echo ""
 # Benchmark different configurations
 measure_build "CLI Only (dev)" "cargo build --no-default-features --features cli"
 measure_build "CLI Only (release)" "cargo build --no-default-features --features cli --release"
-measure_build "GUI (dev)" "cargo build --features gui"
-measure_build "GUI (release)" "cargo build --features gui --release"
 measure_build "Fast Dev Profile" "cargo build --profile fast-dev --no-default-features --features cli"
 
 echo ""
 echo "🧪 Test compilation benchmarks..."
 
 measure_build "CLI Tests" "cargo test --no-default-features --features cli --no-run"
-measure_build "GUI Tests" "cargo test --features gui --no-run"
 
 echo ""
 echo "📊 Results Summary:"
