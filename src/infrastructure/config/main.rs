@@ -219,6 +219,11 @@ impl ConfigManager {
         &self.config_dir
     }
 
+    /// Check whether a configuration file exists on disk
+    pub fn config_exists(&self) -> bool {
+        self.config_file.exists()
+    }
+
     /// Add a URL to recent URLs list
     pub fn add_recent_url(&self, config: &mut Config, url: String) {
         // Remove if already exists

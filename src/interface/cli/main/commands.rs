@@ -4,11 +4,8 @@ use crate::{
     Result,
     error::IaGetError,
     infrastructure::{
-        config::Config,
-        persistence::{
-            config_persistence::ConfigPersistence,
-            download_history::{DownloadHistory, TaskStatus, get_default_history_db_path},
-        },
+        config::{Config, ConfigManager},
+        persistence::download_history::{DownloadHistory, TaskStatus, get_default_history_db_path},
     },
     utilities::filters::format_size,
 };
@@ -38,15 +35,15 @@ const VALID_CONFIG_KEYS: &[&str] = &[
 
 /// Handle configuration commands
 pub async fn handle_config_command(action: ConfigAction) -> Result<()> {
-    let persistence = ConfigPersistence::new()?;
+    let manager = ConfigManager::new()?;
 
     match action {
-        ConfigAction::Show => show_config(&persistence).await,
-        ConfigAction::Set { key, value } => set_config(&persistence, &key, &value).await,
-        ConfigAction::Unset { key } => unset_config(&persistence, &key).await,
-        ConfigAction::Location => show_config_location(&persistence).await,
-        ConfigAction::Reset => reset_config(&persistence).await,
-        ConfigAction::Validate => validate_config(&persistence).await,
+        ConfigAction::Show => show_config(&manager).await,
+        ConfigAction::Set { key, value } => set_config(&manager, &key, &value).await,
+        ConfigAction::Unset { key } => unset_config(&manager, &key).await,
+        ConfigAction::Location => show_config_location(&manager).await,
+        ConfigAction::Reset => reset_config(&manager).await,
+        ConfigAction::Validate => validate_config(&manager).await,
     }
 }
 
@@ -67,31 +64,23 @@ pub async fn handle_history_command(action: HistoryAction) -> Result<()> {
 }
 
 /// Show current configuration
-async fn show_config(persistence: &ConfigPersistence) -> Result<()> {
+async fn show_config(manager: &ConfigManager) -> Result<()> {
     println!("{} Current Configuration", "📋".blue().bold());
     println!();
 
-    let config = persistence.load_config()?;
+    let config = manager.load_config()?;
 
     // Show file location
     println!("{} Configuration File:", "📁".cyan());
-    if persistence.config_exists() {
+    if manager.config_exists() {
         println!(
             "  Location: {}",
-            persistence
-                .get_config_file_path()
-                .display()
-                .to_string()
-                .green()
+            manager.config_file_path().display().to_string().green()
         );
     } else {
         println!(
             "  Location: {} {}",
-            persistence
-                .get_config_file_path()
-                .display()
-                .to_string()
-                .dimmed(),
+            manager.config_file_path().display().to_string().dimmed(),
             "(file does not exist)".yellow()
         );
     }
@@ -213,8 +202,8 @@ async fn show_config(persistence: &ConfigPersistence) -> Result<()> {
 }
 
 /// Set a configuration value
-async fn set_config(persistence: &ConfigPersistence, key: &str, value: &str) -> Result<()> {
-    let mut config = persistence.load_config().unwrap_or_default();
+async fn set_config(manager: &ConfigManager, key: &str, value: &str) -> Result<()> {
+    let mut config = manager.load_config().unwrap_or_default();
 
     match key {
         "default_output_path" => {
@@ -321,7 +310,7 @@ async fn set_config(persistence: &ConfigPersistence, key: &str, value: &str) -> 
         }
     }
 
-    persistence.save_config(&config)?;
+    manager.save_config(&config)?;
 
     println!(
         "{} Configuration updated: {} = {}",
@@ -332,15 +321,15 @@ async fn set_config(persistence: &ConfigPersistence, key: &str, value: &str) -> 
     println!(
         "{} Configuration saved to: {}",
         "💾".blue(),
-        persistence.get_config_file_path().display()
+        manager.config_file_path().display()
     );
 
     Ok(())
 }
 
 /// Unset a configuration value (reset to default)
-async fn unset_config(persistence: &ConfigPersistence, key: &str) -> Result<()> {
-    let mut config = persistence.load_config().unwrap_or_default();
+async fn unset_config(manager: &ConfigManager, key: &str) -> Result<()> {
+    let mut config = manager.load_config().unwrap_or_default();
     let default_config = Config::default();
 
     match key {
@@ -376,7 +365,7 @@ async fn unset_config(persistence: &ConfigPersistence, key: &str) -> Result<()> 
         }
     }
 
-    persistence.save_config(&config)?;
+    manager.save_config(&config)?;
 
     println!(
         "{} Configuration key '{}' reset to default",
@@ -388,28 +377,24 @@ async fn unset_config(persistence: &ConfigPersistence, key: &str) -> Result<()> 
 }
 
 /// Show configuration file location
-async fn show_config_location(persistence: &ConfigPersistence) -> Result<()> {
+async fn show_config_location(manager: &ConfigManager) -> Result<()> {
     println!("{} Configuration File Location", "📁".blue().bold());
     println!();
 
     println!(
         "Primary config file: {}",
-        persistence
-            .get_config_file_path()
+        manager
+            .config_file_path()
             .display()
             .to_string()
             .bright_green()
     );
     println!(
         "Config directory: {}",
-        persistence
-            .get_config_directory()
-            .display()
-            .to_string()
-            .cyan()
+        manager.config_directory().display().to_string().cyan()
     );
 
-    if persistence.config_exists() {
+    if manager.config_exists() {
         println!("Status: {}", "File exists".green());
     } else {
         println!(
@@ -422,7 +407,7 @@ async fn show_config_location(persistence: &ConfigPersistence) -> Result<()> {
 }
 
 /// Reset all configuration to defaults
-async fn reset_config(persistence: &ConfigPersistence) -> Result<()> {
+async fn reset_config(manager: &ConfigManager) -> Result<()> {
     print!(
         "{} This will reset ALL configuration to defaults. Continue? [y/N]: ",
         "⚠️".yellow()
@@ -438,7 +423,7 @@ async fn reset_config(persistence: &ConfigPersistence) -> Result<()> {
     }
 
     let default_config = Config::default();
-    persistence.save_config(&default_config)?;
+    manager.save_config(&default_config)?;
 
     println!("{} All configuration reset to defaults", "✅".green());
 
@@ -446,11 +431,11 @@ async fn reset_config(persistence: &ConfigPersistence) -> Result<()> {
 }
 
 /// Validate configuration
-async fn validate_config(persistence: &ConfigPersistence) -> Result<()> {
+async fn validate_config(manager: &ConfigManager) -> Result<()> {
     println!("{} Validating Configuration", "🔍".blue().bold());
     println!();
 
-    match persistence.load_config() {
+    match manager.load_config() {
         Ok(config) => {
             println!("{} Configuration file is valid", "✅".green());
 

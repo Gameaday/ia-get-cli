@@ -322,25 +322,36 @@ async fn main() -> Result<()> {
     let identifier = ia_get::utilities::common::normalize_archive_identifier(raw_identifier)
         .context("Failed to normalize archive identifier")?;
 
-    let output_dir = matches
-        .get_one::<String>("output")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            let mut current = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            // Sanitize the identifier when using it as a directory name to prevent Windows path issues
-            let sanitized_identifier = sanitize_filename_for_filesystem(&identifier);
-            current.push(sanitized_identifier);
-            current
-        });
+    // Load saved configuration (if any). `config_exists` avoids creating a file on
+    // a plain download invocation.
+    let config = ia_get::infrastructure::config::ConfigManager::new()
+        .ok()
+        .filter(|manager| manager.config_exists())
+        .and_then(|manager| manager.load_config().ok())
+        .unwrap_or_default();
 
-    let verbose = matches.get_flag("verbose");
-    let dry_run = matches.get_flag("dry-run");
+    // Precedence for the output directory: --output > config > current dir/<identifier>
+    let output_dir = match matches.get_one::<String>("output") {
+        Some(output) => PathBuf::from(output),
+        None => {
+            let base = config
+                .default_output_path
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            // Sanitize the identifier when using it as a directory name to prevent Windows path issues
+            base.join(sanitize_filename_for_filesystem(&identifier))
+        }
+    };
+
+    let verbose = matches.get_flag("verbose") || config.default_verbose;
+    let dry_run = matches.get_flag("dry-run") || config.default_dry_run;
 
     let concurrent_downloads = matches
         .get_one::<String>("concurrent")
         .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(4)
-        .min(16); // Cap at 16 concurrent downloads
+        .unwrap_or(config.concurrent_downloads)
+        .clamp(1, 16); // Cap at 16 concurrent downloads
 
     let mut include_formats = matches
         .get_many::<String>("include")
@@ -381,15 +392,34 @@ async fn main() -> Result<()> {
         }
     }
 
-    let max_file_size = matches.get_one::<String>("max-size").map(|s| s.to_string());
+    let max_file_size = matches
+        .get_one::<String>("max-size")
+        .map(|s| s.to_string())
+        .or_else(|| config.default_max_file_size.clone());
 
-    // Compression settings - enable by default as requested
-    let enable_compression = !matches.get_flag("no-compress"); // Default to true unless --no-compress is specified
-    let auto_decompress = matches.get_flag("decompress");
-    let decompress_formats = matches
+    // Compression settings: --no-compress overrides config; otherwise use the config default
+    let enable_compression = if matches.get_flag("no-compress") {
+        false
+    } else {
+        config.default_compress
+    };
+    let auto_decompress = matches.get_flag("decompress") || config.default_decompress;
+    let decompress_formats: Vec<String> = matches
         .get_many::<String>("decompress-formats")
         .map(|values| values.map(|s| s.to_string()).collect::<Vec<_>>())
-        .unwrap_or_default();
+        .unwrap_or_else(|| {
+            config
+                .default_decompress_formats
+                .as_ref()
+                .map(|formats| {
+                    formats
+                        .split(',')
+                        .map(|f| f.trim().to_string())
+                        .filter(|f| !f.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default()
+        });
 
     // Create unified download request
     let request = DownloadRequest {
