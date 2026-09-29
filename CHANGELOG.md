@@ -1,16 +1,62 @@
 # Changelog
 
-## [2.1.0] - 2026-01-11
+## [2.1.0] - 2026-09-28
+
+First release of the Rust-only CLI. Since v1.7.1 the project has been
+rebuilt around a single Rust binary: the mobile/Flutter codebase and the
+desktop GUI were removed, and the CLI was restructured.
+
+### 💥 Breaking Changes
+- **Desktop GUI removed**: The egui-based graphical interface has been
+  deleted along with the `gui` feature flag. ia-get is now CLI-only, with
+  an interactive terminal menu as the front end.
+- **CLI restructured**: Command definitions moved out of `main.rs` into
+  `interface::cli::definition`, and the command handlers were split into
+  dedicated `config`, `history` and `analysis` modules. The clap argument
+  tree is now built by the library rather than the binary.
+- **Batch downloads are real**: `batch` previously simulated downloads
+  with a sleep and a hardcoded file count. It now drives the actual
+  download service, with resume support and per-identifier output
+  directories.
 
 ### ✨ Improvements
-- **CLI Presentation**: Enhanced search results with cleaner layout, colored output, and human-readable formatting.
-- **Robustness**: Improved download server selection to try up to 5 mirrors (was 3), improving success rates for elusive files.
-- **Safety**: Added safeguards against panics when processing empty identifiers.
-- **Argument Parsing**: Replaced unsafe unwrap calls with robust error handling for CLI arguments.
+- **Configuration**: Unified on `ConfigManager`, and the CLI now honours
+  previously saved configuration instead of ignoring it.
+- **Error handling**: `From<anyhow::Error>` no longer collapses every
+  failure into `FileSystem(err.to_string())`. Errors are now classified
+  into the existing typed variants (Network, UrlFormat, JsonParsing,
+  Config, NoFilesFound), and background task failures map to a dedicated
+  variant. Session load/parse failures in `metadata_storage` and the
+  batch download paths now surface typed errors as well.
+- **Exit behaviour**: Replaced scattered `process::exit(1)` calls with
+  returned errors, so destructors run and output is flushed. Exit code 1
+  is unchanged on all failure paths.
+- **Progress reporting**: `DownloadStats` gained `update_progress`,
+  `eta_seconds`, `is_complete` and `format_speed`.
+- **Robustness**: Improved download server selection to try up to 5
+  mirrors (was 3), and added safeguards against panics on empty
+  identifiers.
+- **API health**: `api-health` command no longer panics on failure.
+
+### 🐛 Fixes
+- **User-Agent drift**: The search endpoint hardcoded version `1.6.0` and
+  the fallback constant `1.5.0`, while the manifest declared `2.1.0` —
+  three different versions in one codebase. Both are now derived from
+  `CARGO_PKG_VERSION` and `CARGO_PKG_REPOSITORY`. Internet Archive
+  requires an accurate, contactable User-Agent, so this was reporting a
+  wrong version to their logs.
 
 ### 🧹 Cleanup
-- **Project Structure**: Removed obsolete mobile/Flutter build scripts and documentation as mobile app has moved to a separate repository.
-- **Code Quality**: Consolidated utility functions to reduce duplication.
+- Removed the dead download engines, the duplicate metadata module and
+  the legacy crate-root module aliases.
+- Removed the abandoned gRPC worker/orchestrator scaffolding. It was
+  never wired up and did not compile (it called `tonic_build` without
+  declaring the dependency).
+- Removed the stale debug binary and test harness.
+- Removed dead Android NDK cross-compilation configuration.
+- Pruned documentation superseded by the new architecture.
+- Added an architecture overview and a codebase audit under
+  `docs/architecture/`.
 
 ## [2.0.0] - 2025-10-07
 
