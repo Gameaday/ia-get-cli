@@ -19,7 +19,7 @@ indicatif = "0.18.6"
 md5 = "0.8.0"
 sha1 = "0.10"
 sha2 = "0.10"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "blocking", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream", "blocking", "json"] }
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
