@@ -46,6 +46,26 @@ desktop GUI were removed, and the CLI was restructured.
   requires an accurate, contactable User-Agent, so this was reporting a
   wrong version to their logs.
 
+### 📦 Dependencies
+The dependency set is current as of this release. Several crates were
+several major versions behind, since the last published build predates
+them by about a year.
+
+- **reqwest** 0.12 → 0.13. The breaking change is the TLS backend feature
+  rename (`rustls-tls` → `rustls`); no call sites changed.
+- **zip** 5.1 → 8.6. Three major versions with no source changes — the
+  decompression path only uses `ZipArchive::new`, `by_index`,
+  `enclosed_name` and `name`, all of which kept their signatures.
+- **toml** 0.9 → 1.1, **criterion** 0.7 → 0.8, **tokio** 1.47 → 1.53,
+  **regex** 1.10 → 1.13.
+- **md5** 0.8.1, **sha1**/**sha2** 0.11, **clap** 4.6, **colored** 3.1,
+  **indicatif** 0.18.6.
+- All transitive dependencies refreshed within their semver ranges.
+- **Dropped `ctrlc`**: it had no references anywhere in the source. Ctrl+C
+  is already handled through `tokio::signal`. `sha1`/`sha2` are likewise
+  unreferenced today but are kept current, because integrity verification
+  uses `sha1` as the fallback when an item exposes no `md5`.
+
 ### 🧹 Cleanup
 - Removed the dead download engines, the duplicate metadata module and
   the legacy crate-root module aliases.
