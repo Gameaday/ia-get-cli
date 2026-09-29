@@ -97,8 +97,7 @@ async fn main() -> Result<()> {
                     advanced_commands::display_search_results(&results);
                 }
                 Err(e) => {
-                    eprintln!("{} Search failed: {}", "❌".red(), e);
-                    std::process::exit(1);
+                    return Err(anyhow::anyhow!("Search failed: {}", e));
                 }
             }
             return Ok(());
@@ -148,8 +147,7 @@ async fn main() -> Result<()> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("{} Batch download failed: {}", "❌".red(), e);
-                    std::process::exit(1);
+                    return Err(anyhow::anyhow!("Batch download failed: {}", e));
                 }
             }
             return Ok(());
@@ -199,10 +197,9 @@ async fn main() -> Result<()> {
                         .await?;
                 }
                 _ => {
-                    eprintln!(
+                    return Err(anyhow::anyhow!(
                         "No config subcommand specified. Use 'ia-get config --help' for available options."
-                    );
-                    std::process::exit(1);
+                    ));
                 }
             }
             return Ok(());
@@ -247,10 +244,9 @@ async fn main() -> Result<()> {
                         .await?;
                 }
                 _ => {
-                    eprintln!(
+                    return Err(anyhow::anyhow!(
                         "No history subcommand specified. Use 'ia-get history --help' for available options."
-                    );
-                    std::process::exit(1);
+                    ));
                 }
             }
             return Ok(());
@@ -540,12 +536,10 @@ async fn main() -> Result<()> {
             }
         }
         Ok(DownloadResult::Error(error)) => {
-            eprintln!("{} Error: {}", "✘".red().bold(), error);
-            std::process::exit(1);
+            return Err(anyhow::anyhow!("Error: {}", error));
         }
         Err(e) => {
-            eprintln!("{} Error: {}", "✘".red().bold(), e);
-            std::process::exit(1);
+            return Err(anyhow::anyhow!("Error: {}", e));
         }
     }
 
