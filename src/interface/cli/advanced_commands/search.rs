@@ -4,7 +4,7 @@
 //! and detailed result display.
 
 use crate::utilities::{common::format_number, filters::format_size};
-use anyhow::{Context, Result};
+use crate::{IaGetError, Result};
 use colored::*;
 use serde::{Deserialize, Serialize};
 
@@ -74,22 +74,22 @@ pub async fn search_archive(
     // Make request
     let response = client
         .get(&url)
-        .header(
-            "User-Agent",
-            "ia-get-cli/1.6.0 (https://github.com/Gameaday/ia-get-cli)",
-        )
+        .header("User-Agent", crate::utilities::common::get_user_agent())
         .send()
         .await
-        .context("Failed to search Internet Archive")?;
+        .map_err(|e| IaGetError::Network(format!("Failed to search Internet Archive: {}", e)))?;
 
     if !response.status().is_success() {
-        anyhow::bail!("Search failed with status: {}", response.status());
+        return Err(IaGetError::Network(format!(
+            "Search failed with status: {}",
+            response.status()
+        )));
     }
 
     let results: SearchResults = response
         .json()
         .await
-        .context("Failed to parse search results")?;
+        .map_err(|e| IaGetError::JsonParsing(format!("Failed to parse search results: {}", e)))?;
 
     Ok(results)
 }

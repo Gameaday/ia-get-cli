@@ -23,7 +23,13 @@ pub fn get_user_agent() -> String {
 }
 
 /// Static user agent string for HTTP requests (fallback)
-pub const USER_AGENT: &str = "ia-get-cli/1.5.0 (+https://github.com/Gameaday/ia-get-cli) - Internet Archive batch downloader";
+pub const USER_AGENT: &str = concat!(
+    "ia-get-cli/",
+    env!("CARGO_PKG_VERSION"),
+    " (+",
+    env!("CARGO_PKG_REPOSITORY"),
+    ") - Internet Archive batch downloader for research and archival purposes"
+);
 
 /// Timeout for all HTTP requests in seconds
 pub const HTTP_TIMEOUT: u64 = 60;
