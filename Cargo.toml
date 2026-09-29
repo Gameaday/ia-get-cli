@@ -37,7 +37,7 @@ flate2 = "1.0"
 bzip2 = "0.6"
 liblzma = "0.4"
 tar = "0.4"
-zip = "5.1.1"
+zip = "8"
 futures = "0.3"
 urlencoding = "2.1"
 
