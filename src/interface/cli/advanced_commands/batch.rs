@@ -3,7 +3,7 @@
 //! Supports downloading multiple archives from a file list with parallel processing,
 //! progress tracking, and resume capabilities.
 
-use anyhow::{Context, Result};
+use crate::error::{IaGetError, Result};
 use colored::*;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -155,8 +155,8 @@ pub async fn batch_download(config: BatchConfig) -> Result<Vec<BatchItemResult>>
 
 /// Read identifiers from file
 fn read_identifiers(file_path: &str) -> Result<Vec<String>> {
-    let file =
-        File::open(file_path).with_context(|| format!("Failed to open file: {}", file_path))?;
+    let file = File::open(file_path)
+        .map_err(|e| IaGetError::FileSystem(format!("Failed to open file {}: {}", file_path, e)))?;
 
     let reader = BufReader::new(file);
     let mut identifiers = Vec::new();
@@ -173,7 +173,12 @@ fn read_identifiers(file_path: &str) -> Result<Vec<String>> {
         // Extract identifier from URL or use as-is
         let identifier = if line.starts_with("http") {
             crate::utilities::common::extract_identifier_from_url(line).map_err(|e| {
-                anyhow::anyhow!("Invalid URL on line {}: {} ({})", line_num + 1, line, e)
+                IaGetError::UrlFormat(format!(
+                    "Invalid URL on line {}: {} ({})",
+                    line_num + 1,
+                    line,
+                    e
+                ))
             })?
         } else {
             line.to_string()
@@ -219,7 +224,9 @@ async fn download_single_archive(
                 .count();
             Ok(completed)
         }
-        DownloadResult::Error(message) => Err(anyhow::anyhow!(message)),
+        DownloadResult::Error(message) => {
+            Err(IaGetError::Network(format!("Download failed: {}", message)))
+        }
     }
 }
 
