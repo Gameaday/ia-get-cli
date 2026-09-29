@@ -34,6 +34,11 @@ Thumbs.db
 *.swo
 *~
 
+# Aider AI assistant local state
+.aider-desk/
+.aider.input.history
+.aider.tags.cache.v4/
+
 # OS generated files
 .DS_Store
 .DS_Store?
