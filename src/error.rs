@@ -72,6 +72,10 @@ pub enum IaGetError {
     /// IO errors
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    /// External error wrapping arbitrary failures (e.g., from anyhow)
+    #[error("External error: {0}")]
+    External(String),
 }
 
 impl From<reqwest::Error> for IaGetError {
@@ -93,8 +97,36 @@ impl From<url::ParseError> for IaGetError {
     }
 }
 
+impl From<tokio::task::JoinError> for IaGetError {
+    fn from(err: tokio::task::JoinError) -> Self {
+        IaGetError::External(format!("Background task failed: {}", err))
+    }
+}
+
 impl From<anyhow::Error> for IaGetError {
     fn from(err: anyhow::Error) -> Self {
-        IaGetError::FileSystem(err.to_string())
+        let message = format!("{:#}", err);
+        let lowered = message.to_lowercase();
+        if lowered.contains("network")
+            || lowered.contains("connection")
+            || lowered.contains("timeout")
+            || lowered.contains("http")
+            || lowered.contains("request failed")
+        {
+            IaGetError::Network(message)
+        } else if lowered.contains("url")
+            || lowered.contains("identifier")
+            || lowered.contains("archive.org/details")
+        {
+            IaGetError::UrlFormat(message)
+        } else if lowered.contains("json") || lowered.contains("parse") {
+            IaGetError::JsonParsing(message)
+        } else if lowered.contains("config") {
+            IaGetError::Config(message)
+        } else if lowered.contains("no files found") {
+            IaGetError::NoFilesFound(message)
+        } else {
+            IaGetError::External(message)
+        }
     }
 }

@@ -76,6 +76,35 @@ impl DownloadStats {
         self.total_bytes
     }
 
+    /// Update download progress by adding bytes downloaded incrementally
+    pub fn update_progress(&mut self, additional_bytes: u64) {
+        self.downloaded_bytes += additional_bytes;
+        let elapsed = self.start_time.elapsed().as_secs_f64();
+        if elapsed > 0.0 {
+            self.current_speed = self.downloaded_bytes as f64 / elapsed;
+        }
+    }
+
+    /// Get estimated time remaining in seconds
+    pub fn eta_seconds(&self) -> Option<u64> {
+        if self.current_speed <= 0.0 || self.downloaded_bytes >= self.total_bytes {
+            return None;
+        }
+        let remaining_bytes = self.total_bytes.saturating_sub(self.downloaded_bytes);
+        Some((remaining_bytes as f64 / self.current_speed) as u64)
+    }
+
+    /// Format current download speed for display (e.g. "1.5 MB/s")
+    /// Alias of [`DownloadStats::speed_string`]; kept for API compatibility.
+    pub fn format_speed(&self) -> String {
+        self.speed_string()
+    }
+
+    /// Check whether all tracked files have reached a terminal state
+    pub fn is_complete(&self) -> bool {
+        self.completed_files + self.failed_files + self.skipped_files >= self.total_files
+    }
+
     /// Format current speed for display
     pub fn speed_string(&self) -> String {
         if self.current_speed <= 0.0 {

@@ -3,8 +3,7 @@
 //! Handles storing and retrieving complete Internet Archive JSON metadata
 //! for download resumption and comprehensive file management.
 
-use crate::IaGetError;
-use anyhow::{Result, anyhow};
+use crate::error::{IaGetError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -369,9 +368,10 @@ impl DownloadSession {
     /// Load session from disk
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)
-            .map_err(|e| anyhow!("Failed to read session file: {}", e))?;
+            .map_err(|e| IaGetError::FileSystem(format!("Failed to read session file: {}", e)))?;
 
-        serde_json::from_str(&content).map_err(|e| anyhow!("Failed to parse session file: {}", e))
+        serde_json::from_str(&content)
+            .map_err(|e| IaGetError::JsonParsing(format!("Failed to parse session file: {}", e)))
     }
 
     /// Update file status
@@ -930,7 +930,7 @@ pub fn validate_path_length(output_dir: &str, filename: &str) -> Result<()> {
     };
 
     if full_path.len() > max_path_length {
-        return Err(anyhow!(
+        return Err(IaGetError::FileSystem(format!(
             "Path too long: {} characters (max: {}). \
             {} \
             Path: {}",
@@ -942,7 +942,7 @@ pub fn validate_path_length(output_dir: &str, filename: &str) -> Result<()> {
                 "Path exceeds system limits."
             },
             full_path
-        ));
+        )));
     }
 
     Ok(())
