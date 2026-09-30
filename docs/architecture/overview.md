@@ -97,11 +97,26 @@ cargo test --all-targets
 
 Unit tests live inline (`#[cfg(test)]`) with focused integration tests under `tests/`.
 
+## Progress reporting (UI-agnostic)
+
+Long-running operations in `core`/`infrastructure` report by emitting
+[`ProgressEvent`]s to a [`ProgressReporter`] (`core/progress.rs`):
+
+- the download engine, metadata fetch, download service, decompression and
+  connectivity checks emit events — they no longer touch the terminal;
+- the CLI renders them via `interface::progress::IndicatifReporter`;
+- the interactive TUI renders them via its own reporter;
+- library users pass their own reporter, or `NoopReporter` to stay silent.
+
+[`ProgressEvent`]: ../src/core/progress.rs
+[`ProgressReporter`]: ../src/core/progress.rs
+
 ## Known gaps / next steps
 
-- `core` still constructs `indicatif` progress bars and `colored` output
-  (library ergonomics) — target: a small progress/observer abstraction so the
-  library is UI-agnostic.
+- `analysis.rs::display_analysis` still prints with `colored`; it should return a
+  formatted string that the CLI prints.
+- `core`/`infrastructure` still contain a few plain `eprintln!` diagnostics
+  (disk-space and history warnings); these could become `Message` events.
 - Retry/backoff/rate-limiting is implemented in more than one place
   (`http/network.rs`, `api/archive_api.rs`, the download engine) — target: a
   single `RetryPolicy` + limiter.

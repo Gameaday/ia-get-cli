@@ -476,3 +476,21 @@ Work completed against this audit (all verified with `cargo fmt --check`,
 **Still open (P2, larger features):** torrent/magnet + seed-after handling (§A2), S3-style upload
 (§A1), library ergonomics (observer abstraction + `cdylib`, §A4), a single shared rate-limit/retry
 policy (§D1/§D2), and the metadata cache claim (§D3).
+
+### Later: UI-agnostic progress reporting (A4)
+
+- Added `core::progress` (`ProgressEvent`, `ProgressReporter`, `NoopReporter`,
+  `SharedReporter`). The download engine, metadata fetch, download service,
+  decompression and connectivity checks now emit events instead of driving
+  `indicatif`/`colored`; the CLI and TUI supply reporters and the download
+  summary moved out of `core` into the CLI. `core`/`infrastructure` no longer
+  reference `indicatif` or `colored` (except `analysis.rs::display_analysis`,
+  pending).
+
+### Later: CLI restructure (maintainability)
+
+- `main.rs` slimmed from 1,245 to ~560 lines; the clap tree moved to
+  `interface::cli::definition`. The confusing `cli/main.rs` + `cli/main/` layout
+  was renamed to `cli/types.rs` + `cli/commands/{config,history,analysis}.rs`.
+  `build.rs` reduced to the Windows manifest step. Added
+  `docs/architecture/overview.md`.
