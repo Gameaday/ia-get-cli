@@ -105,9 +105,7 @@ pub fn parse_json_files(json_content: &str) -> Result<JsonMetadata> {
     // Provide context for debugging if JSON parsing fails
     match from_str::<JsonMetadata>(json_content) {
         Ok(metadata) => {
-            if metadata.files.is_empty() {
-                eprintln!("Warning: Parsed JSON metadata but found no files");
-            }
+            // Note: an empty file list is valid (items may contain only metadata).
             Ok(metadata)
         }
         Err(e) => {

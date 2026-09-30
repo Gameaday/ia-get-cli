@@ -210,7 +210,13 @@ async fn download_single_archive(
         ..Default::default()
     };
 
-    match service.download(request, None).await? {
+    match service
+        .download(
+            request,
+            std::sync::Arc::new(crate::core::progress::NoopReporter),
+        )
+        .await?
+    {
         DownloadResult::Success(session, _stats, _dry_run) => {
             let completed = session
                 .file_status

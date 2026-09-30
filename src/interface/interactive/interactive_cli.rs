@@ -6,7 +6,8 @@
 use crate::{
     Result,
     core::download::{DownloadRequest, DownloadResult, DownloadService},
-    core::session::{ArchiveFile, DownloadSession, ProgressUpdate},
+    core::progress::{NoopReporter, ProgressEvent, ProgressReporter},
+    core::session::{ArchiveFile, DownloadSession},
     infrastructure::config::{Config, ConfigManager},
     utilities::filters::format_size,
 };
@@ -34,6 +35,40 @@ struct DownloadState {
     eta: String,
     status: String,
     start_time: Option<Instant>,
+}
+
+/// Reports engine [`ProgressEvent`]s into the TUI's shared display state.
+struct TuiReporter {
+    state: Arc<Mutex<DownloadState>>,
+}
+
+impl ProgressReporter for TuiReporter {
+    fn report(&self, event: ProgressEvent) {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        match event {
+            ProgressEvent::SessionStarted { total_files, .. } => {
+                state.total_files = total_files;
+            }
+            ProgressEvent::FileStarted { name, .. } => {
+                state.current_file = name;
+                state.status = "Downloading...".to_string();
+            }
+            ProgressEvent::FileProgress { .. } => {}
+            ProgressEvent::FileCompleted { .. } => {
+                state.completed_files += 1;
+            }
+            ProgressEvent::FileFailed { .. } => {
+                state.failed_files += 1;
+            }
+            ProgressEvent::Message(message) => {
+                state.status = message;
+            }
+            ProgressEvent::SessionCompleted { completed, failed } => {
+                state.completed_files = completed;
+                state.failed_files = failed;
+            }
+        }
+    }
 }
 
 impl InteractiveCli {
@@ -540,7 +575,10 @@ impl InteractiveCli {
         dry_request.dry_run = true;
 
         // Execute dry run to get file metadata
-        let result = self.download_service.download(dry_request, None).await?;
+        let result = self
+            .download_service
+            .download(dry_request, Arc::new(NoopReporter))
+            .await?;
 
         match result {
             DownloadResult::Success(session, _stats, _is_dry_run) => {
@@ -1137,21 +1175,6 @@ impl InteractiveCli {
 
         let display_state = Arc::clone(&download_state);
 
-        // Create progress callback
-        let progress_callback = {
-            let state = Arc::clone(&download_state);
-            Box::new(move |update: ProgressUpdate| {
-                let mut state = state.lock().expect("Progress state mutex poisoned");
-                state.current_file = update.current_file;
-                state.completed_files = update.completed_files;
-                state.total_files = update.total_files;
-                state.failed_files = update.failed_files;
-                state.current_speed = update.current_speed;
-                state.eta = update.eta;
-                state.status = update.status;
-            })
-        };
-
         // Start progress display task
         let progress_task = {
             let state = Arc::clone(&display_state);
@@ -1171,10 +1194,13 @@ impl InteractiveCli {
             })
         };
 
-        // Execute download
+        // Execute download, reporting progress into the shared TUI state
+        let reporter = TuiReporter {
+            state: Arc::clone(&download_state),
+        };
         let result = self
             .download_service
-            .download(request, Some(progress_callback))
+            .download(request, Arc::new(reporter))
             .await?;
 
         // Stop progress display

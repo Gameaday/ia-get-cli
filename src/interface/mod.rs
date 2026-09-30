@@ -5,7 +5,9 @@
 
 pub mod cli;
 pub mod interactive;
+pub mod progress;
 
 // Re-export commonly used interface types
 pub use cli::*;
 pub use interactive::*;
+pub use progress::IndicatifReporter;

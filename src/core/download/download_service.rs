@@ -7,9 +7,8 @@ use crate::{
     IaGetError, Result,
     core::archive::fetch_json_metadata,
     core::download::ArchiveDownloader,
-    core::session::{
-        ArchiveFile, DownloadConfig, DownloadSession, ProgressCallback, ProgressUpdate,
-    },
+    core::progress::ProgressReporter,
+    core::session::{ArchiveFile, DownloadConfig, DownloadSession},
     infrastructure::api::{ApiStats, ArchiveOrgApiClient, validate_identifier},
     infrastructure::config::Config,
     interface::cli::SourceType,
@@ -17,9 +16,9 @@ use crate::{
     utilities::common::get_user_agent,
     utilities::filters::{format_size, parse_size_string},
 };
-use colored::Colorize;
 use reqwest::Client;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Unified download request parameters used by both CLI and GUI
 #[derive(Debug, Clone)]
@@ -154,7 +153,7 @@ impl DownloadService {
     pub async fn download(
         &self,
         request: DownloadRequest,
-        progress_callback: Option<ProgressCallback>,
+        reporter: Arc<dyn ProgressReporter>,
     ) -> Result<DownloadResult> {
         use crate::infrastructure::persistence::download_history::{
             DownloadHistory, DownloadHistoryEntry, get_default_history_db_path,
@@ -181,33 +180,13 @@ impl DownloadService {
         let mut download_history = DownloadHistory::load_or_create(&history_path)?;
 
         // Send initial status
-        if let Some(ref callback) = progress_callback {
-            callback(ProgressUpdate {
-                current_file: String::new(),
-                completed_files: 0,
-                total_files: 0,
-                failed_files: 0,
-                current_speed: 0.0,
-                eta: String::new(),
-                status: "Initializing Archive.org API client...".to_string(),
-            });
-        }
+        reporter.message("Initializing Archive.org API client...".to_string());
 
         // Create Archive.org API client for compliance
         let api_client = ArchiveOrgApiClient::new(self.client.clone());
 
         // Send metadata fetching status
-        if let Some(ref callback) = progress_callback {
-            callback(ProgressUpdate {
-                current_file: String::new(),
-                completed_files: 0,
-                total_files: 0,
-                failed_files: 0,
-                current_speed: 0.0,
-                eta: String::new(),
-                status: "Fetching metadata with API compliance...".to_string(),
-            });
-        }
+        reporter.message("Fetching metadata with API compliance...".to_string());
 
         // Construct archive URL
         let archive_url = if request.identifier.starts_with("http") {
@@ -219,24 +198,17 @@ impl DownloadService {
         // Create session directory path for cache
         let session_dir = request.output_dir.join(".ia-get-sessions");
 
-        // Fetch metadata using compliant API client with caching
-        let progress = indicatif::ProgressBar::new_spinner();
-        progress.enable_steady_tick(std::time::Duration::from_millis(100));
-
+        // Fetch metadata using the compliant API client with caching
         let (metadata, _base_url) = match fetch_json_metadata(
             &archive_url,
             api_client.client(),
-            &progress,
+            reporter.as_ref(),
             Some(&session_dir),
         )
         .await
         {
-            Ok(result) => {
-                progress.finish_and_clear();
-                result
-            }
+            Ok(result) => result,
             Err(e) => {
-                progress.finish_and_clear();
                 return Ok(DownloadResult::Error(format!(
                     "Failed to fetch metadata: {}",
                     e
@@ -270,17 +242,7 @@ impl DownloadService {
         }
 
         // Send file count update
-        if let Some(ref callback) = progress_callback {
-            callback(ProgressUpdate {
-                current_file: String::new(),
-                completed_files: 0,
-                total_files: filtered_files.len(),
-                failed_files: 0,
-                current_speed: 0.0,
-                eta: String::new(),
-                status: format!("Found {} files to download", filtered_files.len()),
-            });
-        }
+        reporter.message(format!("Found {} files to download", filtered_files.len()));
 
         // Calculate total download size
         let total_download_size: u64 = filtered_files.iter().map(|f| f.size.unwrap_or(0)).sum();
@@ -307,7 +269,7 @@ impl DownloadService {
                     format_size(required_space.saturating_sub(available_space))
                 );
 
-                eprintln!("{}", warning_msg.yellow());
+                eprintln!("{}", warning_msg);
 
                 if !request.dry_run {
                     return Ok(DownloadResult::Error(format!(
@@ -319,8 +281,8 @@ impl DownloadService {
             } else if request.verbose {
                 eprintln!(
                     "✓ Disk space check passed: {} available, {} required",
-                    format_size(available_space).bright_green(),
-                    format_size(required_space).bright_blue()
+                    format_size(available_space),
+                    format_size(required_space)
                 );
             }
         } else if request.verbose {
@@ -414,22 +376,9 @@ impl DownloadService {
         let requested_files: Vec<String> = filtered_files.iter().map(|f| f.name.clone()).collect();
 
         // Send download start status
-        if let Some(ref callback) = progress_callback {
-            callback(ProgressUpdate {
-                current_file: String::new(),
-                completed_files: 0,
-                total_files: filtered_files.len(),
-                failed_files: 0,
-                current_speed: 0.0,
-                eta: String::new(),
-                status: "Starting download...".to_string(),
-            });
-        }
+        reporter.message("Starting download...".to_string());
 
-        // Create a simple progress bar for the download operation
-        let progress_bar = indicatif::ProgressBar::new(filtered_files.len() as u64);
-
-        // Execute download
+        // Execute the download (progress is reported through `reporter`)
         match downloader
             .download_with_metadata(
                 archive_url,
@@ -437,8 +386,7 @@ impl DownloadService {
                 metadata,
                 download_config,
                 requested_files,
-                &progress_bar,
-                progress_callback, // Consume the callback here
+                reporter,
             )
             .await
         {
@@ -453,10 +401,10 @@ impl DownloadService {
                         progress_summary.downloaded_bytes,
                     );
                 }) {
-                    eprintln!("{} Failed to update download history: {}", "⚠️".yellow(), e);
+                    eprintln!("Failed to update download history: {}", e);
                 }
                 if let Err(e) = download_history.save_to_file(&history_path) {
-                    eprintln!("{} Failed to save download history: {}", "⚠️".yellow(), e);
+                    eprintln!("Failed to save download history: {}", e);
                 }
 
                 let final_api_stats = api_client.get_stats();
@@ -472,10 +420,10 @@ impl DownloadService {
                 if let Err(e) = download_history.update_entry(&entry_id, |entry| {
                     entry.mark_failed(e.to_string());
                 }) {
-                    eprintln!("{} Failed to update download history: {}", "⚠️".yellow(), e);
+                    eprintln!("Failed to update download history: {}", e);
                 }
                 if let Err(e) = download_history.save_to_file(&history_path) {
-                    eprintln!("{} Failed to save download history: {}", "⚠️".yellow(), e);
+                    eprintln!("Failed to save download history: {}", e);
                 }
 
                 Ok(DownloadResult::Error(error_message))
@@ -563,65 +511,5 @@ impl DownloadService {
             })
             .cloned()
             .collect()
-    }
-
-    /// Display download summary for CLI usage
-    pub fn display_download_summary(session: &DownloadSession, request: &DownloadRequest) {
-        use colored::Colorize;
-
-        let completed_files = session
-            .file_status
-            .values()
-            .filter(|status| {
-                matches!(
-                    status.status,
-                    crate::core::session::DownloadState::Completed
-                )
-            })
-            .count();
-        let total_files = session.file_status.len();
-        let total_bytes: u64 = session
-            .file_status
-            .values()
-            .filter(|status| {
-                matches!(
-                    status.status,
-                    crate::core::session::DownloadState::Completed
-                )
-            })
-            .map(|status| status.file_info.size.unwrap_or(0))
-            .sum();
-
-        println!("\n{} Download Summary:", "📋".blue().bold());
-        println!("  📂 Archive: {}", session.identifier);
-        println!(
-            "  📁 Output directory: {}",
-            request.output_dir.display().to_string().bright_green()
-        );
-        println!("  📊 Files downloaded: {}/{}", completed_files, total_files);
-        println!(
-            "  💾 Total size: {}",
-            format_size(total_bytes).bright_blue()
-        );
-
-        if completed_files < total_files {
-            println!("\n{} Some files were not downloaded:", "⚠️".yellow());
-            for (filename, status) in &session.file_status {
-                if !matches!(
-                    status.status,
-                    crate::core::session::DownloadState::Completed
-                ) {
-                    if let Some(err) = &status.error_message {
-                        println!("  • {} - Failed: {}", filename, err.red());
-                    } else {
-                        println!("  • {} - {:?}", filename, status.status);
-                    }
-                }
-            }
-            println!(
-                "\n💡 Use {} to retry failed downloads",
-                "--resume".bright_blue()
-            );
-        }
     }
 }

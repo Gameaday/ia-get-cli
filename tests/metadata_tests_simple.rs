@@ -209,7 +209,12 @@ async fn test_mario_archive_dry_run() {
     };
 
     // Execute the dry-run request
-    let result = service.download(request, None).await;
+    let result = service
+        .download(
+            request,
+            std::sync::Arc::new(ia_get::core::progress::NoopReporter),
+        )
+        .await;
 
     // Verify the request was successful
     assert!(
@@ -289,7 +294,12 @@ async fn test_luigi_archive_dry_run() {
     };
 
     // Execute the dry-run request
-    let result = service.download(request, None).await;
+    let result = service
+        .download(
+            request,
+            std::sync::Arc::new(ia_get::core::progress::NoopReporter),
+        )
+        .await;
 
     // Verify the request was successful
     assert!(

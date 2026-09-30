@@ -13,12 +13,12 @@
 //! ```rust,no_run
 //! use ia_get::core::archive::fetch_json_metadata;
 //! use reqwest::Client;
-//! use indicatif::ProgressBar;
+//! use ia_get::core::progress::NoopReporter;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let client = Client::new();
-//!     let progress = ProgressBar::new_spinner();
+//!     let progress = NoopReporter;
 //!     
 //!     // Fetch metadata for an archive
 //!     let (metadata, _url) = fetch_json_metadata("internetarchive", &client, &progress, None).await?;
@@ -39,12 +39,11 @@
 //! - **JSON-Only**: Uses the modern JSON API (no legacy XML support)
 //! - **Error Context**: Detailed error messages with context
 
+use crate::core::progress::ProgressReporter;
 use crate::{
     Result, core::session::ArchiveMetadata, error::IaGetError,
     infrastructure::http::is_transient_error,
 };
-use colored::*;
-use indicatif::ProgressBar;
 use reqwest::Client;
 use std::path::Path;
 use tokio::fs;
@@ -112,7 +111,7 @@ pub fn get_json_url(original_url: &str) -> String {
 pub async fn fetch_json_metadata(
     details_url: &str,
     client: &Client,
-    progress: &ProgressBar,
+    reporter: &dyn ProgressReporter,
     cache_dir: Option<&Path>,
 ) -> Result<(ArchiveMetadata, reqwest::Url)> {
     // Generate JSON metadata URL
@@ -131,10 +130,9 @@ pub async fn fetch_json_metadata(
                     if let Ok(age) = modified.elapsed() {
                         if age < std::time::Duration::from_secs(86400) {
                             let duration_str = format!("{}h", age.as_secs() / 3600);
-                            progress.set_message(format!(
+                            reporter.message(format!(
                                 "{} Using cached metadata ({} old)",
-                                "📂".blue(),
-                                duration_str
+                                "📂", duration_str
                             ));
 
                             if let Ok(content) = fs::read_to_string(&cache_file).await {
@@ -156,29 +154,20 @@ pub async fn fetch_json_metadata(
         }
     }
 
-    progress.set_message(format!(
-        "{} Accessing JSON metadata: {}",
-        "⚙".blue(),
-        json_url.bold()
-    ));
+    reporter.message(format!("{} Accessing JSON metadata: {}", "⚙", json_url));
 
     // Check JSON URL accessibility
     if let Err(e) =
-        crate::infrastructure::http::is_url_accessible(&json_url, client, Some(progress)).await
+        crate::infrastructure::http::is_url_accessible(&json_url, client, Some(reporter)).await
     {
-        progress.finish_with_message(format!(
+        reporter.message(format!(
             "{} JSON metadata not accessible: {}",
-            "✘".red().bold(),
-            json_url.bold()
+            "✘", json_url
         ));
         return Err(e);
     }
 
-    progress.set_message(format!(
-        "{} {}",
-        "⚙".blue(),
-        "Parsing archive metadata...".bold()
-    ));
+    reporter.message(format!("{} {}", "⚙", "Parsing archive metadata..."));
 
     // Parse base URL and fetch JSON content with retry logic
     let base_url = reqwest::Url::parse(&json_url)
@@ -209,7 +198,7 @@ pub async fn fetch_json_metadata(
                         "Rate limited during JSON fetch (HTTP 429) - waiting {}s as requested",
                         wait_time
                     );
-                    progress.set_message(format!("{} {}", "⏳".yellow(), wait_reason));
+                    reporter.message(format!("{} {}", "⏳", wait_reason));
 
                     tokio::time::sleep(std::time::Duration::from_secs(wait_time)).await;
                     continue;
@@ -238,9 +227,9 @@ pub async fn fetch_json_metadata(
                                 max_retries + 1,
                                 e
                             );
-                            progress.set_message(format!(
+                            reporter.message(format!(
                                 "{} {} - retrying in {}s",
-                                "⏳".yellow(),
+                                "⏳",
                                 wait_reason,
                                 delay.as_secs()
                             ));
@@ -273,9 +262,9 @@ pub async fn fetch_json_metadata(
                         max_retries + 1,
                         e
                     );
-                    progress.set_message(format!(
+                    reporter.message(format!(
                         "{} {} - retrying in {}s",
-                        "⏳".yellow(),
+                        "⏳",
                         wait_reason,
                         delay.as_secs()
                     ));
@@ -306,9 +295,9 @@ pub async fn fetch_json_metadata(
 
     let metadata = parse_archive_metadata(&json_content)?;
 
-    progress.set_message(format!(
+    reporter.message(format!(
         "{} Successfully parsed metadata: {} files",
-        "✓".green(),
+        "✓",
         metadata.files.len()
     ));
 
@@ -328,12 +317,7 @@ pub async fn fetch_json_metadata(
 /// * `Err(IaGetError)` - Parsing failed with context for debugging
 pub fn parse_archive_metadata(json_content: &str) -> Result<ArchiveMetadata> {
     match serde_json::from_str::<ArchiveMetadata>(json_content) {
-        Ok(metadata) => {
-            if metadata.files.is_empty() {
-                eprintln!("Warning: Parsed JSON metadata but found no files");
-            }
-            Ok(metadata)
-        }
+        Ok(metadata) => Ok(metadata),
         Err(e) => {
             // Provide helpful debugging information
             // Debug JSON parsing failures (disabled in tests to reduce noise)

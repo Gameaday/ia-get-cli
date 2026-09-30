@@ -10,13 +10,15 @@ use tokio::signal;
 
 use ia_get::{
     DownloadRequest, DownloadResult, DownloadService,
-    core::session::DownloadState,
     core::session::sanitize_filename_for_filesystem,
+    core::session::{DownloadSession, DownloadState},
     interface::cli::{
         analyze_archive_metadata, build_cli, display_api_health, get_source_types_from_matches,
     },
+    interface::progress::IndicatifReporter,
     utilities::filters::format_size,
 };
+use std::sync::Arc;
 
 /// Show an interactive menu when no arguments are provided
 async fn show_interactive_menu() -> Result<()> {
@@ -33,6 +35,60 @@ async fn show_interactive_menu() -> Result<()> {
             eprintln!("{} Interactive CLI error: {}", "❌".red(), e);
             Err(anyhow::anyhow!("Interactive CLI error: {}", e))
         }
+    }
+}
+
+/// Display a download summary after completion.
+fn display_download_summary(session: &DownloadSession, request: &DownloadRequest) {
+    let completed_files = session
+        .file_status
+        .values()
+        .filter(|status| matches!(status.status, DownloadState::Completed))
+        .count();
+    let total_files = session.file_status.len();
+    let total_bytes: u64 = session
+        .file_status
+        .values()
+        .filter(|status| matches!(status.status, DownloadState::Completed))
+        .map(|status| status.file_info.size.unwrap_or(0))
+        .sum();
+
+    println!(
+        "
+{} Download Summary:",
+        "📋".blue().bold()
+    );
+    println!("  📂 Archive: {}", session.identifier);
+    println!(
+        "  📁 Output directory: {}",
+        request.output_dir.display().to_string().bright_green()
+    );
+    println!("  📊 Files downloaded: {}/{}", completed_files, total_files);
+    println!(
+        "  💾 Total size: {}",
+        format_size(total_bytes).bright_blue()
+    );
+
+    if completed_files < total_files {
+        println!(
+            "
+{} Some files were not downloaded:",
+            "⚠️".yellow()
+        );
+        for (filename, status) in &session.file_status {
+            if !matches!(status.status, DownloadState::Completed) {
+                if let Some(err) = &status.error_message {
+                    println!("  • {} - Failed: {}", filename, err.red());
+                } else {
+                    println!("  • {} - {:?}", filename, status.status);
+                }
+            }
+        }
+        println!(
+            "
+💡 Use {} to retry failed downloads",
+            "--resume".bright_blue()
+        );
     }
 }
 
@@ -456,7 +512,8 @@ async fn main() -> Result<()> {
     let service = DownloadService::new().context("Failed to create download service")?;
 
     // Execute download using unified API
-    match service.download(request.clone(), None).await {
+    let reporter = Arc::new(IndicatifReporter::new());
+    match service.download(request.clone(), reporter).await {
         Ok(DownloadResult::Success(session, api_stats, _is_dry_run)) => {
             if !dry_run {
                 println!("\n{} Download completed successfully!", "✅".green().bold());
@@ -464,7 +521,7 @@ async fn main() -> Result<()> {
                     "📁 Output directory: {}",
                     output_dir.display().to_string().bright_green()
                 );
-                DownloadService::display_download_summary(&session, &request);
+                display_download_summary(&session, &request);
 
                 // Display Archive.org API statistics
                 if let Some(stats) = api_stats {

@@ -3,8 +3,8 @@
 //! Handles automatic decompression of common archive formats
 //! downloaded from Internet Archive following their compression guidelines.
 
+use crate::core::progress::ProgressReporter;
 use crate::{IaGetError, Result};
-use indicatif::ProgressBar;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -110,13 +110,13 @@ pub fn decompress_file<P: AsRef<Path>>(
     input_path: P,
     output_path: P,
     format: CompressionFormat,
-    progress_bar: Option<&ProgressBar>,
+    reporter: Option<&dyn ProgressReporter>,
 ) -> Result<()> {
     let input_path = input_path.as_ref();
     let output_path = output_path.as_ref();
 
-    if let Some(pb) = progress_bar {
-        pb.set_message(format!("Decompressing {:?} file...", format));
+    if let Some(reporter) = reporter {
+        reporter.message(format!("Decompressing {:?} file...", format));
     }
 
     match format {
@@ -130,8 +130,8 @@ pub fn decompress_file<P: AsRef<Path>>(
         CompressionFormat::Tar => decompress_tar(input_path, output_path)?,
     }
 
-    if let Some(pb) = progress_bar {
-        pb.set_message("Decompression completed");
+    if let Some(reporter) = reporter {
+        reporter.message("Decompression completed".to_string());
     }
 
     Ok(())

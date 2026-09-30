@@ -20,13 +20,13 @@
 //! ```rust,no_run
 //! use ia_get::{core::archive::fetch_json_metadata, core::download::ArchiveDownloader};
 //! use reqwest::Client;
-//! use indicatif::ProgressBar;
+//! use ia_get::core::progress::NoopReporter;
 //! use std::path::PathBuf;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let client = Client::new();
-//!     let progress = ProgressBar::new_spinner();
+//!     let progress = NoopReporter;
 //!     
 //!     // Fetch archive metadata
 //!     let (metadata, _url) = fetch_json_metadata("identifier", &client, &progress, None).await?;
@@ -64,8 +64,9 @@ pub use core::archive::{
     parse_archive_metadata,
 };
 pub use core::download::{DownloadRequest, DownloadResult, DownloadService};
+pub use core::progress::{NoopReporter, ProgressEvent, ProgressReporter, SharedReporter};
 pub use core::session::{
-    ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState, ProgressUpdate,
+    ArchiveFile, ArchiveMetadata, DownloadConfig, DownloadSession, DownloadState,
     sanitize_filename_for_filesystem,
 };
 pub use infrastructure::api::{

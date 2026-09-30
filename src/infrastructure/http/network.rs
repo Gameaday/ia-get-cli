@@ -2,15 +2,15 @@
 //!
 //! Handles HTTP requests, retries, and response processing for Internet Archive interactions.
 
+use crate::core::progress::ProgressReporter;
 use crate::{Result, error::IaGetError, utilities::common::HTTP_TIMEOUT};
-use colored::*;
 use reqwest::Client;
 
 /// Checks if a URL is accessible by sending appropriate request method, with retry logic and dynamic wait reasons
 pub async fn is_url_accessible(
     url: &str,
     client: &Client,
-    spinner: Option<&indicatif::ProgressBar>,
+    reporter: Option<&dyn ProgressReporter>,
 ) -> Result<()> {
     let mut retries = 0;
     let max_retries = 5;
@@ -55,10 +55,10 @@ pub async fn is_url_accessible(
                         "Rate limited by server (HTTP 429) - waiting {}s as requested",
                         wait_time
                     );
-                    if let Some(spinner) = spinner {
-                        spinner.set_message(format!("{} {}", "⏳".yellow(), wait_reason));
+                    if let Some(reporter) = reporter {
+                        reporter.message(format!("⏳ {}", wait_reason));
                     } else {
-                        eprintln!("{} {}", "▲".yellow(), wait_reason);
+                        eprintln!("{}", wait_reason);
                     }
 
                     tokio::time::sleep(std::time::Duration::from_secs(wait_time)).await;
@@ -76,10 +76,10 @@ pub async fn is_url_accessible(
                             max_retries
                         );
 
-                        if let Some(spinner) = spinner {
-                            spinner.set_message(format!("{} {}", "⏳".yellow(), wait_reason));
+                        if let Some(reporter) = reporter {
+                            reporter.message(format!("⏳ {}", wait_reason));
                         } else {
-                            eprintln!("{} {}", "▲".yellow(), wait_reason);
+                            eprintln!("{}", wait_reason);
                         }
 
                         retries += 1;
@@ -102,10 +102,10 @@ pub async fn is_url_accessible(
                         max_retries
                     );
 
-                    if let Some(spinner) = spinner {
-                        spinner.set_message(format!("{} {}", "⏳".yellow(), wait_reason));
+                    if let Some(reporter) = reporter {
+                        reporter.message(format!("⏳ {}", wait_reason));
                     } else {
-                        eprintln!("{} {}", "▲".yellow(), wait_reason);
+                        eprintln!("{}", wait_reason);
                     }
 
                     retries += 1;

@@ -4,6 +4,7 @@
 
 pub mod archive;
 pub mod download;
+pub mod progress;
 pub mod session;
 
 // Re-export commonly used core types
