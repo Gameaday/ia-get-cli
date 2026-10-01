@@ -1,0 +1,139 @@
+From 0b5b42a62f7b6bab359af8f0cff8935512afc87a Mon Sep 17 00:00:00 2001
+From: Cline <cline@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 15:34:06 +0000
+Subject: [PATCH] ci(release): publish the built archives and fix the release
+ notes
+
+The release workflow built an archive for every target but never attached
+them to the release. The packaging step creates the zip inside artifacts/
+(cd artifacts before zipping), while the upload glob ia-get-*-<target>.* is
+resolved from the workspace root, so softprops/action-gh-release reported
+'Pattern ... does not match any files' and only the two root-level files
+(HASHES_<target>.md and RELEASE_HASHES.txt) reached the release. v2.1.0
+shipped with no binaries at all. Match artifacts/ as well; the asset name
+is the basename, so the published names are unchanged.
+
+Also fixed:
+
+- RELEASE_HASHES.txt was uploaded by all eight matrix jobs and the last one
+to finish won. The surviving copy on v2.1.0 contains only the Windows
+hashes, yet the notes tell users to run 'sha256sum -c RELEASE_HASHES.txt'
+for every platform. Each job now uploads RELEASE_HASHES_<target>.txt and
+the update_release_notes job assembles one combined file from the
+per-target HASHES_<target>.md files.
+
+- The release-notes heredoc used a quoted delimiter (<< 'EOF'), so
+${TAG_NAME}, the changelog insert and the checksum block were emitted
+literally. The v2.1.0 body ships with the text 'Release ${TAG_NAME}' and
+'$(head -n 100 CHANGELOG.md | tail -n +3)' in it.
+
+- Hash collection used the nonexistent jq field .downloadUrl, so nothing was
+ever collected and the checksum block always fell back to its placeholder.
+It now downloads the per-target files with 'gh release download', which
+also needs GITHUB_TOKEN in the workflow environment.
+---
+ .github/workflows/release.yml | 54 ++++++++++++++++++++++++++++-------
+ 1 file changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 9621f34..b97d5c5 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -212,6 +212,13 @@ jobs:
+             fi
+           done
+ 
++          # Publish one checksum file per target. Every matrix job would
++          # otherwise upload a file called RELEASE_HASHES.txt, and whichever job
++          # finished last would silently overwrite the others, leaving a single
++          # checksum file that only describes one platform. The combined file is
++          # assembled later by the update_release_notes job.
++          cp ../RELEASE_HASHES.txt "../RELEASE_HASHES_${TARGET}.txt"
++
+       - name: Generate release notes with hashes
+         shell: bash
+         run: |
+@@ -235,8 +242,9 @@ jobs:
+         with:
+           files: |
+             ia-get-*-${{ matrix.job.target }}.*
++            artifacts/ia-get-*-${{ matrix.job.target }}.*
+             ia-get*.deb
+-            RELEASE_HASHES.txt
++            RELEASE_HASHES_${{ matrix.job.target }}.txt
+             HASHES_${{ matrix.job.target }}.md
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+@@ -251,20 +259,32 @@ jobs:
+       - name: Checkout repository
+         uses: actions/checkout@v5
+ 
+-      - name: Download release assets to collect hashes
++      - name: Collect per-target hashes and build release notes
+         shell: bash
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         run: |
+           TAG_NAME=${GITHUB_REF#refs/tags/}
+           
+-          # Get all release hash files and combine them
+-          gh release view $TAG_NAME --json assets --jq '.assets[] | select(.name | test("RELEASE_HASHES.txt|HASHES_.*\\.md")) | .downloadUrl' | while read url; do
+-            if [[ "$url" == *"RELEASE_HASHES.txt"* ]]; then
+-              curl -sL "$url" >> ALL_HASHES.txt
+-            fi
+-          done || true
+-          
++          # Each matrix job publishes HASHES_<target>.md, which lists the archive
++          # it built along with that archive's SHA256. Collect the archive
++          # entries: every archive has a target-specific name, so the result is a
++          # valid `sha256sum -c` file covering the whole release.
++          mkdir -p hashes
++          gh release download "$TAG_NAME" --pattern 'HASHES_*.md' --dir hashes --clobber
++
++          : > RELEASE_HASHES.txt
++          for f in hashes/*.md; do
++            sed -nE 's/^- \*\*(ia-get[^*]+\.(zip|deb))\*\*: `([0-9a-f]{64})`$/\3  \1/p' "$f" >> RELEASE_HASHES.txt
++          done
++          sort -u -o RELEASE_HASHES.txt RELEASE_HASHES.txt
++          cp RELEASE_HASHES.txt ALL_HASHES.txt
++          echo "Collected $(wc -l < RELEASE_HASHES.txt) archive checksum(s)"
++
+           # Generate comprehensive release notes
+-          cat > FINAL_RELEASE_NOTES.md << 'EOF'
++          # NOTE: the heredoc delimiter must stay unquoted so that ${TAG_NAME},
++          # the changelog and the checksum block are expanded.
++          cat > FINAL_RELEASE_NOTES.md << EOF
+           # 🚀 Release ${TAG_NAME}
+           
+           ## 📥 Downloads
+@@ -284,7 +304,7 @@ jobs:
+           All artifacts include SHA256 checksums for integrity verification:
+           
+           \`\`\`
+-          $([ -f ALL_HASHES.txt ] && cat ALL_HASHES.txt || echo "Checksums will be available shortly...")
++          $([ -s ALL_HASHES.txt ] && cat ALL_HASHES.txt || echo "Checksums will be available shortly...")
+           \`\`\`
+           
+           **Usage**: Download the RELEASE_HASHES.txt file and run \`sha256sum -c RELEASE_HASHES.txt\`
+@@ -298,6 +318,18 @@ jobs:
+           For development builds and latest changes, see the [development release](https://github.com/Gameaday/ia-get-cli/releases/tag/development).
+           EOF
+ 
++      - name: Upload combined checksum file
++        shell: bash
++        run: |
++          TAG_NAME=${GITHUB_REF#refs/tags/}
++          if [ -s RELEASE_HASHES.txt ]; then
++            gh release upload "$TAG_NAME" RELEASE_HASHES.txt --clobber
++          else
++            echo "::warning::No archive checksums were collected; RELEASE_HASHES.txt was not published"
++          fi
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++
+       - name: Update release with comprehensive notes
+         shell: bash
+         run: |
+-- 
+2.39.5
+
