@@ -1,0 +1,82 @@
+From 962c24c2d37acbecfe33d2b20fe74d382c92ce39 Mon Sep 17 00:00:00 2001
+From: Cline <cline@users.noreply.github.com>
+Date: Fri, 2 Oct 2026 12:10:16 +0000
+Subject: [PATCH 3/3] ci: remove the duplicate, never-firing release job from
+ rust-ci.yml
+
+rust-ci.yml carried a second 'Create Release' job that competed with
+release.yml for the same release. It could never run in practice: it is gated
+on github.event_name == 'release', and the release that release.yml creates is
+made with GITHUB_TOKEN, which by design does not trigger further workflow runs.
+That is why no run with event=release exists anywhere in the repository's
+history -- the v2.1.0 release had zero such runs.
+
+The job was broken besides: it uploaded with
+'files: artifacts/*.{tar.gz,zip}', brace alternation is not supported by
+@actions/glob (that syntax needs one line per pattern), and it pinned
+softprops/action-gh-release@v1 while release.yml uses @v2. Its asset names
+(ia-get-linux-x86_64.tar.gz) also disagreed with release.yml's
+(ia-get-<tag>-<target>.zip) and it produced no checksums.
+
+Publishing now has exactly one owner: release.yml. The test/build jobs and the
+artifact uploads they perform are unchanged, and an explicit
+permissions: contents: read is declared for this workflow.
+---
+ .github/workflows/rust-ci.yml | 40 +++++------------------------------
+ 1 file changed, 5 insertions(+), 35 deletions(-)
+
+diff --git a/.github/workflows/rust-ci.yml b/.github/workflows/rust-ci.yml
+index 78c49e8..f1785ba 100644
+--- a/.github/workflows/rust-ci.yml
++++ b/.github/workflows/rust-ci.yml
+@@ -16,6 +16,11 @@ env:
+   CARGO_TERM_COLOR: always
+   CARGO_INCREMENTAL: 1
+ 
++# CI only reads the repository. The pipeline that publishes assets is
++# .github/workflows/release.yml.
++permissions:
++  contents: read
++
+ jobs:
+   test:
+     name: Test (${{ matrix.os }})
+@@ -142,38 +147,3 @@ jobs:
+           target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}
+           target/${{ matrix.target }}/release/ia-get${{ runner.os == 'Windows' && '.exe' || '' }}.sha256
+         retention-days: 30
+-
+-  release:
+-    name: Create Release
+-    runs-on: ubuntu-latest
+-    needs: build
+-    if: github.event_name == 'release'
+-    
+-    steps:
+-    - uses: actions/checkout@v5
+-    
+-    - name: Download all artifacts
+-      uses: actions/download-artifact@v4
+-      with:
+-        path: artifacts
+-    
+-    - name: Create archives
+-      run: |
+-        cd artifacts
+-        for dir in */; do
+-          artifact_name="${dir%/}"
+-          cd "$dir"
+-          if [[ -f *.exe ]]; then
+-            zip "../${artifact_name}.zip" *
+-          else
+-            tar czf "../${artifact_name}.tar.gz" *
+-          fi
+-          cd ..
+-        done
+-    
+-    - name: Upload to release
+-      uses: softprops/action-gh-release@v1
+-      with:
+-        files: artifacts/*.{tar.gz,zip}
+-      env:
+-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

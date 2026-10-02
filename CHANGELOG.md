@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.1.1] - 2026-10-01
+
+### 🐛 Fixes
+- **Release artifacts**: v2.1.0 was published without any binaries. The release
+  workflow built an archive for every target, but the packaging step writes the
+  archive to `artifacts/` while the upload pattern was only matched from the
+  repository root, so every archive was discarded with the runner. All eight
+  target archives are now attached to the release.
+- **Release checksums**: the `RELEASE_HASHES.txt` asset was uploaded by every
+  matrix job under the same name, so whichever job finished last won — the file
+  attached to v2.1.0 describes the Windows build only. It is now assembled once
+  from the per-target checksum files and covers every platform.
+- **Release notes**: the notes were generated with a quoted heredoc, so the
+  version number and the changelog insert were published literally as
+  `${TAG_NAME}` and `$(head -n 100 CHANGELOG.md | tail -n +3)`.
+
+### 🧹 Maintenance
+- The release workflow now declares `permissions: contents: write` explicitly
+  and no longer installs unused cross toolchain packages.
+- Removed the duplicate release job in `rust-ci.yml`, which could never run: a
+  release created with `GITHUB_TOKEN` does not trigger further workflows.
+- Removed the orphaned `.github/workflows/before_deploy.sh`.
+
 ## [2.1.0] - 2026-09-28
 
 First release of the Rust-only CLI. Since v1.7.1 the project has been

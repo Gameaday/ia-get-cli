@@ -1,0 +1,352 @@
+From f1b2c21704460aef9183179d66db84a2a70da08d Mon Sep 17 00:00:00 2001
+From: Cline <cline@users.noreply.github.com>
+Date: Fri, 2 Oct 2026 12:09:51 +0000
+Subject: [PATCH 2/3] ci(release): clean up the publishing job
+
+- Drop the second 'Checkout repository' step. It ran after the toolchain
+  install and re-checked out a tree that was already current.
+- Move the binutils install ahead of the build (it used to run after it) and
+  then remove it entirely: it existed only to provide a cross 'strip' for
+  before_deploy.sh, which nothing invoked. Cargo already strips the release
+  binary via the 'strip = true' profile setting.
+- Replace MACOSX_DEPLOYMENT_TARGET 10.7 with 10.13. 10.7 is below the floor of
+  every currently supported Rust target and is silently ignored on the musl,
+  ARM and Windows runners it was applied to.
+- Declare permissions: contents: write explicitly instead of relying on the
+  repository default token scope.
+- Delete the orphaned .github/workflows/before_deploy.sh. The packaging step
+  claimed it 'will run automatically on release builds'; no workflow has ever
+  referenced it. It was also the only thing that built .deb packages and wrote
+  archives to the repository root, which is what the original upload glob
+  expected -- the inline replacement moved the archives into artifacts/ and
+  did not update the glob.
+- Drop the now-dead 'ia-get*.deb' upload pattern, the stale '--features gui'
+  comments (the GUI was deleted in 2.1.0) and the hardcoded Gameaday/ia-get-cli
+  release URLs (use github.repository).
+---
+ .github/workflows/before_deploy.sh | 193 -----------------------------
+ .github/workflows/release.yml      |  54 ++++----
+ 2 files changed, 24 insertions(+), 223 deletions(-)
+ delete mode 100755 .github/workflows/before_deploy.sh
+
+diff --git a/.github/workflows/before_deploy.sh b/.github/workflows/before_deploy.sh
+deleted file mode 100755
+index 542c944..0000000
+--- a/.github/workflows/before_deploy.sh
++++ /dev/null
+@@ -1,193 +0,0 @@
+-#!/usr/bin/env bash
+-# Building and packaging for release
+-
+-set -ex
+-
+-pack() {
+-    local tempdir
+-    local out_dir
+-    local package_name
+-    local gcc_prefix
+-
+-    tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
+-    out_dir=$(pwd)
+-    package_name="$PROJECT_NAME-${GITHUB_REF/refs\/tags\//}-$TARGET"
+-
+-    if [[ $TARGET == "arm-unknown-linux-gnueabihf" ]]; then
+-        gcc_prefix="arm-linux-gnueabihf-"
+-    elif [[ $TARGET == "aarch64-unknown-linux-gnu" ]]; then
+-        gcc_prefix="aarch64-linux-gnu-"
+-    else
+-        gcc_prefix=""
+-    fi
+-
+-    # create a "staging" directory
+-    mkdir "$tempdir/$package_name"
+-
+-    # copying the main binary
+-    cp "target/$TARGET/release/$PROJECT_NAME" "$tempdir/$package_name/"
+-    if [ "$OS_NAME" != windows-latest ]; then
+-        "${gcc_prefix}"strip "$tempdir/$package_name/$PROJECT_NAME"
+-    fi
+-
+-    # manpage, readme and license
+-    cp README.md "$tempdir/$package_name"
+-    cp LICENSE "$tempdir/$package_name"
+-
+-    # archiving
+-    pushd "$tempdir"
+-    if [ "$OS_NAME" = windows-latest ]; then
+-        7z a "$out_dir/$package_name.zip" "$package_name"/*
+-        cd "$out_dir"
+-        # Calculate and display hash without creating separate file
+-        hash=$(sha256sum "$package_name.zip" | cut -d' ' -f1)
+-        echo "$hash  $package_name.zip" >> RELEASE_HASHES.txt
+-        echo "✅ Archive created: $package_name.zip (SHA256: $hash)"
+-    else
+-        zip -r "$out_dir/$package_name.zip" "$package_name"/*
+-        cd "$out_dir"
+-        # Calculate and display hash without creating separate file
+-        hash=$(sha256sum "$package_name.zip" | cut -d' ' -f1)
+-        echo "$hash  $package_name.zip" >> RELEASE_HASHES.txt
+-        echo "✅ Archive created: $package_name.zip (SHA256: $hash)"
+-    fi
+-    popd
+-    rm -r "$tempdir"
+-}
+-
+-make_deb() {
+-    local tempdir
+-    local architecture
+-    local version
+-    local dpkgname
+-    local conflictname
+-    local gcc_prefix
+-    local homepage
+-    local maintainer
+-
+-    homepage="https://github.com/Gameaday/ia-get-cli"
+-    maintainer="Fork Maintainer <gameaday@users.noreply.github.com>"
+-    copyright_years="2023 - "$(date "+%Y")
+-
+-    case $TARGET in
+-        x86_64*)
+-            architecture=amd64
+-            gcc_prefix=""
+-            library_dir=""
+-            ;;
+-        i686*)
+-            architecture=i386
+-            gcc_prefix=""
+-            library_dir=""
+-            ;;
+-        aarch64*)
+-            architecture=arm64
+-            gcc_prefix="aarch64-linux-gnu-"
+-            library_dir="-l/usr/aarch64-linux-gnu/lib"
+-            ;;
+-        arm*hf)
+-            architecture=armhf
+-            gcc_prefix="arm-linux-gnueabihf-"
+-            library_dir="-l/usr/arm-linux-gnueabihf/lib"
+-            ;;
+-        *)
+-            echo "make_deb: skipping target '${TARGET}'" >&2
+-            return 0
+-            ;;
+-    esac
+-    version=${GITHUB_REF/refs\/tags\//}
+-
+-    if [[ $TARGET = *musl* ]]; then
+-      dpkgname=$PACKAGE_NAME-musl
+-      conflictname=$PROJECT_NAME
+-    else
+-      dpkgname=$PACKAGE_NAME
+-      conflictname=$PROJECT_NAME-musl
+-    fi
+-
+-    tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
+-
+-    # copy the main binary
+-    install -Dm755 "target/$TARGET/release/$PROJECT_NAME" "$tempdir/usr/bin/$PROJECT_NAME"
+-    "${gcc_prefix}"strip "$tempdir/usr/bin/$PROJECT_NAME"
+-
+-    # Work out shared library dependencies
+-    # dpkg-shlibdeps requires debian/control file. Dummy it and clean up
+-    mkdir "./debian"
+-    touch "./debian/control"
+-    depends="$(dpkg-shlibdeps $library_dir -O "$tempdir/usr/bin/$PROJECT_NAME" 2> /dev/null | sed 's/^shlibs:Depends=//')"
+-    rm -rf "./debian"
+-
+-    # readme and license
+-    install -Dm644 README.md "$tempdir/usr/share/doc/$dpkgname/README.md"
+-    cat > "$tempdir/usr/share/doc/$dpkgname/copyright" <<EOF
+-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+-Upstream-Name: $PROJECT_NAME
+-Source: $homepage
+-
+-Files: *
+-Copyright: $copyright_years $maintainer
+-License: MIT
+-
+-License: MIT
+- Permission is hereby granted, free of charge, to any
+- person obtaining a copy of this software and associated
+- documentation files (the "Software"), to deal in the
+- Software without restriction, including without
+- limitation the rights to use, copy, modify, merge,
+- publish, distribute, sublicense, and/or sell copies of
+- the Software, and to permit persons to whom the Software
+- is furnished to do so, subject to the following
+- conditions:
+- .
+- The above copyright notice and this permission notice
+- shall be included in all copies or substantial portions
+- of the Software.
+- .
+- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+- ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+- TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+- PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+- SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+- CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+- OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+- IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- DEALINGS IN THE SOFTWARE.
+-EOF
+-    chmod 644 "$tempdir/usr/share/doc/$dpkgname/copyright"
+-
+-    # Control file
+-    mkdir "$tempdir/DEBIAN"
+-    cat > "$tempdir/DEBIAN/control" <<EOF
+-Package: $dpkgname
+-Version: $version
+-Section: utils
+-Priority: optional
+-Maintainer: Fork Maintainer <gameaday@users.noreply.github.com>
+-Architecture: $architecture
+-Depends: $depends
+-Conflicts: $conflictname
+-Description: High-performance file downloader for archive.org (heavily modified fork)
+- Pass the URL of an archive.org details page you want to download and ia-get
+- will automatically get the JSON metadata and download all files to the current
+- working directory. This is a heavily modified fork with modern JSON APIs and
+- enhanced features.
+-EOF
+-
+-    fakeroot dpkg-deb -Zgzip --build "$tempdir" "${dpkgname}_${version}_${architecture}.deb"
+-    
+-    # Calculate and display hash without creating separate file
+-    hash=$(sha256sum "${dpkgname}_${version}_${architecture}.deb" | cut -d' ' -f1)
+-    echo "$hash  ${dpkgname}_${version}_${architecture}.deb" >> RELEASE_HASHES.txt
+-    echo "✅ .deb package created: ${dpkgname}_${version}_${architecture}.deb (SHA256: $hash)"
+-}
+-
+-
+-main() {
+-    pack
+-    if [[ $TARGET = *linux* ]]; then
+-      make_deb
+-    fi
+-}
+-
+-main
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index b97d5c5..280b511 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -1,8 +1,8 @@
+ name: Build 🏗️ and Publish 📦️
+ 
+-# This workflow builds release artifacts for all platforms:
+-# - Rust CLI: Terminal-first with search and batch operations (default)
+-# - Rust GUI: Optional graphical interface (--features gui)
++# This workflow builds and publishes release artifacts for all supported
++# targets. ia-get is CLI-only; the GUI and the Flutter mobile app were removed
++# before v2.1.0.
+ 
+ # Cancel previous runs when new tags are pushed
+ concurrency:
+@@ -27,6 +27,11 @@ on:
+       - 'v[0-9]+.[0-9]+.[0-9]+'
+       - '[0-9]+.[0-9]+.[0-9]+'
+ 
++# Creating the release and uploading assets needs a writable token; the
++# repository default is not guaranteed to be read-write.
++permissions:
++  contents: write
++
+ jobs:
+ 
+   publish:
+@@ -69,38 +74,27 @@ jobs:
+         uses: dtolnay/rust-toolchain@stable
+         with:
+           targets: ${{ matrix.job.target }}
+-      - name: Checkout repository
+-        uses: actions/checkout@v5
+       - name: Install cross
+         if: matrix.job.use-cross
+         uses: taiki-e/install-action@v2
+         with:
+           tool: cross
++
+       - name: Cargo build
+-        env:
+-          MACOSX_DEPLOYMENT_TARGET: 10.7
+         shell: bash
++        env:
++          # Ignored on non-Apple runners. 10.7 (Lion) is below the floor of any
++          # currently supported Rust target; 10.13 (High Sierra) is the oldest
++          # still supported by rustc.
++          MACOSX_DEPLOYMENT_TARGET: 10.13
+         run: |
+-          # Build with CLI as default - terminal-first approach with search and batch operations
+-          # GUI is available via --features gui
++          # The CLI is built by default; ia-get is CLI-only as of v2.1.0.
+           if [[ "${{ matrix.job.use-cross }}" == "true" ]]; then
+             cross build --release --target ${{ matrix.job.target }}
+           else
+             cargo build --release --target ${{ matrix.job.target }}
+           fi
+ 
+-      - name: Install required dependencies
+-        shell: bash
+-        run: |
+-          if [[ ${{ matrix.job.target }} == arm-unknown-linux-gnueabihf ]]; then
+-            DEBIAN_FRONTEND=noninteractive sudo apt-get -y update
+-            DEBIAN_FRONTEND=noninteractive sudo apt-get -y install binutils-arm-linux-gnueabihf
+-          fi
+-          if [[ ${{ matrix.job.target }} == aarch64-unknown-linux-gnu ]]; then
+-            DEBIAN_FRONTEND=noninteractive sudo apt-get -y update
+-            DEBIAN_FRONTEND=noninteractive sudo apt-get -y install binutils-aarch64-linux-gnu
+-          fi
+-
+       - name: Sign Windows executable (Self-Signed)
+         if: matrix.job.target == 'x86_64-pc-windows-msvc' && matrix.job.os == 'windows-latest'
+         shell: powershell
+@@ -168,8 +162,9 @@ jobs:
+           PACKAGE_NAME: ia-get
+           OS_NAME: ${{ matrix.job.os }}
+         run: |
+-          # Use the build script for packaging (it will run automatically on release builds)
+-          # Just ensure artifacts are created and calculate hashes
++          # Stage the binary plus documentation, then archive them. The archive
++          # is written inside artifacts/, which is why the upload step has to
++          # match "artifacts/ia-get-*" and not just the repository root.
+           mkdir -p artifacts
+           
+           # Handle Windows vs Unix binary names
+@@ -243,7 +238,6 @@ jobs:
+           files: |
+             ia-get-*-${{ matrix.job.target }}.*
+             artifacts/ia-get-*-${{ matrix.job.target }}.*
+-            ia-get*.deb
+             RELEASE_HASHES_${{ matrix.job.target }}.txt
+             HASHES_${{ matrix.job.target }}.md
+         env:
+@@ -291,13 +285,13 @@ jobs:
+           
+           ### 🖥️ Rust CLI - Terminal First
+           Terminal-optimized implementation with search and batch operations:
+-          - **Linux (x86_64)**: [ia-get-${TAG_NAME}-x86_64-unknown-linux-gnu.zip](https://github.com/Gameaday/ia-get-cli/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-unknown-linux-gnu.zip)
+-          - **Windows (x86_64)**: [ia-get-${TAG_NAME}-x86_64-pc-windows-msvc.zip](https://github.com/Gameaday/ia-get-cli/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-pc-windows-msvc.zip)
+-          - **macOS (x86_64)**: [ia-get-${TAG_NAME}-x86_64-apple-darwin.zip](https://github.com/Gameaday/ia-get-cli/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-apple-darwin.zip)
+-          - **macOS (ARM64)**: [ia-get-${TAG_NAME}-aarch64-apple-darwin.zip](https://github.com/Gameaday/ia-get-cli/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-aarch64-apple-darwin.zip)
++          - **Linux (x86_64)**: [ia-get-${TAG_NAME}-x86_64-unknown-linux-gnu.zip](https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-unknown-linux-gnu.zip)
++          - **Windows (x86_64)**: [ia-get-${TAG_NAME}-x86_64-pc-windows-msvc.zip](https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-pc-windows-msvc.zip)
++          - **macOS (x86_64)**: [ia-get-${TAG_NAME}-x86_64-apple-darwin.zip](https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-x86_64-apple-darwin.zip)
++          - **macOS (ARM64)**: [ia-get-${TAG_NAME}-aarch64-apple-darwin.zip](https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/ia-get-${TAG_NAME}-aarch64-apple-darwin.zip)
+           
+           ### All Platforms
+-          See the **Assets** section below for all supported platforms including Linux ARM, musl variants, and .deb packages.
++          See the **Assets** section below for all supported platforms, including Linux ARM and musl variants.
+           
+           ## 🔐 Integrity Verification
+           
+@@ -315,7 +309,7 @@ jobs:
+           
+           ---
+           
+-          For development builds and latest changes, see the [development release](https://github.com/Gameaday/ia-get-cli/releases/tag/development).
++          For development builds and latest changes, see the [development release](https://github.com/${{ github.repository }}/releases/tag/development).
+           EOF
+ 
+       - name: Upload combined checksum file
